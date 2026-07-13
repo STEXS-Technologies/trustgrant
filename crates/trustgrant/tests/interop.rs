@@ -55,7 +55,10 @@ fn make_metadata(verified_at: DateTime<Utc>) -> VerificationMetadata {
             .unwrap_or_else(|e| panic!("invalid key record: {e}")),
             SignatureProfile::new("jcs+ed25519", "RFC8785")
                 .unwrap_or_else(|e| panic!("invalid profile: {e}")),
-            None,
+            Some(
+                trustgrant::discovery::DelegatedPrincipalRef::new("service", "issuer-worker")
+                    .unwrap_or_else(|e| panic!("invalid principal ref: {e}")),
+            ),
         ),
         OwnershipVerificationRecord::new(
             AuthorityId::new("https://issuer.example.com")
