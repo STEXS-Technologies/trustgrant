@@ -1,0 +1,91 @@
+{
+  "description": "Recognize grant — resource namespace in both allow and deny; deny wins",
+  "trustgrant": {
+    "trustgrant_id": "tg_00000015-0015-4015-a015-000000000015",
+    "version": 0,
+    "grant_series_id": "tgs_00000015-0015-4015-a015-000000000015",
+    "revision": 1,
+    "supersedes": null,
+    "supersession_policy": "coexist",
+    "issuer_authority": "https://issuer.example.com",
+    "origin_authority": "https://issuer.example.com",
+    "active_owning_authority": "https://issuer.example.com",
+    "key_id": "root-key-1",
+    "target_scope": {
+      "all": false,
+      "allow": [
+        {
+          "kind": "authority",
+          "all": false,
+          "values": ["https://target.example.com"],
+          "expressions": null
+        }
+      ],
+      "deny": null
+    },
+    "capabilities": { "recognize": true, "mint": false },
+    "default_audience_scope": [
+      {
+        "authority_id": "https://audience.example.com",
+        "scope": { "all": true, "allow": null, "deny": null },
+        "principal_scope": null
+      }
+    ],
+    "resource_scope": {
+      "types": {
+        "item": {
+          "all": false,
+          "allow": [
+            {
+              "kind": "namespace",
+              "all": false,
+              "values": ["weapons"],
+              "expressions": null
+            }
+          ],
+          "deny": [
+            {
+              "kind": "namespace",
+              "all": false,
+              "values": ["weapons"],
+              "expressions": null
+            }
+          ],
+          "capabilities": { "recognize": true, "mint": false },
+          "constraints": {
+            "minting": { "max_total": null, "max_per_user": null },
+            "audience_scope": null
+          },
+          "operations": { "all": false, "allow": ["recognize"], "deny": null }
+        }
+      }
+    },
+    "global_constraints": {
+      "time": {
+        "not_before": "2026-01-01T00:00:00Z",
+        "not_after": "2027-01-01T00:00:00Z"
+      }
+    },
+    "revocation": {
+      "revocable": true,
+      "revocation_endpoint": "https://issuer.example.com/revocation"
+    },
+    "issued_at": "2026-06-01T12:00:00Z",
+    "signature": "valid-signature",
+    "issuer_principal": { "kind": "service", "id": "issuer-worker" }
+  },
+  "evaluations": [
+    {
+      "description": "resource namespace in both allow and deny — deny should win",
+      "request": {
+        "operation": "recognize",
+        "target_authority": "https://target.example.com",
+        "audience_authority": "https://audience.example.com",
+        "resource_type": "item",
+        "resource_selectors": { "namespace": ["weapons"] },
+        "evaluated_at": "2026-06-15T12:00:00Z"
+      },
+      "expected": { "Denied": "ResourceDenied" }
+    }
+  ]
+}

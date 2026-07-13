@@ -17,7 +17,7 @@
 //!   [`RevocationSource`], or [`StorageSource`] as needed. The application
 //!   calls these, assembles the bundle, then calls the verification pipeline.
 //!
-//! ```
+//! ```rust,ignore
 //! // Skip traits entirely — data already in hand:
 //! let mut bundle = TrustGrantProofBundle::new();
 //! bundle.insert_discovery_document(my_doc);

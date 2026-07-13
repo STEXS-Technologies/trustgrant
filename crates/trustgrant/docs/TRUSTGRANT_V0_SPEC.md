@@ -370,8 +370,7 @@ Canonical JSON form:
         "all": true,
         "allow": null,
         "deny": null
-      },
-      "principal_scope": null
+      }
     }
   ],
   "resource_scope": {
@@ -946,8 +945,6 @@ v1 operational direction:
 - **Change Log:**
   - v1.2 (2026-07-12): Fixed canonical example — target scope selector kind
     `"authority_id"` → `"authority"` to match built-in SelectorKind list (Section 2.2).
-    Added `"principal_scope": null` to audience entry for spec compliance with
-    struct definition.
   - v1.1 (2026-07-11): Resolved v0/v1 contradiction in operations; defined
     `recognize` as built-in operation name; documented reserved names
     (`recognize`, `mint`, `create`); documented custom operations as capability-
