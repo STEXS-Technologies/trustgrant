@@ -524,6 +524,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kani-proofs"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde_json",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"

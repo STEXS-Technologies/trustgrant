@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+trustgrant-discovery = { path = "../trustgrant-discovery" }
 trustgrant-document = { path = "../trustgrant-document" }
 trustgrant-domain = { path = "../trustgrant-domain" }
 trustgrant-error = { path = "../trustgrant-error" }
@@ -15,7 +16,6 @@ chrono = { version = "0.4.42", default-features = false, features = ["clock", "s
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
-trustgrant-discovery = { path = "../trustgrant-discovery" }
 
 [lints]
 workspace = true
