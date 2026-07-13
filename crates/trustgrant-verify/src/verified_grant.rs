@@ -198,7 +198,7 @@ impl NormalizedTrustGrantDocument {
             revocation: self.revocation.map(|revocation| {
                 RawRevocation::new(
                     revocation.revocable(),
-                    revocation.revocation_endpoint().clone(),
+                    revocation.revocation_endpoint(),
                 )
             }),
             issued_at: self.issued_at,

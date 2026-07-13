@@ -651,11 +651,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -765,11 +761,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -873,11 +865,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1407,11 +1395,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1524,11 +1508,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1639,11 +1619,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1773,11 +1749,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1897,11 +1869,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2015,11 +1983,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2176,11 +2140,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2322,11 +2282,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2475,11 +2431,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2634,11 +2586,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2758,11 +2706,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3311,11 +3255,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3443,11 +3383,7 @@ mod tests {
             }),
             revocation: Some(RawRevocation {
                 revocable: true,
-                revocation_endpoint: "https://issuer.example.com/revocation"
-                    .parse()
-                    .unwrap_or_else(|error| {
-                        panic!("fixed revocation endpoint should be valid: {error}")
-                    }),
+                revocation_endpoint: "https://issuer.example.com/revocation".into(),
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),

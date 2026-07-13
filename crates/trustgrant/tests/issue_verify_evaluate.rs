@@ -266,10 +266,9 @@ fn make_mint_grant_json() -> String {
 // Revocable recognize grant JSON (for revoked test)
 // ---------------------------------------------------------------------------
 
-/// Builds a revocable recognize grant JSON string directly (bypassing the
-/// draft API because `RawRevocation::new()` requires a `url::Url` which is
-/// not re-exported by the facade crate). This still exercises the full
-/// pipeline: the JSON is the signed output of an issuance step.
+/// Builds a revocable recognize grant JSON string directly. This still
+/// exercises the full pipeline: the JSON is the signed output of an issuance
+/// step.
 fn make_recognize_revocable_grant_json() -> String {
     // Build via the draft, get the signed doc, then re-parse and patch in
     // revocation. This is cleaner than hand-writing the full JSON.
@@ -286,9 +285,7 @@ fn make_recognize_revocable_grant_json() -> String {
         .unwrap_or_else(|error| panic!("re-parse should succeed: {error}"));
     raw.revocation = Some(trustgrant::document::raw::RawRevocation::new(
         true,
-        "https://issuer.example.com/revocation"
-            .parse()
-            .unwrap_or_else(|error| panic!("revocation URL should be valid: {error}")),
+        "https://issuer.example.com/revocation",
     ));
     raw.to_json_string()
         .unwrap_or_else(|error| panic!("final serialization should succeed: {error}"))

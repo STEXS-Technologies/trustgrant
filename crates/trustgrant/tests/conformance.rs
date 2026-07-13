@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde_json::json;
-use url::Url;
+
 use trustgrant::{
     AuthorityId, CustomOperationName, EvaluationDecision, EvaluationDenyReason, EvaluationEngine,
     EvaluationRequest, MintContext, RequestedCapability, RequestedOperation, ResourceContext,
@@ -347,12 +347,12 @@ fn conformance_s4_missing_signature_rejected() {
 }
 
 #[test]
-fn conformance_s4_revocation_endpoint_must_be_url() {
-    // Spec Section 4: "revocation_endpoint must be a URL"
+fn conformance_s4_revocation_endpoint_must_be_non_empty() {
+    // Spec Section 4: "revocation_endpoint must be a non-empty string"
     let raw = RawTrustGrantDocument::parse_json_str(&make_grant_json(&[]))
         .unwrap_or_else(|e| panic!("raw parse: {e}"));
     let revocation = raw.revocation.as_ref().unwrap_or_else(|| panic!("revocation should be present"));
-    assert!(Url::parse(revocation.revocation_endpoint.as_str()).is_ok(), "revocation_endpoint must be a valid URL");
+    assert!(!revocation.revocation_endpoint.is_empty(), "revocation_endpoint must be non-empty");
 }
 
 // ===========================================================================

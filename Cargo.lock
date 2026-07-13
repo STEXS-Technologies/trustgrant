@@ -1001,12 +1001,12 @@ name = "trustgrant-discovery"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "compact_str",
  "serde",
  "serde_json",
  "trustgrant-document",
  "trustgrant-domain",
  "trustgrant-error",
- "url",
  "uuid",
 ]
 
@@ -1020,7 +1020,6 @@ dependencies = [
  "serde_json",
  "trustgrant-domain",
  "trustgrant-error",
- "url",
  "uuid",
 ]
 
@@ -1145,7 +1144,6 @@ dependencies = [
  "trustgrant-ownership",
  "trustgrant-ports",
  "trustgrant-revocation",
- "url",
  "uuid",
 ]
 

@@ -4,7 +4,7 @@ use std::io::Write;
 use chrono::{DateTime, SecondsFormat, Utc};
 use compact_str::CompactString;
 use itoa::Buffer as ItoaBuffer;
-use url::Url;
+
 
 use trustgrant_document::raw::{
     RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
@@ -403,7 +403,7 @@ fn write_revocation_field(
     write_bytes(writer, b"{")?;
     write_bool_field(writer, "revocable", revocation.revocable)?;
     write_bytes(writer, b",")?;
-    write_url_field(
+    write_json_string_field(
         writer,
         "revocation_endpoint",
         &revocation.revocation_endpoint,
@@ -561,15 +561,6 @@ fn write_datetime_field(
     Ok(())
 }
 
-fn write_url_field(
-    writer: &mut Vec<u8>,
-    field_name: &str,
-    value: &Url,
-) -> Result<(), TrustGrantError> {
-    write_field_name(writer, field_name)?;
-    write_json_string(writer, value.as_str())
-}
-
 fn write_json_string(writer: &mut Vec<u8>, value: &str) -> Result<(), TrustGrantError> {
     serde_json::to_writer(writer, value).map_err(|_error| TrustGrantError::CanonicalizationFailure)
 }
@@ -606,7 +597,7 @@ mod tests {
 
     use chrono::{DateTime, Utc};
     use serde_json::Value;
-    use url::Url;
+
 
     use super::{CanonicalizationProfile, canonicalize_trustgrant};
     use trustgrant_document::raw::{
@@ -863,8 +854,7 @@ mod tests {
             )))),
             revocation: Some(RawRevocation::new(
                 true,
-                Url::parse("https://issuer.example.com/revocation")
-                    .unwrap_or_else(|error| panic!("valid fixture url: {error}")),
+                "https://issuer.example.com/revocation",
             )),
             issued_at: DateTime::parse_from_rfc3339("2026-04-07T12:00:00Z")
                 .unwrap_or_else(|error| panic!("valid fixture timestamp: {error}"))

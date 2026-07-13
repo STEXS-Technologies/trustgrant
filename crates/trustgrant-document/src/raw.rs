@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use trustgrant_domain::Utf16Key;
-use url::Url;
+
 
 use trustgrant_error::TrustGrantError;
 use trustgrant_error::limits::{MAX_TRUSTGRANT_JSON_BYTES, ensure_json_size};
@@ -398,15 +398,15 @@ impl RawTimeWindow {
 #[serde(deny_unknown_fields)]
 pub struct RawRevocation {
     pub revocable: bool,
-    pub revocation_endpoint: Url,
+    pub revocation_endpoint: CompactString,
 }
 
 impl RawRevocation {
     #[must_use = "raw revocation policy should be used in a raw document or draft"]
-    pub const fn new(revocable: bool, revocation_endpoint: Url) -> Self {
+    pub fn new(revocable: bool, revocation_endpoint: impl Into<CompactString>) -> Self {
         Self {
             revocable,
-            revocation_endpoint,
+            revocation_endpoint: revocation_endpoint.into(),
         }
     }
 }

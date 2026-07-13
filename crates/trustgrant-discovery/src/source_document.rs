@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
+use compact_str::CompactString;
 use serde::Deserialize;
-use url::Url;
 
 use super::{AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile};
 use trustgrant_document::ValidatedPrincipal;
@@ -15,7 +15,7 @@ use trustgrant_error::limits::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiscoveryRevocationPolicy {
-    status_endpoint: Url,
+    status_endpoint: CompactString,
     non_revoked_ttl_seconds: u64,
     max_stale_seconds: u64,
 }
@@ -27,7 +27,7 @@ impl DiscoveryRevocationPolicy {
     ///
     /// Returns [`TrustGrantError`] when one of the TTL values is zero.
     pub fn new(
-        status_endpoint: Url,
+        status_endpoint: impl Into<CompactString>,
         non_revoked_ttl_seconds: u64,
         max_stale_seconds: u64,
     ) -> Result<Self, TrustGrantError> {
@@ -36,14 +36,14 @@ impl DiscoveryRevocationPolicy {
         }
 
         Ok(Self {
-            status_endpoint,
+            status_endpoint: status_endpoint.into(),
             non_revoked_ttl_seconds,
             max_stale_seconds,
         })
     }
 
     #[must_use = "status endpoint participates in revocation resolution"]
-    pub const fn status_endpoint(&self) -> &Url {
+    pub fn status_endpoint(&self) -> &str {
         &self.status_endpoint
     }
 
@@ -60,19 +60,19 @@ impl DiscoveryRevocationPolicy {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DiscoveryDelegation {
-    principal_key_endpoint: Url,
+    principal_key_endpoint: CompactString,
 }
 
 impl DiscoveryDelegation {
     #[must_use = "principal key endpoint participates in delegated key resolution"]
-    pub const fn new(principal_key_endpoint: Url) -> Self {
+    pub fn new(principal_key_endpoint: impl Into<CompactString>) -> Self {
         Self {
-            principal_key_endpoint,
+            principal_key_endpoint: principal_key_endpoint.into(),
         }
     }
 
     #[must_use = "principal key endpoint participates in delegated key resolution"]
-    pub const fn principal_key_endpoint(&self) -> &Url {
+    pub fn principal_key_endpoint(&self) -> &str {
         &self.principal_key_endpoint
     }
 }
@@ -83,7 +83,7 @@ pub struct AuthorityDiscoveryDocument {
     keys: Vec<AuthorityKeyRecord>,
     signature_profile: SignatureProfile,
     revocation_policy: Option<DiscoveryRevocationPolicy>,
-    revocation_endpoints: Vec<Url>,
+    revocation_endpoints: Vec<CompactString>,
     issued_at: DateTime<Utc>,
     delegation: Option<DiscoveryDelegation>,
 }
@@ -140,7 +140,7 @@ impl AuthorityDiscoveryDocument {
     }
 
     #[must_use = "revocation endpoints participate in source-specific resolution"]
-    pub fn revocation_endpoints(&self) -> &[Url] {
+    pub fn revocation_endpoints(&self) -> &[CompactString] {
         &self.revocation_endpoints
     }
 
@@ -224,7 +224,7 @@ struct RawAuthorityDiscoveryDocument {
     keys: Vec<RawDiscoveryKeyRecord>,
     signature_profile: RawSignatureProfile,
     revocation_policy: Option<RawRevocationPolicy>,
-    revocation_endpoints: Option<Vec<Url>>,
+    revocation_endpoints: Option<Vec<CompactString>>,
     issued_at: DateTime<Utc>,
     delegation: Option<RawDelegation>,
 }
@@ -256,7 +256,7 @@ struct RawDiscoveryKeyRecord {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawRevocationPolicy {
-    status_endpoint: Url,
+    status_endpoint: CompactString,
     non_revoked_ttl_seconds: u64,
     max_stale_seconds: u64,
 }
@@ -265,7 +265,7 @@ struct RawRevocationPolicy {
 #[serde(deny_unknown_fields)]
 struct RawDelegation {
     principals_supported: bool,
-    principal_key_endpoint: Url,
+    principal_key_endpoint: CompactString,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -461,6 +461,8 @@ impl From<RawDelegatedKeyRecord> for RawKeyRecordLike {
 #[allow(clippy::panic)]
 mod tests {
     use chrono::{TimeZone, Utc};
+
+    use compact_str::CompactString;
 
     use super::SignatureProfile;
     use super::{
@@ -687,45 +689,40 @@ mod tests {
 
     #[test]
     fn revocation_policy_constructs_with_valid_data_and_accessors_return_expected_values() {
-        let endpoint: url::Url = "https://issuer.example.com/trustgrant/revoke"
-            .parse()
-            .unwrap_or_else(|e| panic!("valid URL: {e}"));
+        let endpoint = CompactString::from("https://issuer.example.com/trustgrant/revoke");
         let policy = DiscoveryRevocationPolicy::new(endpoint.clone(), 120, 900)
             .unwrap_or_else(|e| panic!("valid policy: {e}"));
 
-        assert_eq!(policy.status_endpoint(), &endpoint);
+        assert_eq!(policy.status_endpoint(), endpoint.as_str());
         assert_eq!(policy.non_revoked_ttl_seconds(), 120);
         assert_eq!(policy.max_stale_seconds(), 900);
     }
 
     #[test]
     fn revocation_policy_rejects_zero_non_revoked_ttl() {
-        let endpoint: url::Url = "https://issuer.example.com/trustgrant/revoke"
-            .parse()
-            .unwrap_or_else(|e| panic!("valid URL: {e}"));
-        let result = DiscoveryRevocationPolicy::new(endpoint, 0, 900);
+        let result =
+            DiscoveryRevocationPolicy::new("https://issuer.example.com/trustgrant/revoke", 0, 900);
 
         assert_eq!(result, Err(TrustGrantError::InvalidRevocationPolicy));
     }
 
     #[test]
     fn revocation_policy_rejects_zero_max_stale() {
-        let endpoint: url::Url = "https://issuer.example.com/trustgrant/revoke"
-            .parse()
-            .unwrap_or_else(|e| panic!("valid URL: {e}"));
-        let result = DiscoveryRevocationPolicy::new(endpoint, 120, 0);
+        let result =
+            DiscoveryRevocationPolicy::new("https://issuer.example.com/trustgrant/revoke", 120, 0);
 
         assert_eq!(result, Err(TrustGrantError::InvalidRevocationPolicy));
     }
 
     #[test]
     fn delegation_constructs_with_valid_data_and_accessor_returns_expected_value() {
-        let endpoint: url::Url = "https://issuer.example.com/trustgrant/delegated-principals"
-            .parse()
-            .unwrap_or_else(|e| panic!("valid URL: {e}"));
-        let delegation = DiscoveryDelegation::new(endpoint.clone());
+        let delegation =
+            DiscoveryDelegation::new("https://issuer.example.com/trustgrant/delegated-principals");
 
-        assert_eq!(delegation.principal_key_endpoint(), &endpoint);
+        assert_eq!(
+            delegation.principal_key_endpoint(),
+            "https://issuer.example.com/trustgrant/delegated-principals"
+        );
     }
 
     #[test]

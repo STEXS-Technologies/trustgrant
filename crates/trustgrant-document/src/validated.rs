@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use chrono::{DateTime, Utc};
 use compact_str::CompactString;
-use url::Url;
+
 
 use crate::raw::{
     RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
@@ -628,12 +628,12 @@ impl ValidatedTimeWindow {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedRevocation {
     revocable: bool,
-    revocation_endpoint: Url,
+    revocation_endpoint: CompactString,
 }
 
 impl ValidatedRevocation {
     #[must_use = "persisted revocation policy must stay valid by construction"]
-    pub const fn new(revocable: bool, revocation_endpoint: Url) -> Self {
+    pub fn new(revocable: bool, revocation_endpoint: CompactString) -> Self {
         Self {
             revocable,
             revocation_endpoint,
@@ -650,7 +650,7 @@ impl ValidatedRevocation {
     }
 
     #[must_use = "revocation endpoint participates in revocation policy"]
-    pub const fn revocation_endpoint(&self) -> &Url {
+    pub fn revocation_endpoint(&self) -> &str {
         &self.revocation_endpoint
     }
 }
@@ -1378,9 +1378,7 @@ mod tests {
         let mut raw = parse_valid_raw_document();
         raw.revocation = Some(RawRevocation::new(
             false,
-            "https://issuer.example.com/revocation"
-                .parse()
-                .unwrap_or_else(|e| panic!("URL parse failed: {e}")),
+            "https://issuer.example.com/revocation",
         ));
 
         let validated = ValidatedTrustGrantDocument::try_from(raw)

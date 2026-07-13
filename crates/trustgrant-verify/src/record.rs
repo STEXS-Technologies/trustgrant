@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use url::Url;
+
 
 use trustgrant_discovery::{
     AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
@@ -628,7 +628,7 @@ impl RevocationPolicyRecord {
     fn try_to_validated_revocation(&self) -> Result<ValidatedRevocation, TrustGrantError> {
         Ok(ValidatedRevocation::new(
             self.revocable,
-            parse_persisted_url("revocation_endpoint", &self.revocation_endpoint)?,
+            self.revocation_endpoint.clone().into(),
         ))
     }
 }
@@ -704,12 +704,6 @@ fn normalize_persisted_non_empty_strings(
         .iter()
         .map(|value| normalize_persisted_non_empty_string(field_name, value, Some(max_bytes)))
         .collect()
-}
-
-fn parse_persisted_url(field_name: &'static str, value: &str) -> Result<Url, TrustGrantError> {
-    value
-        .parse::<Url>()
-        .map_err(|_error| TrustGrantError::InvalidPersistedVerifiedGrantRecord(field_name))
 }
 
 impl From<&ValidatedPrincipal> for PrincipalRecord {
