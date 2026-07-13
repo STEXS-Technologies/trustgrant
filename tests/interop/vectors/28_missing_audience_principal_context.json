@@ -1,0 +1,85 @@
+{
+  "description": "Mint grant — per-user limit requires audience principal context; missing context fails first",
+  "trustgrant": {
+    "trustgrant_id": "tg_00000028-0028-4028-8028-000000000028",
+    "version": 0,
+    "grant_series_id": "tgs_00000028-0028-4028-8028-000000000028",
+    "revision": 1,
+    "supersedes": null,
+    "supersession_policy": "coexist",
+    "issuer_authority": "https://issuer.example.com",
+    "origin_authority": "https://issuer.example.com",
+    "active_owning_authority": "https://issuer.example.com",
+    "key_id": "root-key-1",
+    "target_scope": {
+      "all": false,
+      "allow": [
+        {
+          "kind": "authority",
+          "all": false,
+          "values": ["https://target.example.com"],
+          "expressions": null
+        }
+      ],
+      "deny": null
+    },
+    "capabilities": { "recognize": false, "mint": true },
+    "default_audience_scope": [
+      {
+        "authority_id": "https://audience.example.com",
+        "scope": { "all": true, "allow": null, "deny": null },
+        "principal_scope": null
+      }
+    ],
+    "resource_scope": {
+      "types": {
+        "item": {
+          "all": false,
+          "allow": [
+            {
+              "kind": "namespace",
+              "all": false,
+              "values": ["weapons"],
+              "expressions": null
+            }
+          ],
+          "deny": null,
+          "capabilities": { "recognize": false, "mint": true },
+          "constraints": {
+            "minting": { "max_total": 100, "max_per_user": 1 },
+            "audience_scope": null
+          },
+          "operations": { "all": false, "allow": ["create"], "deny": null }
+        }
+      }
+    },
+    "global_constraints": {
+      "time": {
+        "not_before": "2026-01-01T00:00:00Z",
+        "not_after": "2027-01-01T00:00:00Z"
+      }
+    },
+    "revocation": {
+      "revocable": true,
+      "revocation_endpoint": "https://issuer.example.com/revocation"
+    },
+    "issued_at": "2026-06-01T12:00:00Z",
+    "signature": "valid-signature",
+    "issuer_principal": { "kind": "service", "id": "issuer-worker" }
+  },
+  "evaluations": [
+    {
+      "description": "mint request with max_per_user=1 but no audience principal selectors in request — MissingAudiencePrincipalContext fires before per-user limit check",
+      "request": {
+        "operation": "mint",
+        "target_authority": "https://target.example.com",
+        "audience_authority": "https://audience.example.com",
+        "resource_type": "item",
+        "resource_selectors": { "namespace": ["weapons"] },
+        "evaluated_at": "2026-06-15T12:00:00Z",
+        "mint_context": { "total_minted": 0, "user_minted": 0 }
+      },
+      "expected": { "Denied": "MissingAudiencePrincipalContext" }
+    }
+  ]
+}
