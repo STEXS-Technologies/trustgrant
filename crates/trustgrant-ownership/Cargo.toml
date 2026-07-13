@@ -17,7 +17,7 @@ itoa = { version = "1.0.15", default-features = false }
 serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
 url = { version = "2.5.7", features = ["serde"] }
-uuid = { version = "1.18.1", features = ["serde", "v4"] }
+uuid = { version = "1.18.1", features = ["serde", "v4", "js"] }
 
 [dev-dependencies]
 serde_jcs = { version = "0.2.0", default-features = false }

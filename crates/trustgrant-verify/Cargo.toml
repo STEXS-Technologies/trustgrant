@@ -19,7 +19,7 @@ serde = { version = "1.0.228", default-features = false, features = ["derive", "
 serde_jcs = { version = "0.2.0", default-features = false }
 serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-uuid = { version = "1.18.1", features = ["serde", "v4"] }
+uuid = { version = "1.18.1", features = ["serde", "v4", "js"] }
 
 [lints]
 workspace = true
