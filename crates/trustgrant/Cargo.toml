@@ -1,0 +1,31 @@
+[package]
+name = "trustgrant"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+trustgrant-discovery = { path = "../trustgrant-discovery" }
+trustgrant-document = { path = "../trustgrant-document" }
+trustgrant-domain = { path = "../trustgrant-domain" }
+trustgrant-error = { path = "../trustgrant-error" }
+trustgrant-evaluate = { path = "../trustgrant-evaluate" }
+trustgrant-issue = { path = "../trustgrant-issue" }
+trustgrant-ownership = { path = "../trustgrant-ownership" }
+trustgrant-ports = { path = "../trustgrant-ports" }
+trustgrant-revocation = { path = "../trustgrant-revocation" }
+trustgrant-verify = { path = "../trustgrant-verify" }
+
+[dev-dependencies]
+chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
+criterion = { version = "0.5.1", default-features = false, features = ["cargo_bench_support"] }
+proptest = "1.4"
+serde_json = "1.0.147"
+thiserror = { version = "2.0.18", default-features = false }
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "trustgrant_core"
+harness = false

@@ -1,0 +1,102 @@
+[package]
+name = "trustgrant-fuzz"
+version = "0.0.0"
+authors = ["Automated"]
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+chrono = "0.4"
+
+[dependencies.trustgrant]
+path = "../crates/trustgrant"
+features = []
+
+[[bin]]
+name = "fuzz_trustgrant_document_parse"
+path = "fuzz_targets/fuzz_trustgrant_document_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_trustgrant_document_validate"
+path = "fuzz_targets/fuzz_trustgrant_document_validate.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_discovery_parse"
+path = "fuzz_targets/fuzz_discovery_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_delegated_principal_parse"
+path = "fuzz_targets/fuzz_delegated_principal_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_revocation_proof_parse"
+path = "fuzz_targets/fuzz_revocation_proof_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_canonicalize"
+path = "fuzz_targets/fuzz_canonicalize.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_selector_expression_parse"
+path = "fuzz_targets/fuzz_selector_expression_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ownership_transition_parse"
+path = "fuzz_targets/fuzz_ownership_transition_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ownership_transition_verify"
+path = "fuzz_targets/fuzz_ownership_transition_verify.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_authority_id"
+path = "fuzz_targets/fuzz_authority_id.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_selector_kind"
+path = "fuzz_targets/fuzz_selector_kind.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_verification_pipeline"
+path = "fuzz_targets/fuzz_verification_pipeline.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_ownership_chain_verify"
+path = "fuzz_targets/fuzz_ownership_chain_verify.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_evaluation_engine"
+path = "fuzz_targets/fuzz_evaluation_engine.rs"
+test = false
+doc = false

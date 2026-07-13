@@ -1,0 +1,26 @@
+[package]
+name = "trustgrant-verify"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+
+[dependencies]
+trustgrant-discovery = { path = "../trustgrant-discovery" }
+trustgrant-document = { path = "../trustgrant-document" }
+trustgrant-domain = { path = "../trustgrant-domain" }
+trustgrant-error = { path = "../trustgrant-error" }
+trustgrant-ownership = { path = "../trustgrant-ownership" }
+trustgrant-ports = { path = "../trustgrant-ports" }
+trustgrant-revocation = { path = "../trustgrant-revocation" }
+chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
+compact_str = "0.9"
+itoa = { version = "1.0.15", default-features = false }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
+serde_jcs = { version = "0.2.0", default-features = false }
+serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+url = { version = "2.5.7", features = ["serde"] }
+uuid = { version = "1.18.1", features = ["serde", "v4"] }
+
+[lints]
+workspace = true

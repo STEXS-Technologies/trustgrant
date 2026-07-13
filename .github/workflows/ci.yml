@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - run: cargo check --workspace --all-targets -D warnings
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: clippy
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - run: cargo test --workspace
+
+  bench:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - run: cargo bench --workspace --no-run
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+      - name: Run tarpaulin
+        run: >
+          cargo tarpaulin
+          --packages trustgrant-domain
+          --packages trustgrant-document
+          --packages trustgrant-error
+          --packages trustgrant-issue
+          --packages trustgrant-evaluate
+          --packages trustgrant-verify
+          --packages trustgrant-ownership
+          --packages trustgrant-discovery
+          --packages trustgrant-revocation
+          --packages trustgrant-ports
+          --packages trustgrant
+          --skip-clean
+          --out lcov
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-coverage
+          path: lcov.info
+
+  cargo-audit:
+    name: Cargo Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: cargo install cargo-audit --locked && cargo audit
+
+  fuzz:
+    name: Fuzz (build only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Build all fuzz targets
+        run: cargo fuzz build --all
+
+  smoke:
+    name: Smoke Test
+    needs: [check, clippy, fmt, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Build release
+        run: cargo build --release --workspace
+      - name: Run examples
+        run: |
+          ./target/release/examples/parse_raw_document_cold_path 100
+          ./target/release/examples/canonicalize_cold_path 100
+          ./target/release/examples/evaluate_hot_path 100000

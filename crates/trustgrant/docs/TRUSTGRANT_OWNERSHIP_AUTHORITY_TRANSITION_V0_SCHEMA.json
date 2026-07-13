@@ -1,0 +1,213 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/trustgrant/v0/ownership-transition-schema.json",
+  "title": "TrustGrant Ownership Authority Transition v0 Schema",
+  "$comment": "Machine-readable schema for the ownership-authority transition profile. This profile preserves canonical origin identity while changing active owning authority. Transition selectors are intentionally finite in v0 and may target namespace, project, resource, or other deployment-specific resource dimensions accepted by local policy.",
+  "type": "object",
+  "required": [
+    "transition_id",
+    "version",
+    "transition_series_id",
+    "revision",
+    "origin_authority",
+    "from_authority",
+    "to_authority",
+    "canonical_resource_scope",
+    "effective_at",
+    "predecessor_signature",
+    "successor_acceptance"
+  ],
+  "properties": {
+    "transition_id": {
+      "type": "string",
+      "pattern": "^tgt_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "Canonical ownership-transition proof identifier generated before signing."
+    },
+    "version": {
+      "type": "integer",
+      "const": 0
+    },
+    "transition_series_id": {
+      "type": "string",
+      "pattern": "^tgts_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "supersedes_transition_id": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^tgt_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      ]
+    },
+    "origin_authority": {
+      "type": "string",
+      "minLength": 1
+    },
+    "from_authority": {
+      "type": "string",
+      "minLength": 1
+    },
+    "to_authority": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_resource_scope": {
+      "type": "object",
+      "required": [
+        "types"
+      ],
+      "properties": {
+        "types": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/transitionResourceType"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "global_constraints": {
+      "$ref": "#/definitions/globalConstraints"
+    },
+    "effective_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "predecessor_signature": {
+      "$ref": "#/definitions/signatureProof"
+    },
+    "successor_acceptance": {
+      "$ref": "#/definitions/successorAcceptance"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "transitionSelector": {
+      "type": "object",
+      "required": [
+        "kind",
+        "all",
+        "values",
+        "expressions"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "all": {
+          "type": "boolean",
+          "const": false
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "expressions": {
+          "type": "null"
+        }
+      },
+      "additionalProperties": false
+    },
+    "transitionResourceType": {
+      "type": "object",
+      "required": [
+        "all",
+        "allow",
+        "deny"
+      ],
+      "properties": {
+        "all": {
+          "type": "boolean",
+          "const": false
+        },
+        "allow": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/transitionSelector"
+          }
+        },
+        "deny": {
+          "type": "null"
+        }
+      },
+      "additionalProperties": false
+    },
+    "globalConstraints": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "object",
+          "required": [
+            "not_before",
+            "not_after"
+          ],
+          "properties": {
+            "not_before": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "not_after": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "signatureProof": {
+      "type": "object",
+      "required": [
+        "key_id",
+        "signature"
+      ],
+      "properties": {
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "successorAcceptance": {
+      "type": "object",
+      "required": [
+        "accepted_at",
+        "key_id",
+        "signature"
+      ],
+      "properties": {
+        "accepted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

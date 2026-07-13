@@ -1,0 +1,19 @@
+# Cargo
+target
+.ironclaw-state
+
+.DS_Store
+*.log
+*.tmp
+.env
+.env.local
+.env.test
+
+# Profiling
+perf.data*
+flamegraph.svg
+lcov.info
+
+# IDE / workspace
+.slim/
+.opencode/

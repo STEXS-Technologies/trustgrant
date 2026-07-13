@@ -1,0 +1,541 @@
+#![allow(clippy::panic)]
+
+use chrono::{TimeZone, Utc};
+
+use trustgrant::{
+    AuthorityId, AuthorityKeyRecord, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
+    OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
+    RequestedOperation, ResolvedSignerBinding, ResourceContext, RevocationRecord,
+    RevocationSourceKind, RevocationStatus, SignatureProfile, SignatureVerificationRequest,
+    SignatureVerifier, TrustGrantError, VerificationMetadata, VerificationPipeline,
+    VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
+};
+
+// ---------------------------------------------------------------------------
+// Base valid JSON (same as evaluation.rs)
+// ---------------------------------------------------------------------------
+
+const VALID_TRUSTGRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+  "version":0,
+  "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+// ---------------------------------------------------------------------------
+// Fake signature verifiers
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Default)]
+struct FakeSignatureVerifier;
+
+impl SignatureVerifier for FakeSignatureVerifier {
+    fn verify_signature(
+        &self,
+        request: &SignatureVerificationRequest<'_>,
+    ) -> Result<(), TrustGrantError> {
+        if request.signature() == "base64-signature"
+            && request.key_id().as_str() == "root-key-1"
+            && !request.canonical_bytes().is_empty()
+        {
+            Ok(())
+        } else {
+            Err(TrustGrantError::SignatureVerificationFailed)
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct AlwaysFailSignatureVerifier;
+
+impl SignatureVerifier for AlwaysFailSignatureVerifier {
+    fn verify_signature(
+        &self,
+        _request: &SignatureVerificationRequest<'_>,
+    ) -> Result<(), TrustGrantError> {
+        Err(TrustGrantError::SignatureVerificationFailed)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+fn fixed_timestamp(
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    second: u32,
+) -> chrono::DateTime<Utc> {
+    Utc.with_ymd_and_hms(year, month, day, hour, minute, second)
+        .single()
+        .unwrap_or_else(|| panic!("fixed timestamp should be valid"))
+}
+
+fn verification_metadata(revocation_status: RevocationStatus) -> VerificationMetadata {
+    VerificationMetadata::new(
+        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+        VerificationPosture::Online,
+        signer_binding(),
+        ownership_record(),
+        VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                revocation_status,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                fixed_timestamp(2026, 4, 7, 12, 5, 0),
+            )
+            .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+        ),
+    )
+}
+
+fn ownership_record() -> OwnershipVerificationRecord {
+    OwnershipVerificationRecord::new(
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("active owning authority should be valid: {error}")),
+        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+        OwnershipProofKind::StaticOwner,
+        None,
+    )
+}
+
+fn signer_binding() -> ResolvedSignerBinding {
+    ResolvedSignerBinding::new(
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("issuer authority should be valid: {error}")),
+        AuthorityKeyRecord::new(
+            "root-key-1",
+            "ed25519",
+            "base64-public-key",
+            fixed_timestamp(2026, 4, 7, 12, 0, 0),
+            fixed_timestamp(2026, 4, 8, 12, 0, 0),
+        )
+        .unwrap_or_else(|error| panic!("key record should be valid: {error}")),
+        SignatureProfile::new("jcs+ed25519", "RFC8785")
+            .unwrap_or_else(|error| panic!("signature profile should be valid: {error}")),
+        Some(
+            trustgrant::DelegatedPrincipalRef::new("service", "issuer-worker")
+                .unwrap_or_else(|error| panic!("delegated principal should be valid: {error}")),
+        ),
+    )
+}
+
+/// Verifies a JSON string using the fake (always-pass) verifier and returns the
+/// verified grant.
+fn verified_grant_from_json(json: &str, revocation_status: RevocationStatus) -> VerifiedTrustGrant {
+    let pipeline = VerificationPipeline::new();
+    let artifacts = pipeline
+        .verify_json_str(
+            json,
+            &FakeSignatureVerifier,
+            verification_metadata(revocation_status),
+        )
+        .unwrap_or_else(|error| panic!("pipeline verification should succeed: {error}"));
+
+    artifacts.verified_grant().clone()
+}
+
+/// Builds a standard recognize request targeting the grant's expected authorities.
+fn recognize_request(player_id: &str) -> EvaluationRequest {
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+
+    request
+        .insert_audience_principal_selector("player_id", player_id)
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    request
+}
+
+/// Builds a recognize request with an explicit evaluation timestamp.
+fn recognize_request_at(player_id: &str, evaluated_at: chrono::DateTime<Utc>) -> EvaluationRequest {
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        evaluated_at,
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+
+    request
+        .insert_audience_principal_selector("player_id", player_id)
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    request
+}
+
+// ---------------------------------------------------------------------------
+// Test 1: Invalid version fails verification
+// ---------------------------------------------------------------------------
+
+#[test]
+fn invalid_version_fails_verification() {
+    let json = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000001",
+  "version":1,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000002",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":true},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+    let pipeline = VerificationPipeline::new();
+    let result = pipeline.verify_json_str(
+        json,
+        &FakeSignatureVerifier,
+        verification_metadata(RevocationStatus::Active),
+    );
+
+    let err = match result {
+        Err(e) => e,
+        Ok(_) => panic!("expected Err, got Ok"),
+    };
+    assert!(
+        matches!(err, TrustGrantError::InvalidProtocolVersion(1)),
+        "expected InvalidProtocolVersion(1), got: {err:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 2: Expired grant evaluation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn expired_grant_evaluation_denied() {
+    let grant = verified_grant_from_json(VALID_TRUSTGRANT_JSON, RevocationStatus::Active);
+
+    // not_after is 2026-04-08T12:00:00Z — evaluate after that window
+    let engine = EvaluationEngine::new();
+    let request = recognize_request_at("player-123", fixed_timestamp(2026, 4, 9, 12, 0, 0));
+    let decision = engine.evaluate(&grant, &request);
+
+    assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Expired));
+}
+
+// ---------------------------------------------------------------------------
+// Test 3: Not-yet-valid grant evaluation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn not_yet_valid_grant_evaluation_denied() {
+    let grant = verified_grant_from_json(VALID_TRUSTGRANT_JSON, RevocationStatus::Active);
+
+    // not_before is 2026-04-07T12:00:00Z — evaluate before that
+    let engine = EvaluationEngine::new();
+    let request = recognize_request_at("player-123", fixed_timestamp(2026, 4, 6, 12, 0, 0));
+    let decision = engine.evaluate(&grant, &request);
+
+    assert_eq!(
+        decision.deny_reason(),
+        Some(EvaluationDenyReason::NotYetValid)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 4: Revoked grant evaluation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn revoked_grant_evaluation_denied() {
+    let grant = verified_grant_from_json(VALID_TRUSTGRANT_JSON, RevocationStatus::Revoked);
+
+    let engine = EvaluationEngine::new();
+    let decision = engine.evaluate(&grant, &recognize_request("player-123"));
+
+    assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Revoked));
+}
+
+// ---------------------------------------------------------------------------
+// Test 5: Signature verification failure
+// ---------------------------------------------------------------------------
+
+#[test]
+fn signature_verification_failure_returns_error() {
+    let pipeline = VerificationPipeline::new();
+    let result = pipeline.verify_json_str(
+        VALID_TRUSTGRANT_JSON,
+        &AlwaysFailSignatureVerifier,
+        verification_metadata(RevocationStatus::Active),
+    );
+
+    let err = match result {
+        Err(e) => e,
+        Ok(_) => panic!("expected Err, got Ok"),
+    };
+    assert!(
+        matches!(err, TrustGrantError::SignatureVerificationFailed),
+        "expected SignatureVerificationFailed, got: {err:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 6: Target scope deny
+// ---------------------------------------------------------------------------
+
+#[test]
+fn target_scope_deny_evaluation_denied() {
+    let grant = verified_grant_from_json(VALID_TRUSTGRANT_JSON, RevocationStatus::Active);
+
+    // The grant's target_scope allows only "https://target.example.com".
+    // Request targeting a different authority → TargetNotAllowed.
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        AuthorityId::new("https://different-target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+    request
+        .insert_audience_principal_selector("player_id", "player-123")
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    let engine = EvaluationEngine::new();
+    let decision = engine.evaluate(&grant, &request);
+
+    // The target doesn't match the allow list → TargetNotAllowed (no deny list entry matches)
+    assert_eq!(
+        decision.deny_reason(),
+        Some(EvaluationDenyReason::TargetNotAllowed)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: Audience mismatch
+// ---------------------------------------------------------------------------
+
+#[test]
+fn audience_mismatch_evaluation_denied() {
+    let grant = verified_grant_from_json(VALID_TRUSTGRANT_JSON, RevocationStatus::Active);
+
+    // The grant has audience_scope for "https://audience.example.com" only.
+    // Request targeting "https://other-audience.example.com" → AudienceNotAllowed.
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://other-audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+    request
+        .insert_audience_principal_selector("player_id", "player-123")
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    let engine = EvaluationEngine::new();
+    let decision = engine.evaluate(&grant, &request);
+
+    assert_eq!(
+        decision.deny_reason(),
+        Some(EvaluationDenyReason::AudienceNotAllowed)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 8: Empty resource type lookup
+// ---------------------------------------------------------------------------
+
+#[test]
+fn resource_type_not_granted_evaluation_denied() {
+    let grant = verified_grant_from_json(VALID_TRUSTGRANT_JSON, RevocationStatus::Active);
+
+    // The grant only defines resource type "item". Request "weapon" type → ResourceTypeNotGranted.
+    let resource = ResourceContext::new("weapon")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+
+    let request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+
+    let engine = EvaluationEngine::new();
+    let decision = engine.evaluate(&grant, &request);
+
+    assert_eq!(
+        decision.deny_reason(),
+        Some(EvaluationDenyReason::ResourceTypeNotGranted)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 9: Operation deny list (recognize in both allow and deny → deny wins)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn operation_deny_list_evaluation_denied() {
+    // Grant with recognize in both allow and deny → deny wins.
+    let json = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000010",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000011",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":["recognize"]}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+    let grant = verified_grant_from_json(json, RevocationStatus::Active);
+
+    let engine = EvaluationEngine::new();
+    let decision = engine.evaluate(&grant, &recognize_request("player-123"));
+
+    assert_eq!(
+        decision.deny_reason(),
+        Some(EvaluationDenyReason::OperationDenied)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 10: MissingMintContext
+// ---------------------------------------------------------------------------
+
+#[test]
+fn missing_mint_context_evaluation_denied() {
+    // Grant with minting constraints but request uses Mint capability
+    // without providing a MintContext.
+    let json = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000020",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000021",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":true},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize","create"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+    let grant = verified_grant_from_json(json, RevocationStatus::Active);
+
+    // Build a Mint request WITHOUT providing MintContext
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Mint),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+    request
+        .insert_audience_principal_selector("player_id", "player-123")
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    // NOTE: We do NOT call request.with_mint_context(...) — intentionally omitting it.
+
+    let engine = EvaluationEngine::new();
+    let decision = engine.evaluate(&grant, &request);
+
+    assert_eq!(
+        decision.deny_reason(),
+        Some(EvaluationDenyReason::MissingMintContext)
+    );
+}
