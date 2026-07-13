@@ -1,0 +1,6 @@
+{
+  "spec_section": "8",
+  "description": "contains predicate matches substring and rejects non-substring",
+  "expression": { "predicate": "contains(\"epic\")", "match": ["weapon_epic_sword"], "no_match": ["weapon_rare_sword"] },
+  "assert": { "validation": "accepted" }
+}

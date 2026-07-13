@@ -1,0 +1,25 @@
+{
+  "spec_section": "9",
+  "description": "empty audience_scope on a resource type falls back to default_audience_scope",
+  "overrides": {
+    "default_audience_scope": [
+      { "authority_id": "https://audience.example.com", "scope": { "all": true, "allow": null, "deny": null }, "principal_scope": null }
+    ],
+    "resource_scope": {
+      "types": {
+        "item": {
+          "all": false,
+          "allow": [{ "kind": "namespace", "all": false, "values": ["weapons"], "expressions": null }],
+          "deny": null,
+          "capabilities": { "recognize": null, "mint": null },
+          "constraints": {
+            "minting": { "max_total": null, "max_per_user": null },
+            "audience_scope": []
+          },
+          "operations": null
+        }
+      }
+    }
+  },
+  "assert": { "validation": "accepted" }
+}

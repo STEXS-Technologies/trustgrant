@@ -1,0 +1,6 @@
+{
+  "spec_section": "7",
+  "description": "selector all=false with non-empty values is accepted",
+  "overrides": {},
+  "assert": { "validation": "accepted" }
+}

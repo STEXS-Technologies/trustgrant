@@ -1,0 +1,12 @@
+{
+  "spec_section": "7",
+  "description": "selector all=true with null values and null expressions is accepted",
+  "overrides": {
+    "target_scope": {
+      "all": false,
+      "allow": [{ "kind": "authority", "all": true, "values": null, "expressions": null }],
+      "deny": null
+    }
+  },
+  "assert": { "validation": "accepted" }
+}

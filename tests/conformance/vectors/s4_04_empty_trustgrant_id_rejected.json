@@ -1,0 +1,6 @@
+{
+  "spec_section": "4",
+  "description": "empty trustgrant_id should be rejected",
+  "overrides": { "trustgrant_id": "" },
+  "assert": { "validation": "rejected" }
+}

@@ -1,0 +1,6 @@
+{
+  "spec_section": "8",
+  "description": "unsupported predicate 'regex' should cause a parse error",
+  "expression": { "predicate": "regex(\"^vip\")", "match": [], "no_match": [] },
+  "assert": { "validation": "accepted" }
+}

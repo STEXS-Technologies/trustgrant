@@ -1,0 +1,6 @@
+{
+  "spec_section": "6",
+  "description": "resource_scope all=false with non-empty allow is accepted",
+  "overrides": {},
+  "assert": { "validation": "accepted" }
+}

@@ -1,0 +1,22 @@
+{
+  "spec_section": "12",
+  "description": "minting constraints with max_total=0 and max_per_user=0 are accepted",
+  "overrides": {
+    "resource_scope": {
+      "types": {
+        "item": {
+          "all": false,
+          "allow": [{ "kind": "namespace", "all": false, "values": ["weapons"], "expressions": null }],
+          "deny": null,
+          "capabilities": { "recognize": null, "mint": null },
+          "constraints": {
+            "minting": { "max_total": 0, "max_per_user": 0 },
+            "audience_scope": null
+          },
+          "operations": null
+        }
+      }
+    }
+  },
+  "assert": { "validation": "accepted" }
+}

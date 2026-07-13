@@ -1,0 +1,6 @@
+{
+  "spec_section": "7",
+  "description": "selector kind 'CustomKind' and 'customkind' are case-sensitive (non-built-in kinds)",
+  "selector_kind": { "a": "CustomKind", "b": "customkind", "expect_equal": false },
+  "assert": { "validation": "accepted" }
+}

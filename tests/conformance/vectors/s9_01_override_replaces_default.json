@@ -1,0 +1,27 @@
+{
+  "spec_section": "9",
+  "description": "audience_scope override replaces default_audience_scope for a resource type",
+  "overrides": {
+    "default_audience_scope": [
+      { "authority_id": "https://default.example.com", "scope": { "all": true, "allow": null, "deny": null }, "principal_scope": null }
+    ],
+    "resource_scope": {
+      "types": {
+        "item": {
+          "all": false,
+          "allow": [{ "kind": "namespace", "all": false, "values": ["weapons"], "expressions": null }],
+          "deny": null,
+          "capabilities": { "recognize": null, "mint": null },
+          "constraints": {
+            "minting": { "max_total": null, "max_per_user": null },
+            "audience_scope": [
+              { "authority_id": "https://override.example.com", "scope": { "all": true, "allow": null, "deny": null }, "principal_scope": null }
+            ]
+          },
+          "operations": null
+        }
+      }
+    }
+  },
+  "assert": { "validation": "accepted" }
+}

@@ -1,0 +1,6 @@
+{
+  "spec_section": "8",
+  "description": "equals predicate matches exact value and rejects different value",
+  "expression": { "predicate": "equals(\"foo\")", "match": ["foo"], "no_match": ["bar"] },
+  "assert": { "validation": "accepted" }
+}

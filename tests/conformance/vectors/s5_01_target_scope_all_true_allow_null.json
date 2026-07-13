@@ -1,0 +1,8 @@
+{
+  "spec_section": "5",
+  "description": "target_scope all=true with null allow is accepted",
+  "overrides": {
+    "target_scope": { "all": true, "allow": null, "deny": null }
+  },
+  "assert": { "validation": "accepted" }
+}

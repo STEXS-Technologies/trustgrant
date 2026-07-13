@@ -1,0 +1,12 @@
+{
+  "spec_section": "7",
+  "description": "selector all=true with non-null values should be rejected",
+  "overrides": {
+    "target_scope": {
+      "all": false,
+      "allow": [{ "kind": "authority", "all": true, "values": ["x"], "expressions": null }],
+      "deny": null
+    }
+  },
+  "assert": { "validation": "rejected" }
+}

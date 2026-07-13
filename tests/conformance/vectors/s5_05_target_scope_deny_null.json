@@ -1,0 +1,6 @@
+{
+  "spec_section": "5",
+  "description": "target_scope deny=null is accepted",
+  "overrides": {},
+  "assert": { "validation": "accepted" }
+}

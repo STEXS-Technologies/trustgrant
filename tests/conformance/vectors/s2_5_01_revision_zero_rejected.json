@@ -1,0 +1,6 @@
+{
+  "spec_section": "2.5",
+  "description": "revision=0 should be rejected (must be >= 1)",
+  "overrides": { "revision": 0 },
+  "assert": { "validation": "rejected" }
+}

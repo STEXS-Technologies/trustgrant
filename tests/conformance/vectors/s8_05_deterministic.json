@@ -1,0 +1,6 @@
+{
+  "spec_section": "8",
+  "description": "equals predicate is deterministic (same value matches twice)",
+  "expression": { "predicate": "equals(\"exact_value\")", "match": ["exact_value", "exact_value"], "no_match": ["different"] },
+  "assert": { "validation": "accepted" }
+}

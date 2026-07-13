@@ -1,0 +1,6 @@
+{
+  "spec_section": "7",
+  "description": "selector kind 'namespace' and 'NAMESPACE' are case-insensitive built-in kinds",
+  "selector_kind": { "a": "namespace", "b": "NAMESPACE", "expect_equal": true },
+  "assert": { "validation": "accepted" }
+}

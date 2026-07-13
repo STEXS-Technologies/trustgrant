@@ -1,0 +1,19 @@
+{
+  "spec_section": "6",
+  "description": "resource_scope types item all=true with null allow and deny is accepted",
+  "overrides": {
+    "resource_scope": {
+      "types": {
+        "item": {
+          "all": true,
+          "allow": null,
+          "deny": null,
+          "capabilities": { "recognize": null, "mint": null },
+          "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
+          "operations": null
+        }
+      }
+    }
+  },
+  "assert": { "validation": "accepted" }
+}

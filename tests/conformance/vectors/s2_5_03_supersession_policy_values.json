@@ -1,0 +1,6 @@
+{
+  "spec_section": "2.5",
+  "description": "supersession_policy field accepts valid values (coexist)",
+  "overrides": {},
+  "assert": { "validation": "accepted" }
+}

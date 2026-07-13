@@ -1,0 +1,12 @@
+{
+  "spec_section": "5",
+  "description": "target_scope with non-null deny is accepted",
+  "overrides": {
+    "target_scope": {
+      "all": false,
+      "allow": [{ "kind": "authority", "all": false, "values": ["https://target.example.com"], "expressions": null }],
+      "deny": [{ "kind": "authority", "all": false, "values": ["https://blocked.example.com"], "expressions": null }]
+    }
+  },
+  "assert": { "validation": "accepted" }
+}

@@ -1,0 +1,6 @@
+{
+  "spec_section": "7",
+  "description": "selector kind 'authority' and 'AUTHORITY' are case-insensitive built-in kinds",
+  "selector_kind": { "a": "authority", "b": "AUTHORITY", "expect_equal": true },
+  "assert": { "validation": "accepted" }
+}

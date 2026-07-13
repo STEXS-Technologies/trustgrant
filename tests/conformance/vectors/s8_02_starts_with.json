@@ -1,0 +1,6 @@
+{
+  "spec_section": "8",
+  "description": "startsWith predicate matches prefix and rejects non-prefix",
+  "expression": { "predicate": "startsWith(\"weapon_\")", "match": ["weapon_epic"], "no_match": ["armor_epic"] },
+  "assert": { "validation": "accepted" }
+}

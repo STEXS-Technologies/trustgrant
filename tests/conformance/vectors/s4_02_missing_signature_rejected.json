@@ -1,0 +1,6 @@
+{
+  "spec_section": "4",
+  "description": "base document with all required fields (including signature) validates successfully",
+  "overrides": {},
+  "assert": { "validation": "accepted" }
+}

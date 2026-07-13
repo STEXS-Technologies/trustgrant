@@ -1,0 +1,6 @@
+{
+  "spec_section": "8",
+  "description": "endsWith predicate matches suffix and rejects non-suffix",
+  "expression": { "predicate": "endsWith(\"_epic\")", "match": ["weapon_epic"], "no_match": ["weapon_rare"] },
+  "assert": { "validation": "accepted" }
+}

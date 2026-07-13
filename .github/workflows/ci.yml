@@ -123,9 +123,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
-      - name: Rust interop vectors
+      - name: Rust interop vectors (evaluation scenarios)
         run: cargo test --test interop -p trustgrant
-      - name: Rust conformance tests
+      - name: Rust conformance vectors (spec validation rules)
+        run: cargo test --test conformance_vectors -p trustgrant
+      - name: Rust conformance tests (spec sections)
         run: cargo test --test conformance -p trustgrant
       - name: Go harness
         run: cd interop/go && go test ./... -v

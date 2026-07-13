@@ -1,0 +1,6 @@
+{
+  "spec_section": "6.1",
+  "description": "operations=null is compatible with version 0",
+  "overrides": {},
+  "assert": { "validation": "accepted" }
+}

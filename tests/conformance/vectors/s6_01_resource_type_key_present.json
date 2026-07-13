@@ -1,0 +1,6 @@
+{
+  "spec_section": "6",
+  "description": "resource scope with type key present is accepted",
+  "overrides": {},
+  "assert": { "validation": "accepted" }
+}
