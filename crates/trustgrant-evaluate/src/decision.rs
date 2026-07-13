@@ -16,7 +16,6 @@ pub enum EvaluationDenyReason {
     AudiencePrincipalNotAllowed,
     CapabilityDisabled,
     OperationDenied,
-    /// The request's origin authority does not match the grant's origin authority.
     OriginAuthorityMismatch,
     MissingMintContext,
     MissingAudiencePrincipalContext,

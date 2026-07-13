@@ -1,5 +1,5 @@
-**Document Version:** 1.2\
-**Last Updated:** 2026-07-12\
+**Document Version:** 1.3\
+**Last Updated:** 2026-07-13\
 **Status:** Draft\
 **Owner:** CTO (Wladimir Trubizin)\
 **Related Documents:** [TrustGrant Crate Docs](README.md),
@@ -837,6 +837,19 @@ In v0, only time validity and revocation policy are global.
 
 All minting and audience limits should be per-type.
 
+#### Per-user mint limit requires audience principal context
+
+When `max_per_user` is set, the evaluation engine requires audience
+principal context to be present on the evaluation request (spec §13,
+step 9). If no audience principal context is provided, the engine rejects
+the request with `MissingAudiencePrincipalContext`. This ensures that
+per-user limits are always evaluated against a known principal, preventing
+unbounded minting through anonymous requests.
+
+Applications should populate audience principal selectors on the
+evaluation request using the same selector kind expected by the grant's
+`principal_scope`.
+
 v1 mint hardening direction includes:
 
 - explicit minting class or template constraints
@@ -943,6 +956,8 @@ v1 operational direction:
 - **Last Reviewed:** 2026-04-08
 - **Next Review:** When schema or signer-proof modeling changes materially
 - **Change Log:**
+  - v1.3 (2026-07-13): Added documentation for `MissingAudiencePrincipalContext`
+    error when `max_per_user` is set without audience principal context (§12).
   - v1.2 (2026-07-12): Fixed canonical example — target scope selector kind
     `"authority_id"` → `"authority"` to match built-in SelectorKind list (Section 2.2).
   - v1.1 (2026-07-11): Resolved v0/v1 contradiction in operations; defined
