@@ -1,7 +1,7 @@
 {
   "spec_section": "5",
   "description": "target_scope all=true with non-null allow should be rejected",
-  "trustgrant": {
+  "overrides": {
     "target_scope": {
       "all": true,
       "allow": [{"kind": "authority", "all": false, "values": ["https://target.example.com"], "expressions": null}],

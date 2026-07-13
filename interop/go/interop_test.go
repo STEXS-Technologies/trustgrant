@@ -205,6 +205,141 @@ func TestInteropVectorsParse(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Conformance vectors — spec validation rules
+// ---------------------------------------------------------------------------
+
+type ConformanceVector struct {
+	SpecSection string          `json:"spec_section"`
+	Description string          `json:"description"`
+	Overrides   json.RawMessage `json:"overrides"`
+	Expression  *struct {
+		Predicate string   `json:"predicate"`
+		Match     []string `json:"match"`
+		NoMatch   []string `json:"no_match"`
+	} `json:"expression,omitempty"`
+	SelectorKind *struct {
+		A           string `json:"a"`
+		B           string `json:"b"`
+		ExpectEqual bool   `json:"expect_equal"`
+	} `json:"selector_kind,omitempty"`
+	Assert json.RawMessage `json:"assert"`
+}
+
+func conformanceVectorsDir() (string, error) {
+	candidates := []string{
+		"../../tests/conformance/vectors",
+		"../tests/conformance/vectors",
+		"tests/conformance/vectors",
+	}
+	for _, c := range candidates {
+		abs, err := filepath.Abs(c)
+		if err != nil {
+			continue
+		}
+		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+			return abs, nil
+		}
+	}
+	return "", fmt.Errorf("cannot find conformance vectors directory (tried %v)", candidates)
+}
+
+func TestConformanceVectorsParse(t *testing.T) {
+	dir, err := conformanceVectorsDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	paths, err := loadVectors(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(paths) == 0 {
+		t.Fatal("no conformance vector JSON files found")
+	}
+
+	var passed, failed int
+
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Errorf("cannot read %s: %v", path, err)
+			failed++
+			continue
+		}
+
+		var vec ConformanceVector
+		if err := json.Unmarshal(data, &vec); err != nil {
+			t.Errorf("invalid JSON in %s: %v", path, err)
+			failed++
+			continue
+		}
+
+		if vec.Description == "" {
+			t.Errorf("%s: missing description", filepath.Base(path))
+			failed++
+			continue
+		}
+		if vec.SpecSection == "" {
+			t.Errorf("%s: missing spec_section", filepath.Base(path))
+			failed++
+			continue
+		}
+
+		// Validate assert field
+		if len(vec.Assert) == 0 {
+			t.Errorf("%s: missing assert", filepath.Base(path))
+			failed++
+			continue
+		}
+
+		// Check that assert.validation is valid
+		var assertObj struct {
+			Validation string `json:"validation"`
+		}
+		if err := json.Unmarshal(vec.Assert, &assertObj); err == nil {
+			if assertObj.Validation != "accepted" && assertObj.Validation != "rejected" {
+				t.Errorf("%s: assert.validation must be 'accepted' or 'rejected', got %q",
+					filepath.Base(path), assertObj.Validation)
+				failed++
+			}
+		}
+
+		// Validate expression if present
+		if vec.Expression != nil {
+			if vec.Expression.Predicate == "" {
+				t.Errorf("%s: expression missing predicate", filepath.Base(path))
+				failed++
+			}
+		}
+
+		// Validate selector_kind if present
+		if vec.SelectorKind != nil {
+			if vec.SelectorKind.A == "" || vec.SelectorKind.B == "" {
+				t.Errorf("%s: selector_kind missing a or b", filepath.Base(path))
+				failed++
+			}
+		}
+
+		// Check that either overrides, expression, or selector_kind is present
+		if len(vec.Overrides) == 0 && vec.Expression == nil && vec.SelectorKind == nil {
+			t.Errorf("%s: must have overrides, expression, or selector_kind", filepath.Base(path))
+			failed++
+		}
+
+		if failed == 0 {
+			passed++
+		}
+	}
+
+	if failed > 0 {
+		t.Fatalf("%d/%d conformance vectors have structural issues", failed, passed+failed)
+	}
+
+	fmt.Printf("ok  %d conformance vectors parsed and validated\n", passed)
+}
+
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }

@@ -17,3 +17,7 @@ lcov.info
 # IDE / workspace
 .slim/
 .opencode/
+
+# Local todo (not part of docs)
+TODO.md
+AUDIT.md

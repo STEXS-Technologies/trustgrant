@@ -341,3 +341,106 @@ fn conformance_vectors() {
         println!("{passed} conformance vectors passed");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Malformed vector rejection tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn conformance_vector_rejects_malformed_file() {
+    use std::io::Write;
+
+    // Use a unique temp dir based on the test name
+    let dir = std::env::temp_dir().join("tg_conformance_malformed_test");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create temp dir: {e}"));
+
+    // Test 1: non-JSON content
+    {
+        let path = dir.join("not_json.json");
+        let mut f = std::fs::File::create(&path).unwrap_or_else(|e| panic!("create file: {e}"));
+        write!(f, "this is not json").unwrap_or_else(|e| panic!("write: {e}"));
+        f.flush().unwrap_or_else(|e| panic!("flush: {e}"));
+        let result = run_vector(&path);
+        assert!(result.is_err(), "non-JSON content should be rejected");
+        eprintln!("  [ok] non-JSON → {:?}", result.err().unwrap());
+    }
+
+    // Test 2: missing "assert" field
+    {
+        let path = dir.join("missing_assert.json");
+        let mut f = std::fs::File::create(&path).unwrap_or_else(|e| panic!("create file: {e}"));
+        write!(
+            f,
+            r#"{{"spec_section":"5","description":"no assert field"}}"#
+        )
+        .unwrap_or_else(|e| panic!("write: {e}"));
+        f.flush().unwrap_or_else(|e| panic!("flush: {e}"));
+        let result = run_vector(&path);
+        assert!(result.is_err(), "missing assert field should be rejected");
+        eprintln!("  [ok] missing assert → {:?}", result.err().unwrap());
+    }
+
+    // Test 3: "assert" value is not an object
+    {
+        let path = dir.join("assert_not_object.json");
+        let mut f = std::fs::File::create(&path).unwrap_or_else(|e| panic!("create file: {e}"));
+        write!(
+            f,
+            r#"{{"spec_section":"5","description":"assert not object","assert":"string"}}"#
+        )
+        .unwrap_or_else(|e| panic!("write: {e}"));
+        f.flush().unwrap_or_else(|e| panic!("flush: {e}"));
+        let result = run_vector(&path);
+        assert!(
+            result.is_err(),
+            "non-object assert value should be rejected"
+        );
+        eprintln!("  [ok] assert not object → {:?}", result.err().unwrap());
+    }
+
+    // Test 4: unknown validation value in "assert"
+    {
+        let path = dir.join("unknown_validation.json");
+        let mut f = std::fs::File::create(&path).unwrap_or_else(|e| panic!("create file: {e}"));
+        write!(
+            f,
+            r#"{{"spec_section":"5","description":"unknown validation","assert":{{"validation":"bogus"}}}}"#
+        )
+        .unwrap_or_else(|e| panic!("write: {e}"));
+        f.flush().unwrap_or_else(|e| panic!("flush: {e}"));
+        let result = run_vector(&path);
+        assert!(
+            result.is_err(),
+            "unknown validation value should be rejected"
+        );
+        eprintln!(
+            "  [ok] unknown validation → {:?}",
+            result.err().unwrap()
+        );
+    }
+
+    // Test 5: unknown evaluation value in "assert"
+    {
+        let path = dir.join("unknown_evaluation.json");
+        let mut f = std::fs::File::create(&path).unwrap_or_else(|e| panic!("create file: {e}"));
+        write!(
+            f,
+            r#"{{"spec_section":"5","description":"unknown evaluation","assert":{{"evaluation":"Bogus"}}}}"#
+        )
+        .unwrap_or_else(|e| panic!("write: {e}"));
+        f.flush().unwrap_or_else(|e| panic!("flush: {e}"));
+        let result = run_vector(&path);
+        assert!(
+            result.is_err(),
+            "unknown evaluation value should be rejected"
+        );
+        eprintln!(
+            "  [ok] unknown evaluation → {:?}",
+            result.err().unwrap()
+        );
+    }
+
+    // Clean up
+    std::fs::remove_dir_all(&dir).unwrap_or_else(|e| panic!("cleanup temp dir: {e}"));
+}
