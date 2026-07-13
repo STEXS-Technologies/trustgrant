@@ -3,15 +3,17 @@
 use chrono::{TimeZone, Utc};
 
 use trustgrant::{
-    AuthorityId, AuthorityKeyRecord, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine,
-    EvaluationRequest, OwnershipProofKind, OwnershipVerificationRecord,
-    ProofFinality, RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceContext,
-    RevocationFreshnessPolicy, RevocationRecord, RevocationSourceKind, RevocationStatus,
-    SignatureProfile, SignatureVerificationRequest, SignatureVerifier, SupersessionPolicy,
-    TrustGrantError, TrustGrantProofBundle, VerificationContext, VerificationMetadata,
-    VerificationPipeline, VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
+    AuthorityId, AuthorityKeyRecord, BundleRevocationProof, CustomOperationName, EvaluationDenyReason,
+    EvaluationEngine, EvaluationRequest, OwnershipProofKind, OwnershipVerificationRecord,
+    ProofFinality, RawTrustGrantDocument, RequestedCapability, RequestedOperation,
+    ResolvedSignerBinding, ResourceContext, RevocationFreshnessPolicy, RevocationRecord,
+    RevocationSourceKind, RevocationStatus, SelectorContext, SignatureProfile,
+    SignatureVerificationRequest, SignatureVerifier, SupersessionPolicy, TrustGrantError,
+    TrustGrantProofBundle, VerificationContext, VerificationMetadata, VerificationPipeline,
+    VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
     parse_authority_discovery_document, parse_revocation_status_proof,
 };
+use trustgrant::limits;
 
 // ---------------------------------------------------------------------------
 // FakeSignatureVerifier (same pattern as evaluation.rs)
@@ -835,4 +837,333 @@ fn supersession_policy_supersede_previous_behavior() {
             "supersession_policy 'supersede_previous' should round-trip",
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// P2.1: Empty deny list = null deny  (spec §10)
+// ---------------------------------------------------------------------------
+
+/// Grant with deny:null in resource scope (equivalent to no deny restrictions).
+const DENY_NULL_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_aa000001-0000-1000-a000-000000000050",
+  "version":0,
+  "grant_series_id":"tgs_aa000001-0000-1000-a000-000000000051",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+  }},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+/// Grant with deny:[] (empty list) — should behave identically to deny:null.
+const DENY_EMPTY_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_aa000001-0000-1000-a000-000000000052",
+  "version":0,
+  "grant_series_id":"tgs_aa000001-0000-1000-a000-000000000053",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":[],"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+  }},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn empty_deny_list_equals_null_deny() {
+    // Spec §10: an empty deny list behaves identically to null deny.
+    // Both grants should produce identical evaluation results (allowed).
+    let engine = EvaluationEngine::new();
+
+    let grant_null = verified_grant_from_json(DENY_NULL_GRANT_JSON);
+    let grant_empty = verified_grant_from_json(DENY_EMPTY_GRANT_JSON);
+
+    let request = simple_recognize_request("item", "weapons");
+
+    let decision_null = engine.evaluate(&grant_null, &request);
+    let decision_empty = engine.evaluate(&grant_empty, &request);
+
+    assert_eq!(
+        decision_null.is_allowed(),
+        decision_empty.is_allowed(),
+        "empty deny list should yield same result as null deny",
+    );
+    assert!(
+        decision_null.is_allowed(),
+        "matching resource should be allowed regardless of deny format",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// P2.2: Multiple audience entries  (spec §9)
+// ---------------------------------------------------------------------------
+
+const MULTI_AUDIENCE_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_aa000001-0000-1000-a000-000000000054",
+  "version":0,
+  "grant_series_id":"tgs_aa000001-0000-1000-a000-000000000055",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":[
+    {"authority_id":"https://audience-a.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null},
+    {"authority_id":"https://audience-b.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}
+  ],
+  "resource_scope":{"types":{
+    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":true,"allow":null,"deny":null}}
+  }},
+  "global_constraints":null,
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+fn recognize_request_for_audience(
+    resource_type: &str,
+    namespace: &str,
+    audience: &str,
+) -> EvaluationRequest {
+    let mut resource = ResourceContext::new(resource_type)
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", namespace)
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new(audience)
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"))
+}
+
+#[test]
+fn multiple_audience_entries_both_allowed() {
+    // Spec §9: audience is an array. Both entries should work.
+    let grant = verified_grant_from_json(MULTI_AUDIENCE_GRANT_JSON);
+    let engine = EvaluationEngine::new();
+
+    // Request with audience A → allowed
+    {
+        let request = recognize_request_for_audience("item", "general", "https://audience-a.example.com");
+        let decision = engine.evaluate(&grant, &request);
+        assert!(decision.is_allowed(), "audience A should be allowed");
+    }
+
+    // Request with audience B → allowed
+    {
+        let request = recognize_request_for_audience("item", "general", "https://audience-b.example.com");
+        let decision = engine.evaluate(&grant, &request);
+        assert!(decision.is_allowed(), "audience B should be allowed");
+    }
+
+    // Request with audience C → AudienceNotAllowed
+    {
+        let request = recognize_request_for_audience("item", "general", "https://audience-c.example.com");
+        let decision = engine.evaluate(&grant, &request);
+        assert_eq!(
+            decision.deny_reason(),
+            Some(EvaluationDenyReason::AudienceNotAllowed),
+            "audience C should not be allowed",
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// P2.3: Mixed operations scope (built-in + custom)  (spec §6.1)
+// ---------------------------------------------------------------------------
+
+const MIXED_OPS_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_aa000001-0000-1000-a000-000000000056",
+  "version":0,
+  "grant_series_id":"tgs_aa000001-0000-1000-a000-000000000057",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize","custom:export"],"deny":null}}
+  }},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+fn custom_operation_request(
+    operation_name: &str,
+    resource_type: &str,
+    namespace: &str,
+) -> EvaluationRequest {
+    let custom_op = CustomOperationName::new(operation_name)
+        .unwrap_or_else(|error| panic!("custom operation name should be valid: {error}"));
+
+    let mut resource = ResourceContext::new(resource_type)
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", namespace)
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    EvaluationRequest::new(
+        RequestedOperation::Custom(custom_op),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"))
+}
+
+#[test]
+fn mixed_operations_scope_builtin_and_custom() {
+    // Spec §6.1: operations scope can include both built-in (recognize)
+    // and custom operations in the same allow list.
+    let grant = verified_grant_from_json(MIXED_OPS_GRANT_JSON);
+    let engine = EvaluationEngine::new();
+
+    // Request recognize → allowed (via operations, not just capabilities)
+    {
+        let request = simple_recognize_request("item", "weapons");
+        let decision = engine.evaluate(&grant, &request);
+        assert!(
+            decision.is_allowed(),
+            "recognize should be allowed via operations scope",
+        );
+    }
+
+    // Request custom:export → allowed
+    {
+        let request = custom_operation_request("custom:export", "item", "weapons");
+        let decision = engine.evaluate(&grant, &request);
+        assert!(
+            decision.is_allowed(),
+            "custom:export should be allowed via operations scope",
+        );
+    }
+
+    // Request custom:import → OperationDenied
+    {
+        let request = custom_operation_request("custom:import", "item", "weapons");
+        let decision = engine.evaluate(&grant, &request);
+        assert_eq!(
+            decision.deny_reason(),
+            Some(EvaluationDenyReason::OperationDenied),
+            "custom:import should be denied",
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// P3.1: Large document at size boundary
+// ---------------------------------------------------------------------------
+
+/// Builds a valid TrustGrant JSON document whose serialized byte length is
+/// exactly `target` bytes by padding the `issuer_principal.id` field value.
+fn grant_json_at_exact_size(target: usize) -> String {
+    // Compact JSON prefix ending at the issuer_principal.id string value.
+    let prefix = r#"{"trustgrant_id":"tg_sz","version":0,"grant_series_id":"tgs_sz","revision":1,"supersedes":null,"supersession_policy":"coexist","issuer_authority":"https://issuer.example.com","origin_authority":"https://issuer.example.com","active_owning_authority":"https://issuer.example.com","key_id":"root-key-1","target_scope":{"all":true,"allow":null,"deny":null},"capabilities":{"recognize":true,"mint":false},"default_audience_scope":null,"resource_scope":{"types":{}},"global_constraints":null,"revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},"issued_at":"2026-04-07T12:00:00Z","signature":"base64-signature","issuer_principal":{"kind":"service","id":""#;
+    let suffix = r#""}}"#;
+    let padding_needed = target.saturating_sub(prefix.len() + suffix.len());
+    format!("{prefix}{padding}{suffix}", prefix = prefix, padding = "x".repeat(padding_needed), suffix = suffix)
+}
+
+#[test]
+fn large_document_at_size_boundary() {
+    // Protocol boundary: document at MAX_TRUSTGRANT_JSON_BYTES should
+    // be accepted, one byte over should be rejected.
+    let max_bytes = limits::MAX_TRUSTGRANT_JSON_BYTES;
+
+    // Build a document that is exactly at the limit.
+    let exact = grant_json_at_exact_size(max_bytes);
+    assert_eq!(exact.len(), max_bytes, "exact-size document should match limit");
+    let result = RawTrustGrantDocument::parse_json_bytes(exact.as_bytes());
+    assert!(
+        result.is_ok(),
+        "document at exact size limit should parse: {:?}",
+        result.err(),
+    );
+
+    // One byte over the limit should fail.
+    let too_big = grant_json_at_exact_size(max_bytes + 1);
+    assert_eq!(too_big.len(), max_bytes + 1, "oversize document should be one byte over");
+    let result = RawTrustGrantDocument::parse_json_bytes(too_big.as_bytes());
+    assert!(
+        result.is_err(),
+        "document one byte over limit should be rejected",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// P3.2: Duplicate selectors in evaluation request
+// ---------------------------------------------------------------------------
+
+#[test]
+fn duplicate_selectors_in_evaluation_request() {
+    // The SelectorContext should deduplicate identical selectors.
+    let mut context = SelectorContext::new();
+    context
+        .insert("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("first insert should succeed: {error}"));
+    context
+        .insert("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("duplicate insert should succeed: {error}"));
+
+    let values = context
+        .values_for_kind_str("namespace")
+        .unwrap_or_else(|| panic!("namespace selector should be present"));
+
+    assert_eq!(
+        values.len(),
+        1,
+        "duplicate selector values should be deduplicated",
+    );
+    assert_eq!(
+        values.first(),
+        Some(&"weapons".to_string()),
+        "deduplicated value should be preserved",
+    );
 }
