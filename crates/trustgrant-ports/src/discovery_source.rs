@@ -26,10 +26,11 @@ use crate::VerificationContext;
 ///
 /// # Example (mock)
 ///
-/// ```rust,ignore
+/// ```
 /// use trustgrant_ports::{DiscoverySource, VerificationContext};
-/// # use trustgrant_domain::AuthorityId;
-/// # use trustgrant_discovery::DelegatedPrincipalRef;
+/// use trustgrant_domain::AuthorityId;
+/// use trustgrant_discovery::{AuthorityDiscoveryDocument, DelegatedPrincipalKeyDocument, DelegatedPrincipalRef};
+/// use trustgrant_error::TrustGrantError;
 ///
 /// struct MockDiscovery;
 ///

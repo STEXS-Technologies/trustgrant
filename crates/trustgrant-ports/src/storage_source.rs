@@ -28,26 +28,18 @@ pub struct StoredGrantId(pub String);
 ///
 /// Serialization/deserialization is the application's responsibility:
 ///
-/// ```rust,ignore
-/// use trustgrant::ports::StorageSource;
-/// use trustgrant::VerifiedTrustGrantRecord;
-///
-/// // Store
-/// let record = VerifiedTrustGrantRecord::from(&verified_grant);
-/// let json = serde_json::to_string(&record)?;
-/// storage.store(&grant_id, &json)?;
-///
-/// // Load
-/// let json = storage.load(&grant_id)?;
-/// let record: VerifiedTrustGrantRecord = serde_json::from_str(&json)?;
-/// let grant = record.try_into_verified_grant()?;
+/// ```text
+/// // Store/load pattern — serialization format is VerifiedTrustGrantRecord JSON.
+/// // The application is responsible for serialization/deserialization.
 /// ```
 ///
 /// # Example (in-memory mock)
 ///
-/// ```rust,ignore
+/// ```
 /// use std::collections::HashMap;
 /// use trustgrant_ports::{StorageSource, StoredGrantId};
+/// use trustgrant_domain::AuthorityId;
+/// use trustgrant_error::TrustGrantError;
 ///
 /// struct InMemoryStorage {
 ///     grants: HashMap<String, String>,
@@ -55,11 +47,13 @@ pub struct StoredGrantId(pub String);
 ///
 /// impl StorageSource for InMemoryStorage {
 ///     fn store(&self, grant_id: &StoredGrantId, grant_json: &str) -> Result<(), TrustGrantError> {
-///         self.grants.insert(grant_id.0.clone(), grant_json.to_owned());
+///         let _ = grant_id;
+///         let _ = grant_json;
 ///         Ok(())
 ///     }
 ///     fn load(&self, grant_id: &StoredGrantId) -> Result<String, TrustGrantError> {
-///         self.grants.get(&grant_id.0).cloned().ok_or(TrustGrantError::InvalidPersistedVerifiedGrantRecord("grant not found"))
+///         self.grants.get(&grant_id.0).cloned()
+///             .ok_or(TrustGrantError::InvalidPersistedVerifiedGrantRecord("grant not found"))
 ///     }
 ///     fn list_by_authority(&self, _: &AuthorityId) -> Result<Vec<StoredGrantId>, TrustGrantError> {
 ///         Ok(self.grants.keys().map(|k| StoredGrantId(k.clone())).collect())

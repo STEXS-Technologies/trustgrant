@@ -22,10 +22,11 @@ use trustgrant_revocation::RevocationRecord;
 ///
 /// # Example (mock)
 ///
-/// ```rust,ignore
+/// ```
 /// use trustgrant_ports::RevocationSource;
-/// # use trustgrant_domain::TrustGrantId;
-/// # use trustgrant_revocation::RevocationRecord;
+/// use trustgrant_domain::TrustGrantId;
+/// use trustgrant_error::TrustGrantError;
+/// use trustgrant_revocation::RevocationRecord;
 ///
 /// struct MockRevocation;
 ///

@@ -17,12 +17,10 @@
 //!   [`RevocationSource`], or [`StorageSource`] as needed. The application
 //!   calls these, assembles the bundle, then calls the verification pipeline.
 //!
-//! ```rust,ignore
+//! ```text
 //! // Skip traits entirely — data already in hand:
-//! let mut bundle = TrustGrantProofBundle::new();
-//! bundle.insert_discovery_document(my_doc);
-//! bundle.insert_revocation_proof(my_proof);
-//! pipeline.verify_json_str_with_bundle(json, verifier, &bundle, ctx)?;
+//! // Construct domain types directly, insert into a TrustGrantProofBundle,
+//! // then call the verification pipeline's bundle-based entry point.
 //! ```
 
 pub mod discovery_source;
