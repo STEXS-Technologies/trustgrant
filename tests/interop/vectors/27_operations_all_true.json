@@ -1,9 +1,9 @@
 {
-  "description": "Mint grant — audience principal check fires before per-user limit (evaluation order)",
+  "description": "Recognize grant — operations.all=true with deny list",
   "trustgrant": {
-    "trustgrant_id": "tg_00000006-0006-4006-a006-000000000006",
+    "trustgrant_id": "tg_00000027-0027-4027-a027-000000000027",
     "version": 0,
-    "grant_series_id": "tgs_00000006-0006-4006-a006-000000000006",
+    "grant_series_id": "tgs_00000027-0027-4027-a027-000000000027",
     "revision": 1,
     "supersedes": null,
     "supersession_policy": "coexist",
@@ -23,7 +23,7 @@
       ],
       "deny": null
     },
-    "capabilities": { "recognize": false, "mint": true },
+          "capabilities": { "recognize": true, "mint": true },
     "default_audience_scope": [
       {
         "authority_id": "https://audience.example.com",
@@ -44,12 +44,12 @@
             }
           ],
           "deny": null,
-          "capabilities": { "recognize": false, "mint": true },
+    "capabilities": { "recognize": true, "mint": true },
           "constraints": {
-            "minting": { "max_total": 100, "max_per_user": 1 },
+            "minting": { "max_total": null, "max_per_user": null },
             "audience_scope": null
           },
-          "operations": { "all": false, "allow": ["create"], "deny": null }
+          "operations": { "all": true, "allow": null, "deny": ["recognize"] }
         }
       }
     },
@@ -69,17 +69,28 @@
   },
   "evaluations": [
     {
-      "description": "mint request — max_per_user=1 requires audience_principal_context; empty context triggers MissingAudiencePrincipalContext first",
+      "description": "operation in deny list with all=true — should be denied",
+      "request": {
+        "operation": "recognize",
+        "target_authority": "https://target.example.com",
+        "audience_authority": "https://audience.example.com",
+        "resource_type": "item",
+        "resource_selectors": { "namespace": ["weapons"] },
+        "evaluated_at": "2026-06-15T12:00:00Z"
+      },
+      "expected": { "Denied": "OperationDenied" }
+    },
+    {
+      "description": "operation not in deny list with all=true — should be allowed",
       "request": {
         "operation": "mint",
         "target_authority": "https://target.example.com",
         "audience_authority": "https://audience.example.com",
         "resource_type": "item",
         "resource_selectors": { "namespace": ["weapons"] },
-        "evaluated_at": "2026-06-15T12:00:00Z",
-        "mint_context": { "total_minted": 0, "user_minted": 1 }
+        "evaluated_at": "2026-06-15T12:00:00Z"
       },
-      "expected": { "Denied": "MissingAudiencePrincipalContext" }
+      "expected": "Allowed"
     }
   ]
 }

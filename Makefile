@@ -10,7 +10,7 @@ PACKAGES := trustgrant-domain trustgrant-document trustgrant-error \
             trustgrant-ports trustgrant
 
 .PHONY: all build check test clippy fmt bench coverage audit fuzz ci \
-        clean docs example-hot example-cold help
+        interop clean docs example-hot example-cold help
 
 all: check test clippy fmt
 
@@ -102,6 +102,12 @@ fuzz-run-%:
 
 audit:
 	cargo audit
+
+# ── Interop ─────────────────────────────────────────────────────────
+
+interop:
+	cargo test --test interop -p trustgrant -- --nocapture
+	cd interop/go && go test ./... -v
 
 # ── CI (matches GitHub Actions) ────────────────────────────────────
 

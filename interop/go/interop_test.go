@@ -12,15 +12,17 @@ import (
 // --- Vector types (mirrors Rust test vector format) ---
 
 type TestVector struct {
-	Description string           `json:"description"`
-	TrustGrant  json.RawMessage  `json:"trustgrant"`
-	Evaluations []EvaluationItem `json:"evaluations"`
+	Description        string           `json:"description"`
+	TrustGrant         json.RawMessage  `json:"trustgrant"`
+	RevocationOverride string           `json:"revocation_override"`
+	Evaluations        []EvaluationItem `json:"evaluations"`
 }
 
 type EvaluationItem struct {
 	Description string          `json:"description"`
 	Request     json.RawMessage `json:"request"`
 	Expected    json.RawMessage `json:"expected"`
+	Setup       string          `json:"setup"`
 }
 
 // --- Helpers ---
@@ -137,6 +139,15 @@ func TestInteropVectorsParse(t *testing.T) {
 			}
 		}
 
+		// Validate revocation_override if present
+		if vec.RevocationOverride != "" &&
+			vec.RevocationOverride != "revoked" &&
+			vec.RevocationOverride != "non_revocable" {
+			t.Errorf("%s: invalid revocation_override %q (must be revoked, non_revocable, or absent)",
+				filepath.Base(path), vec.RevocationOverride)
+			failed++
+		}
+
 		// Check evaluations are parseable (assertions are pending Go impl)
 		for i, eval := range vec.Evaluations {
 			if eval.Description == "" {
@@ -162,6 +173,12 @@ func TestInteropVectorsParse(t *testing.T) {
 						filepath.Base(path), i)
 					failed++
 				}
+			}
+			// Validate setup field if present
+			if eval.Setup != "" && eval.Setup != "add_audience_principal" {
+				t.Errorf("%s: evaluation %d: invalid setup %q",
+					filepath.Base(path), i, eval.Setup)
+				failed++
 			}
 		}
 

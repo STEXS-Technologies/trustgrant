@@ -38,7 +38,39 @@ fn timestamp(s: &str) -> DateTime<Utc> {
         .with_timezone(&Utc)
 }
 
-fn make_metadata(verified_at: DateTime<Utc>) -> VerificationMetadata {
+fn make_revocation_record(
+    verified_at: DateTime<Utc>,
+    override_val: Option<&str>,
+) -> VerifiedRevocationState {
+    match override_val {
+        Some("revoked") => VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                RevocationStatus::Revoked,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                verified_at,
+                verified_at,
+            )
+            .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
+        ),
+        Some("non_revocable") => VerifiedRevocationState::NonRevocable,
+        _ => VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                RevocationStatus::Active,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                verified_at,
+                verified_at,
+            )
+            .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
+        ),
+    }
+}
+
+fn make_metadata(
+    verified_at: DateTime<Utc>,
+    revocation: VerifiedRevocationState,
+) -> VerificationMetadata {
     VerificationMetadata::new(
         verified_at,
         VerificationPosture::Online,
@@ -69,16 +101,7 @@ fn make_metadata(verified_at: DateTime<Utc>) -> VerificationMetadata {
             trustgrant::domain::OwnershipProofKind::StaticOwner,
             None,
         ),
-        VerifiedRevocationState::Checked(
-            RevocationRecord::new(
-                RevocationStatus::Active,
-                RevocationSourceKind::Api,
-                ProofFinality::Observed,
-                verified_at,
-                verified_at,
-            )
-            .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
-        ),
+        revocation,
     )
 }
 
@@ -124,6 +147,31 @@ fn run_evaluation(
     )
     .unwrap_or_else(|e| panic!("invalid request: {e}"));
 
+    // Handle evaluation setup — e.g. add audience principal selectors
+    if let Some(setup) = eval.get("setup").and_then(|v| v.as_str()) {
+        match setup {
+            "add_audience_principal" => {
+                if let Some(principal_selectors) =
+                    req.get("audience_principal_selectors").and_then(|v| v.as_object())
+                {
+                    for (kind, values) in principal_selectors {
+                        for value in values.as_array().unwrap() {
+                            request
+                                .insert_audience_principal_selector(
+                                    kind,
+                                    value.as_str().unwrap(),
+                                )
+                                .unwrap_or_else(|e| {
+                                    panic!("invalid audience principal selector: {e}")
+                                });
+                        }
+                    }
+                }
+            }
+            other => panic!("unknown evaluation setup: {other}"),
+        }
+    }
+
     if let Some(mc) = req.get("mint_context") {
         request = request.with_mint_context(MintContext::new(
             mc["total_minted"].as_u64().unwrap(),
@@ -161,7 +209,11 @@ fn run_vector(path: &Path) -> Result<(), String> {
     let pipeline = VerificationPipeline::new();
     let verifier = InteropSignatureVerifier;
     let verified_at = timestamp("2026-06-15T12:00:00Z");
-    let metadata = make_metadata(verified_at);
+    let revocation_override = vector
+        .get("revocation_override")
+        .and_then(|v| v.as_str());
+    let revocation = make_revocation_record(verified_at, revocation_override);
+    let metadata = make_metadata(verified_at, revocation);
 
     let verified = pipeline
         .verify_json_str(&trustgrant_json, &verifier, metadata)
