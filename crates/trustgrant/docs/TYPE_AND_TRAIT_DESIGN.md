@@ -298,10 +298,17 @@ Current v0 core directly exposes:
 - `RevocationProofSource`
 - `OwnershipTransitionProofSource`
 - `SignatureVerifier`
+- `DiscoverySource` — raw fetch layer for discovery documents (application-level, optional)
+- `RevocationSource` — raw revocation status check (application-level, optional)
+- `StorageSource` — persist and load verified grants (application-level, optional)
+
+The three application-level traits (`DiscoverySource`, `RevocationSource`, `StorageSource`)
+are optional — the protocol core never calls them directly. They exist so that applications
+fetching from authority endpoints have a standard interface instead of each one inventing
+their own `trait MyHttpFetcher`.
 
 It does not yet expose separate built-in ports for:
 - non-HTTP authority resolution
-- delegated principal key fetch distinct from discovery source selection
 - native multisig or contract-signer proof aggregation
 
 ## 11. Evaluation Types

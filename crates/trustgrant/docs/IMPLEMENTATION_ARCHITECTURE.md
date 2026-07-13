@@ -337,6 +337,9 @@ The core traits should look conceptually like:
 - `SignerProofSource`
 - `RevocationProofSource`
 - `OwnershipTransitionProofSource`
+- `DiscoverySource` (optional, application-level)
+- `RevocationSource` (optional, application-level)
+- `StorageSource` (optional, application-level)
 - `Clock`
 - `FinalityPolicy`
 
