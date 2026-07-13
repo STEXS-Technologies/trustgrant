@@ -175,29 +175,12 @@ Conformance vectors with `"selector_kind"` test kind equality:
 | 5 | Evaluation engine (spec §13 steps 1-11) | Interop vectors |
 | 6 | Signature verification | Interop vectors (mock verifier) |
 
-## Reference: Go harness
-
-The reference implementation in `interop/go/interop_test.go` shows the minimal
-scaffolding: read vector files, parse JSON, validate structure.
-
-For a full implementation, write a test that — for each interop vector —
-parses the trustgrant, runs the evaluation scenarios, and asserts the expected
-outcomes. The Go test currently only validates structure because no Go
-TrustGrant library exists yet. When one does, the evaluation assertions
-slot directly into the existing test.
-
 ## Running your tests
 
-```
-# Rust (reference implementation)
+```bash
+# Rust (reference implementation) — validates all vectors end-to-end
 make interop
-
-# Go (structural validation only)
-cd interop/go && go test ./...
 
 # TypeScript (when impl exists)
 cd interop/typescript && npx jest
-
-# Validate that all three agree
-make interop  # runs Rust + Go
 ```

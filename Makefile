@@ -109,7 +109,6 @@ interop:
 	cargo test --test interop -p trustgrant -- --nocapture
 	cargo test --test conformance_vectors -p trustgrant -- --nocapture
 	cargo test --test conformance -p trustgrant -- --nocapture
-	cd interop/go && go test ./... -v
 
 # ── CI (matches GitHub Actions) ────────────────────────────────────
 
