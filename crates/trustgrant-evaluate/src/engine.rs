@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use tracing;
-
 use super::decision::{EvaluationDecision, EvaluationDenyReason};
 use super::request::{EvaluationRequest, RequestedCapability, RequestedOperation, SelectorContext};
 use trustgrant_document::{

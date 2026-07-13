@@ -88,6 +88,7 @@ pub trait DiscoverySource {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::panic)]
     use super::*;
     use trustgrant_domain::AuthorityId;
     use trustgrant_error::TrustGrantError;
@@ -117,7 +118,8 @@ mod tests {
 
     fn ctx() -> VerificationContext {
         VerificationContext::new(
-            Utc.with_ymd_and_hms(2026, 4, 7, 12, 0, 0).single().unwrap(),
+            Utc.with_ymd_and_hms(2026, 4, 7, 12, 0, 0).single()
+                .unwrap_or_else(chrono::Utc::now),
             crate::VerificationPosture::Online,
         )
     }
@@ -125,8 +127,8 @@ mod tests {
     #[test]
     fn mock_discovery_returns_not_found_for_authority() {
         let source = MockDiscovery;
-        let authority =
-            AuthorityId::new("https://issuer.example.com").unwrap();
+        let authority = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|e| panic!("AuthorityId: {e}"));
         let result = source.fetch_authority_discovery(&authority, ctx());
         assert_eq!(
             result,
@@ -138,10 +140,10 @@ mod tests {
     fn mock_discovery_returns_not_found_for_principal() {
         use trustgrant_discovery::DelegatedPrincipalRef;
         let source = MockDiscovery;
-        let authority =
-            AuthorityId::new("https://issuer.example.com").unwrap();
-        let principal =
-            DelegatedPrincipalRef::new("service", "issuer-worker").unwrap();
+        let authority = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|e| panic!("AuthorityId: {e}"));
+        let principal = DelegatedPrincipalRef::new("service", "issuer-worker")
+            .unwrap_or_else(|e| panic!("DelegatedPrincipalRef: {e}"));
         let result =
             source.fetch_delegated_principal(&authority, &principal, ctx());
         assert_eq!(

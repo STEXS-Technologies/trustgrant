@@ -104,6 +104,7 @@ pub trait StorageSource {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::panic)]
     use super::*;
     use std::collections::HashMap;
     use trustgrant_domain::AuthorityId;
@@ -152,7 +153,8 @@ mod tests {
     }
 
     fn test_authority() -> AuthorityId {
-        AuthorityId::new("https://issuer.example.com").unwrap()
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("failed to create AuthorityId: {error}"))
     }
 
     #[test]
@@ -177,6 +179,6 @@ mod tests {
         let storage = InMemoryStorage::new();
         let result = storage.list_by_authority(&test_authority());
         assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
+        assert!(result.unwrap_or_else(|error| panic!("expected Ok: {error}")).is_empty());
     }
 }

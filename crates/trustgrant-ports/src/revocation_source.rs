@@ -56,6 +56,7 @@ pub trait RevocationSource {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::panic)]
     use super::*;
     use trustgrant_domain::TrustGrantId;
     use trustgrant_error::TrustGrantError;
@@ -76,7 +77,7 @@ mod tests {
         let source = MockRevocation;
         let id = "tg_123e4567-e89b-12d3-a456-426614174000"
             .parse::<TrustGrantId>()
-            .unwrap();
+            .unwrap_or_else(|error| panic!("failed to parse TrustGrantId: {error}"));
         let result = source.check_revocation(&id);
         assert_eq!(result, Err(TrustGrantError::MissingRevocationProof));
     }

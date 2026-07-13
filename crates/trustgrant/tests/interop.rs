@@ -1,3 +1,5 @@
+#![allow(clippy::panic, clippy::unwrap_used, clippy::indexing_slicing)]
+
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -194,12 +196,11 @@ fn check_decision(decision: EvaluationDecision, expected: &serde_json::Value) ->
     if decision.is_allowed() && expected == "Allowed" {
         return true;
     }
-    if let Some(deny_reason) = decision.deny_reason() {
-        if let serde_json::Value::Object(map) = expected {
-            if let Some(expected_reason) = map.get("Denied").and_then(|v| v.as_str()) {
-                return format!("{deny_reason:?}").contains(expected_reason);
-            }
-        }
+    if let Some(deny_reason) = decision.deny_reason()
+        && let serde_json::Value::Object(map) = expected
+        && let Some(expected_reason) = map.get("Denied").and_then(|v| v.as_str())
+    {
+        return format!("{deny_reason:?}").contains(expected_reason);
     }
     false
 }

@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::indexing_slicing)]
 
 use chrono::{DateTime, Utc};
 use serde_json::json;
@@ -280,7 +280,8 @@ fn conformance_s4_required_fields_present_with_correct_types() {
     // target_scope is present
     assert!(!raw.target_scope.all || raw.target_scope.allow.is_none());
     // capabilities is present
-    assert!(!raw.capabilities.recognize || !raw.capabilities.recognize || !raw.capabilities.mint);
+    // capabilities is present — at least one must be true for this base document
+    assert!(raw.capabilities.recognize || raw.capabilities.mint);
     // resource_scope is present
     assert!(!raw.resource_scope.types.is_empty());
     // issued_at is present

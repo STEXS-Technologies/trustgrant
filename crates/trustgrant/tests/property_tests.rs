@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used)]
 
 //! Property-based tests for the trustgrant core crate.
 //!

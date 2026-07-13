@@ -1,3 +1,12 @@
+#![allow(
+    clippy::panic,
+    clippy::collapsible_if,
+    clippy::wildcard_enum_match_arm,
+    clippy::indexing_slicing,
+    clippy::unwrap_used,
+)]
+#![allow(dead_code)]
+
 use std::path::Path;
 
 use serde_json::Value;
@@ -305,7 +314,7 @@ fn conformance_vectors() {
 
     for entry in &entries {
         let path = entry.path();
-        if !path.extension().is_some_and(|ext| ext == "json") {
+        if path.extension().is_none_or(|ext| ext != "json") {
             continue;
         }
         // Skip evaluation vectors (handled by interop harness) and base doc
@@ -352,7 +361,7 @@ fn conformance_vector_rejects_malformed_file() {
 
     // Use a unique temp dir based on the test name
     let dir = std::env::temp_dir().join("tg_conformance_malformed_test");
-    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create temp dir: {e}"));
 
     // Test 1: non-JSON content
