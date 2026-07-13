@@ -12,15 +12,19 @@ use std::collections::BTreeMap;
 use proptest::prelude::*;
 use trustgrant::document::raw::{
     RawAudienceEntry, RawCapabilities, RawMintingConstraints, RawOperationScope, RawResourceScope,
-    RawResourceType, RawScope, RawSelector, RawTypeCapabilities, RawTypeConstraints,
+    RawResourceType, RawScope, RawSelector, RawTrustGrantDocument, RawTypeCapabilities,
+    RawTypeConstraints,
 };
 use trustgrant::domain::Utf16Key;
 use trustgrant::{
-    AuthorityId, AuthorityKeyRecord, CanonicalizationProfile, EvaluationEngine, EvaluationRequest,
-    OwnershipProofKind, OwnershipVerificationRecord, RequestedCapability, RequestedOperation,
-    ResolvedSignerBinding, ResourceContext, SignatureProfile, SignatureVerificationRequest,
+    AuthorityId, AuthorityKeyRecord, CanonicalizationProfile, DelegatedPrincipalRef,
+    EvaluationDecision, EvaluationDenyReason, EvaluationEngine, EvaluationRequest, MintContext,
+    OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
+    RequestedOperation, ResolvedSignerBinding, ResourceContext, RevocationRecord,
+    RevocationSourceKind, RevocationStatus, SignatureProfile, SignatureVerificationRequest,
     SignatureVerifier, TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError,
-    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
+    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 // ---------------------------------------------------------------------------
@@ -460,5 +464,328 @@ proptest! {
 
         prop_assert_eq!(decision1.is_allowed(), decision2.is_allowed());
         prop_assert_eq!(decision1.deny_reason(), decision2.deny_reason());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formal property-based verification tests (spec §10–§13)
+// ---------------------------------------------------------------------------
+
+fn make_grant_json(overrides: &[(&str, serde_json::Value)]) -> String {
+    let mut doc = serde_json::json!({
+        "trustgrant_id": "tg_11111111-1111-4111-8111-111111111001",
+        "version": 0,
+        "grant_series_id": "tgs_11111111-1111-4111-8111-111111111001",
+        "revision": 1,
+        "supersedes": null,
+        "supersession_policy": "coexist",
+        "issuer_authority": "https://issuer.example.com",
+        "origin_authority": "https://issuer.example.com",
+        "active_owning_authority": "https://issuer.example.com",
+        "key_id": "root-key-1",
+        "target_scope": {
+            "all": false,
+            "allow": [{"kind": "authority", "all": false, "values": ["https://target.example.com"], "expressions": null}],
+            "deny": null
+        },
+        "capabilities": { "recognize": true, "mint": false },
+        "default_audience_scope": [{"authority_id": "https://audience.example.com", "scope": {"all": true, "allow": null, "deny": null}, "principal_scope": null}],
+        "resource_scope": {
+            "types": {
+                "item": {
+                    "all": false,
+                    "allow": [{"kind": "namespace", "all": false, "values": ["weapons"], "expressions": null}],
+                    "deny": null,
+                    "capabilities": { "recognize": null, "mint": null },
+                    "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
+                    "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                }
+            }
+        },
+        "global_constraints": {
+            "time": { "not_before": "2026-01-01T00:00:00Z", "not_after": "2027-01-01T00:00:00Z" }
+        },
+        "revocation": {
+            "revocable": true,
+            "revocation_endpoint": "https://issuer.example.com/revocation"
+        },
+        "issued_at": "2026-06-01T12:00:00Z",
+        "signature": "valid-signature",
+        "issuer_principal": { "kind": "service", "id": "issuer-worker" }
+    });
+    let obj = doc.as_object_mut().unwrap();
+    for (key, val) in overrides {
+        obj.insert(key.to_string(), val.clone());
+    }
+    serde_json::to_string(&doc).unwrap()
+}
+
+fn ts(s: &str) -> chrono::DateTime<chrono::Utc> {
+    chrono::DateTime::parse_from_rfc3339(s)
+        .unwrap()
+        .with_timezone(&chrono::Utc)
+}
+
+fn make_metadata() -> VerificationMetadata {
+    VerificationMetadata::new(
+        ts("2026-06-15T12:00:00Z"),
+        VerificationPosture::Online,
+        ResolvedSignerBinding::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            AuthorityKeyRecord::new(
+                "root-key-1",
+                "ed25519",
+                "base64-public-key",
+                ts("2026-01-01T00:00:00Z"),
+                ts("2027-01-01T00:00:00Z"),
+            )
+            .unwrap(),
+            SignatureProfile::new("jcs+ed25519", "RFC8785").unwrap(),
+            Some(DelegatedPrincipalRef::new("service", "issuer-worker").unwrap()),
+        ),
+        OwnershipVerificationRecord::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            ts("2026-06-15T12:00:00Z"),
+            OwnershipProofKind::StaticOwner,
+            None,
+        ),
+        VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                RevocationStatus::Active,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                ts("2026-06-15T12:00:00Z"),
+                ts("2026-06-15T12:00:00Z"),
+            )
+            .unwrap(),
+        ),
+    )
+}
+
+fn evaluate_json(json: &str, target: &str, namespace: &str) -> EvaluationDecision {
+    let validated =
+        ValidatedTrustGrantDocument::try_from(RawTrustGrantDocument::parse_json_str(json).unwrap())
+            .unwrap();
+    let grant = VerifiedTrustGrant::new(validated, make_metadata());
+    let mut resource = ResourceContext::new("item").unwrap();
+    resource.insert_selector("namespace", namespace).unwrap();
+    let request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        AuthorityId::new(target).unwrap(),
+        AuthorityId::new("https://audience.example.com").unwrap(),
+        resource,
+        ts("2026-06-15T12:00:00Z"),
+    )
+    .unwrap();
+    EvaluationEngine::new().evaluate(&grant, &request)
+}
+
+fn evaluate_request_json(json: &str, request: &EvaluationRequest) -> EvaluationDecision {
+    let validated =
+        ValidatedTrustGrantDocument::try_from(RawTrustGrantDocument::parse_json_str(json).unwrap())
+            .unwrap();
+    let grant = VerifiedTrustGrant::new(validated, make_metadata());
+    EvaluationEngine::new().evaluate(&grant, request)
+}
+
+// ---------------------------------------------------------------------------
+// Formal property 1: Deny is always subtractive (spec §10)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn formal_deny_is_subtractive(
+        _ in 0..10u8,
+    ) {
+        // When a target matches both allow AND deny selectors,
+        // the result must always be Denied, never Allowed.
+        let json = make_grant_json(&[
+            ("target_scope", serde_json::json!({
+                "all": false,
+                "allow": [{"kind": "authority", "all": false, "values": ["https://target.example.com"], "expressions": null}],
+                "deny": [{"kind": "authority", "all": false, "values": ["https://target.example.com"], "expressions": null}]
+            })),
+        ]);
+        let decision = evaluate_json(&json, "https://target.example.com", "weapons");
+        prop_assert!(
+            !decision.is_allowed(),
+            "deny must be subtractive: when target is in both allow and deny, result must be denial"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formal property 2: Allow is always explicit (spec §10)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn formal_allow_is_explicit(
+        _ in 0..10u8,
+    ) {
+        // When a target is NOT in any allow selector, the result must
+        // always be Denied, never Allowed.
+        let json = make_grant_json(&[
+            ("target_scope", serde_json::json!({
+                "all": false,
+                "allow": [{"kind": "authority", "all": false, "values": ["https://allowed.example.com"], "expressions": null}],
+                "deny": null
+            })),
+        ]);
+        let decision = evaluate_json(&json, "https://other.example.com", "weapons");
+        prop_assert!(
+            !decision.is_allowed(),
+            "allow must be explicit: non-matching target must be denied"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formal property 3: Fail-closed (spec §10)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn formal_fail_closed(
+        _ in 0..10u8,
+    ) {
+        // For ANY request, the default outcome is denial.
+        // A request for a non-existent resource type should always be denied.
+        let json = make_grant_json(&[]);
+        let mut resource = ResourceContext::new("nonexistent_type").unwrap();
+        resource.insert_selector("namespace", "anything").unwrap();
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            AuthorityId::new("https://target.example.com").unwrap(),
+            AuthorityId::new("https://audience.example.com").unwrap(),
+            resource,
+            ts("2026-06-15T12:00:00Z"),
+        ).unwrap();
+        let decision = evaluate_request_json(&json, &request);
+        prop_assert!(
+            !decision.is_allowed(),
+            "fail-closed: non-matching resource type must be denied"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formal property 4: Capability inheritance (spec §11)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn formal_capability_inheritance(
+        _ in 0..10u8,
+    ) {
+        // Per-type capabilities must correctly override global capabilities.
+        // Case 1: global mint=true, per-type mint=false → denied
+        let json_disabled = make_grant_json(&[
+            ("capabilities", serde_json::json!({ "recognize": false, "mint": true })),
+            ("resource_scope", serde_json::json!({
+                "types": {
+                    "item": {
+                        "all": false,
+                        "allow": [{"kind": "namespace", "all": false, "values": ["weapons"], "expressions": null}],
+                        "deny": null,
+                        "capabilities": { "recognize": false, "mint": false },
+                        "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
+                        "operations": { "all": false, "allow": ["create"], "deny": null }
+                    }
+                }
+            })),
+        ]);
+        let mut resource = ResourceContext::new("item").unwrap();
+        resource.insert_selector("namespace", "weapons").unwrap();
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Mint),
+            AuthorityId::new("https://target.example.com").unwrap(),
+            AuthorityId::new("https://audience.example.com").unwrap(),
+            resource,
+            ts("2026-06-15T12:00:00Z"),
+        ).unwrap().with_mint_context(MintContext::new(0, 0));
+        let decision = evaluate_request_json(&json_disabled, &request);
+        prop_assert_eq!(
+            decision.deny_reason(),
+            Some(EvaluationDenyReason::CapabilityDisabled),
+            "per-type mint=false overrides global mint=true"
+        );
+
+        // Case 2: global mint=false, per-type mint=null → uses global (denied)
+        let json_global = make_grant_json(&[
+            ("capabilities", serde_json::json!({ "recognize": false, "mint": false })),
+        ]);
+        let mut resource2 = ResourceContext::new("item").unwrap();
+        resource2.insert_selector("namespace", "weapons").unwrap();
+        let request2 = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Mint),
+            AuthorityId::new("https://target.example.com").unwrap(),
+            AuthorityId::new("https://audience.example.com").unwrap(),
+            resource2,
+            ts("2026-06-15T12:00:00Z"),
+        ).unwrap().with_mint_context(MintContext::new(0, 0));
+        let decision2 = evaluate_request_json(&json_global, &request2);
+        prop_assert_eq!(
+            decision2.deny_reason(),
+            Some(EvaluationDenyReason::CapabilityDisabled),
+            "per-type mint=null inherits global mint=false"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formal property 5: Evaluation order (spec §13)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn formal_evaluation_order_expired_before_target(
+        _ in 0..10u8,
+    ) {
+        // Spec §13: Expired check (step 2) happens BEFORE target scope check
+        // (step 4). An expired grant must return Expired, not TargetNotAllowed.
+        let json = make_grant_json(&[
+            ("global_constraints", serde_json::json!({
+                "time": { "not_before": "2025-01-01T00:00:00Z", "not_after": "2025-06-01T00:00:00Z" }
+            })),
+        ]);
+        let decision = evaluate_json(&json, "https://nonexistent.example.com", "weapons");
+        prop_assert_eq!(
+            decision.deny_reason(),
+            Some(EvaluationDenyReason::Expired),
+            "expired check must happen before target scope check"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Formal property 6: Origin authority enforcement (spec §13 step 3)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn formal_origin_authority_enforcement(
+        _ in 0..10u8,
+    ) {
+        // Spec §13 step 3: origin authority mismatch must cause denial
+        let json = make_grant_json(&[]);
+        let mut resource = ResourceContext::new("item").unwrap();
+        resource.insert_selector("namespace", "weapons").unwrap();
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            AuthorityId::new("https://target.example.com").unwrap(),
+            AuthorityId::new("https://audience.example.com").unwrap(),
+            resource,
+            ts("2026-06-15T12:00:00Z"),
+        ).unwrap().with_origin_authority(
+            AuthorityId::new("https://other.example.com").unwrap()
+        );
+        let decision = evaluate_request_json(&json, &request);
+        prop_assert_eq!(
+            decision.deny_reason(),
+            Some(EvaluationDenyReason::OriginAuthorityMismatch),
+            "origin authority mismatch must be enforced"
+        );
     }
 }
