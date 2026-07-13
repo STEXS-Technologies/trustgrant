@@ -985,6 +985,7 @@ dependencies = [
  "trustgrant-ports",
  "trustgrant-revocation",
  "trustgrant-verify",
+ "url",
 ]
 
 [[package]]

@@ -2,12 +2,13 @@
 
 use chrono::{DateTime, Utc};
 use serde_json::json;
+use url::Url;
 use trustgrant::{
     AuthorityId, CustomOperationName, EvaluationDecision, EvaluationDenyReason, EvaluationEngine,
     EvaluationRequest, MintContext, RequestedCapability, RequestedOperation, ResourceContext,
     VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile},
-    document::raw::{RawMintingConstraints, RawSelector, RawTrustGrantDocument},
+    document::raw::{RawMintingConstraints, RawSelector, RawSupersessionPolicy, RawTrustGrantDocument},
     document::ValidatedTrustGrantDocument,
     domain::{
         CustomOperationName as CustomOpName, OwnershipProofKind, OwnershipVerificationRecord,
@@ -193,6 +194,61 @@ fn evaluate_json(doc_json: &str, request: &EvaluationRequest) -> EvaluationDecis
 }
 
 // ===========================================================================
+// Section 2.5 — Grant lineage and revisioning
+// ===========================================================================
+
+#[test]
+fn conformance_s2_5_revision_must_increase_monotonically() {
+    // Spec Section 2.5: "revision must increase monotonically within one grant_series_id"
+    let raw = RawTrustGrantDocument::parse_json_str(&make_grant_json(&[]))
+        .unwrap_or_else(|e| panic!("raw parse: {e}"));
+    assert!(raw.revision >= 1, "revision must be >= 1");
+    // A revision of 0 should be rejected
+    let json_zero = make_grant_json(&[("revision", json!(0))]);
+    let result = ValidatedTrustGrantDocument::try_from(
+        RawTrustGrantDocument::parse_json_str(&json_zero).unwrap_or_else(|e| panic!("raw parse: {e}"))
+    );
+    assert!(result.is_err(), "revision 0 should be rejected");
+}
+
+#[test]
+fn conformance_s2_5_supersedes_must_be_same_series() {
+    // Spec Section 2.5: "supersedes must point to an older trustgrant_id in the same grant_series_id"
+    // The validator checks that if revision > 1, supersedes must be present
+    // and must not be self-supersession
+    let json = make_grant_json(&[
+        ("revision", json!(2)),
+        ("supersedes", json!("tg_00000000-0000-0000-0000-000000000000")),
+    ]);
+    let raw = RawTrustGrantDocument::parse_json_str(&json).unwrap_or_else(|e| panic!("raw parse: {e}"));
+    let result = ValidatedTrustGrantDocument::try_from(raw);
+    assert!(result.is_ok(), "revision 2 with valid supersedes should be accepted");
+
+    // Self-supersession should be rejected
+    let json_self = make_grant_json(&[
+        ("trustgrant_id", json!("tg_11111111-1111-4111-8111-111111111001")),
+        ("revision", json!(2)),
+        ("supersedes", json!("tg_11111111-1111-4111-8111-111111111001")),
+    ]);
+    let raw_self = RawTrustGrantDocument::parse_json_str(&json_self).unwrap_or_else(|e| panic!("raw parse: {e}"));
+    let result_self = ValidatedTrustGrantDocument::try_from(raw_self);
+    assert!(result_self.is_err(), "self-supersession should be rejected");
+}
+
+#[test]
+fn conformance_s2_5_supersession_policy_valid_values() {
+    // Spec Section 2.5: "supersession_policy controls whether a new revision coexists or supersedes"
+    assert_eq!(
+        RawSupersessionPolicy::Coexist.as_str(), "coexist",
+        "coexist policy should serialize to 'coexist'"
+    );
+    assert_eq!(
+        RawSupersessionPolicy::SupersedePrevious.as_str(), "supersede_previous",
+        "supersede_previous policy should serialize to 'supersede_previous'"
+    );
+}
+
+// ===========================================================================
 // Section 4 — Document format field layout
 // ===========================================================================
 
@@ -287,6 +343,15 @@ fn conformance_s4_missing_signature_rejected() {
     let modified = json.replace("\"signature\":\"base64-signature\",", "");
     let result = RawTrustGrantDocument::parse_json_str(&modified);
     assert!(result.is_err(), "document without signature should be rejected");
+}
+
+#[test]
+fn conformance_s4_revocation_endpoint_must_be_url() {
+    // Spec Section 4: "revocation_endpoint must be a URL"
+    let raw = RawTrustGrantDocument::parse_json_str(&make_grant_json(&[]))
+        .unwrap_or_else(|e| panic!("raw parse: {e}"));
+    let revocation = raw.revocation.as_ref().unwrap_or_else(|| panic!("revocation should be present"));
+    assert!(Url::parse(revocation.revocation_endpoint.as_str()).is_ok(), "revocation_endpoint must be a valid URL");
 }
 
 // ===========================================================================
@@ -683,6 +748,22 @@ fn conformance_s7_selector_all_true_values_and_expressions_null() {
 }
 
 #[test]
+fn conformance_s7_selector_all_true_with_expressions_rejected() {
+    // Spec Section 7: "all=true → expressions must be null"
+    let json = make_grant_json(&[
+        ("target_scope", json!({
+            "all": false,
+            "allow": [{"kind": "authority", "all": true, "values": null, "expressions": ["equals(\"x\")"]}],
+            "deny": null
+        })),
+    ]);
+    let raw = RawTrustGrantDocument::parse_json_str(&json)
+        .unwrap_or_else(|e| panic!("raw parse: {e}"));
+    let result = ValidatedTrustGrantDocument::try_from(raw);
+    assert!(result.is_err(), "all=true with expressions should be rejected");
+}
+
+#[test]
 fn conformance_s7_selector_all_false_at_least_one_non_empty() {
     // Spec Section 7: "all=false → at least one of values or expressions must be non-empty"
     let json = make_grant_json(&[
@@ -1000,6 +1081,52 @@ fn conformance_s9_principal_scope_restricts_audience_does_not_grant() {
         decision_denied.deny_reason(),
         Some(EvaluationDenyReason::AudiencePrincipalNotAllowed),
         "non-matching principal should be denied"
+    );
+}
+
+#[test]
+fn conformance_s9_multiple_audience_entries() {
+    // Spec Section 9: "Audience is an array of authority-based scopes"
+    let json = make_grant_json(&[
+        ("default_audience_scope", json!([
+            {
+                "authority_id": "https://audience-a.example.com",
+                "scope": { "all": true, "allow": null, "deny": null },
+                "principal_scope": null
+            },
+            {
+                "authority_id": "https://audience-b.example.com",
+                "scope": { "all": true, "allow": null, "deny": null },
+                "principal_scope": null
+            }
+        ])),
+        ("resource_scope", json!({
+            "types": {
+                "item": {
+                    "all": false,
+                    "allow": [{"kind": "namespace", "all": false, "values": ["weapons"], "expressions": null}],
+                    "deny": null,
+                    "capabilities": { "recognize": null, "mint": null },
+                    "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
+                    "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                }
+            }
+        })),
+    ]);
+
+    // Both audience A and B should be allowed
+    let request_a = make_recognize_request("https://target.example.com", "https://audience-a.example.com", "weapons");
+    assert!(evaluate_json(&json, &request_a).is_allowed(), "audience A should be allowed");
+
+    let request_b = make_recognize_request("https://target.example.com", "https://audience-b.example.com", "weapons");
+    assert!(evaluate_json(&json, &request_b).is_allowed(), "audience B should be allowed");
+
+    // Non-matching audience should be denied
+    let request_c = make_recognize_request("https://target.example.com", "https://audience-c.example.com", "weapons");
+    assert_eq!(
+        evaluate_json(&json, &request_c).deny_reason(),
+        Some(EvaluationDenyReason::AudienceNotAllowed),
+        "non-matching audience should be denied"
     );
 }
 

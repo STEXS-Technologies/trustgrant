@@ -22,6 +22,7 @@ criterion = { version = "0.5.1", default-features = false, features = ["cargo_be
 proptest = "1.4"
 serde_json = "1.0.147"
 thiserror = { version = "2.0.18", default-features = false }
+url = "2"
 
 [lints]
 workspace = true
