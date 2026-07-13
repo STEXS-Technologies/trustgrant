@@ -16,6 +16,8 @@ pub enum EvaluationDenyReason {
     AudiencePrincipalNotAllowed,
     CapabilityDisabled,
     OperationDenied,
+    /// The request's origin authority does not match the grant's origin authority.
+    OriginAuthorityMismatch,
     MissingMintContext,
     MissingAudiencePrincipalContext,
     MintTotalLimitReached,
@@ -58,6 +60,40 @@ impl EvaluationDecision {
     #[must_use = "deny reason is required for audit and debugging"]
     pub const fn deny_reason(&self) -> Option<EvaluationDenyReason> {
         self.deny_reason
+    }
+}
+
+impl std::fmt::Display for EvaluationDenyReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EvaluationDenyReason::Revoked => write!(f, "revoked"),
+            EvaluationDenyReason::NotYetValid => write!(f, "not yet valid"),
+            EvaluationDenyReason::Expired => write!(f, "expired"),
+            EvaluationDenyReason::TargetDenied => write!(f, "target denied"),
+            EvaluationDenyReason::TargetNotAllowed => write!(f, "target not allowed"),
+            EvaluationDenyReason::ResourceTypeNotGranted => write!(f, "resource type not granted"),
+            EvaluationDenyReason::ResourceDenied => write!(f, "resource denied"),
+            EvaluationDenyReason::ResourceNotAllowed => write!(f, "resource not allowed"),
+            EvaluationDenyReason::AudienceDenied => write!(f, "audience denied"),
+            EvaluationDenyReason::AudienceNotAllowed => write!(f, "audience not allowed"),
+            EvaluationDenyReason::AudiencePrincipalDenied => write!(f, "audience principal denied"),
+            EvaluationDenyReason::AudiencePrincipalNotAllowed => {
+                write!(f, "audience principal not allowed")
+            }
+            EvaluationDenyReason::CapabilityDisabled => write!(f, "capability disabled"),
+            EvaluationDenyReason::OperationDenied => write!(f, "operation denied"),
+            EvaluationDenyReason::OriginAuthorityMismatch => {
+                write!(f, "origin authority does not match the grant")
+            }
+            EvaluationDenyReason::MissingMintContext => write!(f, "missing mint context"),
+            EvaluationDenyReason::MissingAudiencePrincipalContext => {
+                write!(f, "missing audience principal context")
+            }
+            EvaluationDenyReason::MintTotalLimitReached => write!(f, "mint total limit reached"),
+            EvaluationDenyReason::MintPerUserLimitReached => {
+                write!(f, "mint per user limit reached")
+            }
+        }
     }
 }
 
@@ -250,6 +286,14 @@ mod tests {
         assert_ne!(
             a,
             EvaluationDecision::deny(id, EvaluationDenyReason::Revoked)
+        );
+    }
+
+    #[test]
+    fn evaluation_deny_reason_display_origin_authority_mismatch() {
+        assert_eq!(
+            EvaluationDenyReason::OriginAuthorityMismatch.to_string(),
+            "origin authority does not match the grant",
         );
     }
 }

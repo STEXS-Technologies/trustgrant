@@ -199,6 +199,7 @@ impl ResourceContext {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvaluationRequest {
     operation: RequestedOperation,
+    origin_authority: Option<AuthorityId>,
     target_authority: AuthorityId,
     target_context: SelectorContext,
     audience_authority: AuthorityId,
@@ -232,6 +233,7 @@ impl EvaluationRequest {
 
         Ok(Self {
             operation,
+            origin_authority: None,
             target_authority,
             target_context,
             audience_authority,
@@ -288,6 +290,16 @@ impl EvaluationRequest {
         self
     }
 
+    /// Sets the origin authority for this request.
+    ///
+    /// When set, the evaluation engine checks that the resource's origin
+    /// authority matches the grant's origin authority (spec §13 step 3).
+    #[must_use = "origin authority should be set to enforce spec §13 step 3"]
+    pub fn with_origin_authority(mut self, origin: AuthorityId) -> Self {
+        self.origin_authority = Some(origin);
+        self
+    }
+
     #[must_use = "requested operation is required for evaluation"]
     pub const fn operation(&self) -> &RequestedOperation {
         &self.operation
@@ -321,6 +333,11 @@ impl EvaluationRequest {
     #[must_use = "resource context is required for evaluation"]
     pub const fn resource(&self) -> &ResourceContext {
         &self.resource
+    }
+
+    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    pub const fn origin_authority(&self) -> Option<&AuthorityId> {
+        self.origin_authority.as_ref()
     }
 
     #[must_use = "mint context is required for mint-constraint evaluation"]

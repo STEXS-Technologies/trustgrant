@@ -1,0 +1,8 @@
+{
+  "spec_section": "13",
+  "description": "evaluation engine enforces origin authority constraint (§13 step 3)",
+  "overrides": {
+    "origin_authority": "https://issuer.example.com"
+  },
+  "assert": { "validation": "accepted" }
+}

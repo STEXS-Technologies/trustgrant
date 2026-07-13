@@ -60,6 +60,25 @@ impl EvaluationEngine {
             }
         }
 
+        // Spec §13 step 3: Check origin authority
+        if let Some(request_origin) = request.origin_authority() {
+            let grant_origin = grant
+                .document()
+                .ownership_authority_state()
+                .origin_authority();
+            if request_origin != grant_origin {
+                tracing::debug!(
+                    trustgrant_id = %trustgrant_id,
+                    operation = ?request.operation(),
+                    reason = ?EvaluationDenyReason::OriginAuthorityMismatch,
+                );
+                return EvaluationDecision::deny(
+                    trustgrant_id,
+                    EvaluationDenyReason::OriginAuthorityMismatch,
+                );
+            }
+        }
+
         match evaluate_scope(grant.document().target_scope(), request.target_context()) {
             ScopeEvaluation::Allowed => {}
             ScopeEvaluation::Denied(reason) => {
