@@ -1,5 +1,5 @@
-**Document Version:** 1.1\
-**Last Updated:** 2026-07-11\
+**Document Version:** 1.2\
+**Last Updated:** 2026-07-12\
 **Status:** Draft\
 **Owner:** CTO (Wladimir Trubizin)\
 **Related Documents:** [TrustGrant Crate Docs](README.md),
@@ -351,7 +351,7 @@ Canonical JSON form:
     "all": false,
     "allow": [
       {
-        "kind": "authority_id",
+        "kind": "authority",
         "all": false,
         "values": ["https://studio-a.example.com"],
         "expressions": null
@@ -370,7 +370,8 @@ Canonical JSON form:
         "all": true,
         "allow": null,
         "deny": null
-      }
+      },
+      "principal_scope": null
     }
   ],
   "resource_scope": {
@@ -943,6 +944,10 @@ v1 operational direction:
 - **Last Reviewed:** 2026-04-08
 - **Next Review:** When schema or signer-proof modeling changes materially
 - **Change Log:**
+  - v1.2 (2026-07-12): Fixed canonical example — target scope selector kind
+    `"authority_id"` → `"authority"` to match built-in SelectorKind list (Section 2.2).
+    Added `"principal_scope": null` to audience entry for spec compliance with
+    struct definition.
   - v1.1 (2026-07-11): Resolved v0/v1 contradiction in operations; defined
     `recognize` as built-in operation name; documented reserved names
     (`recognize`, `mint`, `create`); documented custom operations as capability-
