@@ -295,4 +295,37 @@ mod tests {
             "origin authority does not match the grant",
         );
     }
+
+    #[test]
+    fn evaluation_deny_reason_all_display_impls() {
+        // Every deny reason must have a non-empty Display output
+        let cases = [
+            (EvaluationDenyReason::Revoked, "revoked"),
+            (EvaluationDenyReason::NotYetValid, "not yet valid"),
+            (EvaluationDenyReason::Expired, "expired"),
+            (EvaluationDenyReason::TargetDenied, "target denied"),
+            (EvaluationDenyReason::TargetNotAllowed, "target not allowed"),
+            (EvaluationDenyReason::ResourceTypeNotGranted, "resource type not granted"),
+            (EvaluationDenyReason::ResourceDenied, "resource denied"),
+            (EvaluationDenyReason::ResourceNotAllowed, "resource not allowed"),
+            (EvaluationDenyReason::AudienceDenied, "audience denied"),
+            (EvaluationDenyReason::AudienceNotAllowed, "audience not allowed"),
+            (EvaluationDenyReason::AudiencePrincipalDenied, "audience principal denied"),
+            (EvaluationDenyReason::AudiencePrincipalNotAllowed, "audience principal not allowed"),
+            (EvaluationDenyReason::CapabilityDisabled, "capability disabled"),
+            (EvaluationDenyReason::OperationDenied, "operation denied"),
+            (EvaluationDenyReason::MissingMintContext, "missing mint context"),
+            (EvaluationDenyReason::MissingAudiencePrincipalContext, "missing audience principal context"),
+            (EvaluationDenyReason::MintTotalLimitReached, "mint total limit reached"),
+            (EvaluationDenyReason::MintPerUserLimitReached, "mint per user limit reached"),
+        ];
+        for (reason, expected) in &cases {
+            assert_eq!(reason.to_string(), *expected, "display for {reason:?}");
+        }
+        // Also test the one with a longer message separately
+        assert_eq!(
+            EvaluationDenyReason::OriginAuthorityMismatch.to_string(),
+            "origin authority does not match the grant",
+        );
+    }
 }
