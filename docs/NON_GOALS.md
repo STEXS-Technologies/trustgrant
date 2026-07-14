@@ -82,14 +82,18 @@ not implement the transport that satisfies them.
 - The `origin_authority` check does not replace target-scope or resource-scope
   evaluation — it is one of several independent checks in spec §13
 
-## Out of Scope for v0
+## Never in Scope
 
-These may be addressed in future versions but are deliberately excluded from
-the v0 core:
+The following will **never** be part of the TrustGrant protocol core. They
+are permanent adapter or integration-layer concerns:
 
-- Cross-source proof merging and arbitration
+- Cross-source proof merging and arbitration (the core takes one selected source)
 - Built-in DID, chain, or decentralized identifier resolvers
 - Soft-delete, tombstone, or reversible operations
-- Built-in multisig or threshold signing verification
+- Built-in multisig or threshold signing verification integrations
 - Global selector-kind or operation-name registry
 - Automated cache invalidation or push-based revocation
+- HTTP clients, servers, or middleware
+- Database adapters, cache backends, or persistence engines
+- Any transport-specific resolver (HTTP, DID, chain, contract, etc.)
+- Built-in signature-verification backends beyond the trait interface
