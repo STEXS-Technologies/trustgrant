@@ -549,9 +549,25 @@ impl EvaluationRequest {
         self.audience_principal_context.insert(kind, value)
     }
 
-    /// Mint evaluation may require explicit runtime mint counters.
+    /// Sets runtime mint counters for evaluation.
+    ///
+    /// Should only be called by the [`AtomicInventoryExecutor`] which owns
+    /// the authoritative counters. External callers must use
+    /// [`super::execution::AtomicInventoryExecutor::authorize_and_execute`] instead.
+    #[doc(hidden)]
     #[must_use]
-    pub const fn with_mint_context(mut self, mint_context: MintContext) -> Self {
+    pub fn with_mint_context_for_testing(mut self, mint_context: MintContext) -> Self {
+        self.mint_context = Some(mint_context);
+        self
+    }
+
+    /// Sets runtime mint counters for evaluation.
+    ///
+    /// Called by [`AtomicInventoryExecutor`] to inject authoritative counters.
+    /// External callers must use
+    /// [`super::execution::AtomicInventoryExecutor::authorize_and_execute`] instead.
+    #[must_use]
+    pub(crate) fn with_runtime_mint_context(mut self, mint_context: MintContext) -> Self {
         self.mint_context = Some(mint_context);
         self
     }

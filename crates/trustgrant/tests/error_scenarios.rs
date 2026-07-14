@@ -560,7 +560,7 @@ fn missing_mint_context_evaluation_denied() {
         .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
-    // NOTE: We do NOT call request.with_mint_context(...) — intentionally omitting it.
+    // NOTE: We do NOT call request.with_mint_context_for_testing(...) — intentionally omitting it.
 
     let engine = EvaluationEngine::new();
     let outcome = engine.evaluate(&grant, &request);

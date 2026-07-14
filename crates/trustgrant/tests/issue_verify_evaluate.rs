@@ -485,7 +485,7 @@ fn issue_verify_evaluate_mint() {
 
     // 3. Evaluate: mint request with MintContext (within limits)
     let engine = EvaluationEngine::new();
-    let request = mint_request().with_mint_context(MintContext::new(5, 0));
+    let request = mint_request().with_mint_context_for_testing(MintContext::new(5, 0));
     let outcome = engine.evaluate(verified_grant, &request);
 
     assert!(outcome.decision().is_allowed());

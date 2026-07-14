@@ -222,7 +222,7 @@ fn build_mint_request(
     }
 
     // Attach mint context so mint constraints are exercised.
-    request = request.with_mint_context(MintContext::new(0, 0));
+    request = request.with_mint_context_for_testing(MintContext::new(0, 0));
 
     Some(request)
 }

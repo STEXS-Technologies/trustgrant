@@ -2,7 +2,7 @@
 
 use chrono::{TimeZone, Utc};
 use trustgrant::{
-    AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine, EvaluationOutcome,
+    AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine,
     EvaluationRequest, ProofFinality, RequestedCapability, RequestedOperation, ResourceBinding,
     ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind, RevocationStatus,
     SignatureVerificationRequest, SignatureVerifier, TrustGrantError, TrustGrantProofBundle,

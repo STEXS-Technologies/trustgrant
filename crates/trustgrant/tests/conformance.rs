@@ -704,7 +704,7 @@ fn conformance_s6_1_v0_compat_mint_implies_create_allowed() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
-    .with_mint_context(MintContext::new(0, 0));
+    .with_mint_context_for_testing(MintContext::new(0, 0));
     let outcome = evaluate_json(&json, &request);
     assert!(
         outcome.decision().is_allowed(),
@@ -1466,7 +1466,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
-    .with_mint_context(MintContext::new(0, 0));
+    .with_mint_context_for_testing(MintContext::new(0, 0));
     let outcome_disabled = evaluate_json(&json_disabled, &request_mint);
     assert_eq!(
         outcome_disabled.decision().deny_reason(),
@@ -1511,7 +1511,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
-    .with_mint_context(MintContext::new(0, 0));
+    .with_mint_context_for_testing(MintContext::new(0, 0));
     let outcome_global_false = evaluate_json(&json_global_false, &request_mint2);
     assert_eq!(
         outcome_global_false.decision().deny_reason(),
@@ -1556,7 +1556,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
-    .with_mint_context(MintContext::new(0, 0));
+    .with_mint_context_for_testing(MintContext::new(0, 0));
     let outcome_override_true = evaluate_json(&json_override_true, &request_mint3);
     assert!(
         outcome_override_true.decision().is_allowed(),
@@ -1622,7 +1622,7 @@ fn conformance_s12_minting_constraints_are_per_type() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
-    .with_mint_context(MintContext::new(4, 1));
+    .with_mint_context_for_testing(MintContext::new(4, 1));
     request
         .insert_audience_principal_selector("actor", "player-42")
         .unwrap_or_else(|e| panic!("principal selector: {e}"));
@@ -1634,7 +1634,7 @@ fn conformance_s12_minting_constraints_are_per_type() {
     );
 
     // Exceed max_total
-    let request_exceed_total = request.clone().with_mint_context(MintContext::new(5, 1));
+    let request_exceed_total = request.clone().with_mint_context_for_testing(MintContext::new(5, 1));
     let outcome_exceed = evaluate_json(&json_a, &request_exceed_total);
     assert_eq!(
         outcome_exceed.decision().deny_reason(),
@@ -1643,7 +1643,7 @@ fn conformance_s12_minting_constraints_are_per_type() {
     );
 
     // Exceed max_per_user
-    let request_exceed_user = request.clone().with_mint_context(MintContext::new(4, 2));
+    let request_exceed_user = request.clone().with_mint_context_for_testing(MintContext::new(4, 2));
     let outcome_exceed_user = evaluate_json(&json_a, &request_exceed_user);
     assert_eq!(
         outcome_exceed_user.decision().deny_reason(),

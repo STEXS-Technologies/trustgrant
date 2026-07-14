@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use chrono::{DateTime, Days, Utc};
+use chrono::{DateTime, Utc};
 use trustgrant::{
     AuthorityId, CustomOperationName, EvaluationEngine, EvaluationRequest, MintContext,
     RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext, ResourceRef,
@@ -201,7 +201,7 @@ fn run_evaluation(
     }
 
     if let Some(mc) = req.get("mint_context") {
-        request = request.with_mint_context(MintContext::new(
+        request = request.with_mint_context_for_testing(MintContext::new(
             mc["total_minted"].as_u64().unwrap(),
             mc["user_minted"].as_u64().unwrap(),
         ));

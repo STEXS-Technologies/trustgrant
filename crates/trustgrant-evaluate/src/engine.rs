@@ -1436,7 +1436,7 @@ mod tests {
             Ok(request) => request,
             Err(error) => panic!("mint evaluation request should be valid: {error}"),
         }
-        .with_mint_context(MintContext::new(5, 0));
+        .with_runtime_mint_context(MintContext::new(5, 0));
 
         let outcome =
             EvaluationEngine::new().evaluate(&mint_grant_without_principal_scope(), &request);
@@ -1449,7 +1449,7 @@ mod tests {
 
     #[test]
     fn evaluation_denies_mint_when_total_limit_is_reached() {
-        let request = mint_request().with_mint_context(MintContext::new(10, 0));
+        let request = mint_request().with_runtime_mint_context(MintContext::new(10, 0));
         let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
         assert_eq!(
@@ -1460,7 +1460,7 @@ mod tests {
 
     #[test]
     fn evaluation_denies_mint_when_per_user_limit_is_reached() {
-        let request = mint_request().with_mint_context(MintContext::new(2, 1));
+        let request = mint_request().with_runtime_mint_context(MintContext::new(2, 1));
         let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
         assert_eq!(
@@ -1471,7 +1471,7 @@ mod tests {
 
     #[test]
     fn evaluation_allows_mint_when_constraints_are_respected() {
-        let request = mint_request().with_mint_context(MintContext::new(9, 0));
+        let request = mint_request().with_runtime_mint_context(MintContext::new(9, 0));
         let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
         assert!(outcome.decision().is_allowed());
@@ -1479,7 +1479,7 @@ mod tests {
 
     #[test]
     fn evaluation_allows_create_when_mint_operations_are_absent() {
-        let request = mint_request().with_mint_context(MintContext::new(9, 0));
+        let request = mint_request().with_runtime_mint_context(MintContext::new(9, 0));
         let outcome = EvaluationEngine::new().evaluate(&mint_grant_without_operations(), &request);
 
         assert!(outcome.decision().is_allowed());
@@ -3608,7 +3608,7 @@ mod tests {
         // max_per_user constraints.
         let engine = EvaluationEngine::new();
         let grant = mint_grant_without_constraints();
-        let request = mint_request(); // No .with_mint_context()
+        let request = mint_request(); // No .with_runtime_mint_context()
         let outcome = engine.evaluate(&grant, &request);
 
         assert!(

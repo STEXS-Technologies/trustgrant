@@ -96,7 +96,7 @@ impl MutationRequest {
     }
 
     fn with_runtime_mint_context(&self, mint_context: MintContext) -> EvaluationRequest {
-        self.request.clone().with_mint_context(mint_context)
+        self.request.clone().with_runtime_mint_context(mint_context)
     }
 
     const fn existing_resource(&self) -> Option<&ResourceRef> {
