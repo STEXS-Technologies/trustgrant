@@ -62,6 +62,11 @@ pub enum EvaluationDenyReason {
     /// so the engine cannot trust the revocation status. The caller must
     /// refresh the revocation proof before retrying.
     StaleRevocationData,
+    /// The requested custom operation requires an interoperability profile
+    /// on the grant, but none was set. Grants with `operations.all = true`
+    /// must declare an `interoperability_profile` to authorize custom
+    /// operations.
+    OperationNotInProfile,
 }
 
 /// The result of evaluating one grant against one request.
@@ -215,6 +220,9 @@ impl std::fmt::Display for EvaluationDenyReason {
             }
             EvaluationDenyReason::UnverifiedSelectors => {
                 write!(f, "unverified selectors")
+            }
+            EvaluationDenyReason::OperationNotInProfile => {
+                write!(f, "operation not in profile")
             }
         }
     }
@@ -479,6 +487,10 @@ mod tests {
             (
                 EvaluationDenyReason::UnverifiedSelectors,
                 "unverified selectors",
+            ),
+            (
+                EvaluationDenyReason::OperationNotInProfile,
+                "operation not in profile",
             ),
         ];
         for (reason, expected) in &cases {

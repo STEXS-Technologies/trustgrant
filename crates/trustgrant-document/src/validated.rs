@@ -5,10 +5,10 @@ use chrono::{DateTime, Utc};
 use compact_str::CompactString;
 
 use crate::raw::{
-    PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
-    RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
-    RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTrustGrantDocument,
-    RawTypeCapabilities, RawTypeConstraints,
+    InteroperabilityProfile, PostRevocationEffect, RawAudienceEntry, RawCapabilities,
+    RawGlobalConstraints, RawMintingConstraints, RawOperationScope, RawPrincipal,
+    RawResourceScope, RawResourceType, RawRevocation, RawScope, RawSelector,
+    RawSupersessionPolicy, RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_domain::{
     AuthorityId, GrantLineage, GrantRevision, GrantSeriesId, KeyId, OperationName,
@@ -44,6 +44,7 @@ pub struct ValidatedTrustGrantDocument {
     issued_at: DateTime<Utc>,
     signature: String,
     issuer_principal: Option<ValidatedPrincipal>,
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl ValidatedTrustGrantDocument {
@@ -123,6 +124,14 @@ impl ValidatedTrustGrantDocument {
     #[must_use]
     pub const fn issuer_principal(&self) -> Option<&ValidatedPrincipal> {
         self.issuer_principal.as_ref()
+    }
+
+    /// Interoperability profile declares the operational context for custom
+    /// operations. When set, it signals that `operations.all = true` is
+    /// intentional for custom operations.
+    #[must_use]
+    pub fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
+        self.interoperability_profile.as_ref()
     }
 }
 
@@ -232,6 +241,7 @@ impl TryFrom<RawTrustGrantDocument> for ValidatedTrustGrantDocument {
             issued_at: raw.issued_at,
             signature,
             issuer_principal,
+            interoperability_profile: raw.interoperability_profile,
         })
     }
 }

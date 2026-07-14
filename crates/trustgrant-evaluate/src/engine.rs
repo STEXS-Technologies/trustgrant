@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use super::decision::{EvaluationDecision, EvaluationDenyReason, EvaluationOutcome};
 use super::request::{EvaluationRequest, RequestedCapability, RequestedOperation, SelectorContext};
+use trustgrant_document::raw::InteroperabilityProfile;
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedResourceType, ValidatedScope, ValidatedSelector,
@@ -260,8 +261,12 @@ fn evaluate_resource_type(
     }
 
     // Spec step 7: check operation matches operations if present
-    if !is_operation_allowed(resource_type, request.operation()) {
-        return ResourceEvaluation::Denied(EvaluationDenyReason::OperationDenied);
+    if let Err(reason) = is_operation_allowed(
+        resource_type,
+        request.operation(),
+        grant_document.interoperability_profile(),
+    ) {
+        return ResourceEvaluation::Denied(reason);
     }
 
     // Spec step 8: check audience matches audience_scope
@@ -399,15 +404,20 @@ fn is_capability_enabled(
 fn is_operation_allowed(
     resource_type: &ValidatedResourceType,
     operation: &RequestedOperation,
-) -> bool {
+    interoperability_profile: Option<&InteroperabilityProfile>,
+) -> Result<(), EvaluationDenyReason> {
     let Some(operation_scope) = resource_type.operations() else {
         // operations=null → implicit recognize allowed for v0 compat.
         // Mint and custom operations require an explicit operations scope
         // that includes "create" or the custom operation name.
-        return matches!(
+        return if matches!(
             operation,
             RequestedOperation::Capability(RequestedCapability::Recognize)
-        );
+        ) {
+            Ok(())
+        } else {
+            Err(EvaluationDenyReason::OperationDenied)
+        };
     };
 
     let requested_name = match operation {
@@ -421,17 +431,31 @@ fn is_operation_allowed(
         .iter()
         .any(|denied_operation| denied_operation.as_str() == requested_name)
     {
-        return false;
+        return Err(EvaluationDenyReason::OperationDenied);
     }
 
     if operation_scope.all() {
-        return true;
+        // When operations.all = true and the requested operation is custom,
+        // the grant must have an interoperability profile to authorize it.
+        // Without a profile, the grant cannot declare intent for custom
+        // operations.
+        if matches!(operation, RequestedOperation::Custom(_))
+            && interoperability_profile.is_none()
+        {
+            return Err(EvaluationDenyReason::OperationNotInProfile);
+        }
+        return Ok(());
     }
 
-    operation_scope
+    if operation_scope
         .allow()
         .iter()
         .any(|allowed_operation| allowed_operation.as_str() == requested_name)
+    {
+        Ok(())
+    } else {
+        Err(EvaluationDenyReason::OperationDenied)
+    }
 }
 
 const fn evaluate_minting_constraints(
@@ -550,10 +574,11 @@ mod tests {
     };
     use trustgrant_document::ValidatedTrustGrantDocument;
     use trustgrant_document::raw::{
-        PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
-        RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
-        RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
-        RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
+        InteroperabilityProfile, PostRevocationEffect, RawAudienceEntry, RawCapabilities,
+        RawGlobalConstraints, RawMintingConstraints, RawOperationScope, RawPrincipal,
+        RawResourceScope, RawResourceType, RawRevocation, RawScope, RawSelector,
+        RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument, RawTypeCapabilities,
+        RawTypeConstraints,
     };
     use trustgrant_domain::AuthorityId;
     use trustgrant_domain::{
@@ -824,6 +849,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -935,6 +961,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -1040,6 +1067,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -1893,6 +1921,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2007,6 +2036,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2119,6 +2149,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2250,6 +2281,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2371,6 +2403,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2486,6 +2519,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2642,9 +2676,13 @@ mod tests {
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
-            issuer_principal: Some(RawPrincipal {
+             issuer_principal: Some(RawPrincipal {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
+            }),
+            interoperability_profile: Some(InteroperabilityProfile {
+                name: "test_profile_v1".into(),
+                version: 1,
             }),
         };
 
@@ -2791,6 +2829,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2943,6 +2982,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -3101,6 +3141,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -3222,6 +3263,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -3771,6 +3813,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -3957,6 +4000,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {

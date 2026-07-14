@@ -8,6 +8,7 @@ use trustgrant_discovery::{
     AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
 };
 use trustgrant_document::validated::{ValidatedTypeCapabilities, ValidatedTypeConstraints};
+use trustgrant_document::raw::InteroperabilityProfile;
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedOperationScope, ValidatedPrincipal, ValidatedResourceType, ValidatedRevocation,
@@ -114,6 +115,8 @@ struct NormalizedTrustGrantDocumentRecord {
     revocation: Option<RevocationPolicyRecord>,
     issued_at: DateTime<Utc>,
     issuer_principal: Option<PrincipalRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl NormalizedTrustGrantDocumentRecord {
@@ -203,6 +206,7 @@ impl NormalizedTrustGrantDocumentRecord {
                     .as_ref()
                     .map(PrincipalRecord::try_to_validated_principal)
                     .transpose()?,
+                interoperability_profile: self.interoperability_profile.clone(),
             },
         ))
     }
@@ -249,6 +253,7 @@ impl From<&NormalizedTrustGrantDocument> for NormalizedTrustGrantDocumentRecord 
             revocation: value.revocation().map(RevocationPolicyRecord::from),
             issued_at: value.issued_at(),
             issuer_principal: value.issuer_principal().map(PrincipalRecord::from),
+            interoperability_profile: value.interoperability_profile().map(ToOwned::to_owned),
         }
     }
 }

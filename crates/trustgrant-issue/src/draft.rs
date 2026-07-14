@@ -3,8 +3,8 @@ use compact_str::CompactString;
 
 use trustgrant_document::RawTrustGrantDocument;
 use trustgrant_document::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawPrincipal, RawResourceScope,
-    RawRevocation, RawScope, RawSupersessionPolicy, RawTimeWindow,
+    InteroperabilityProfile, RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawPrincipal,
+    RawResourceScope, RawRevocation, RawScope, RawSupersessionPolicy, RawTimeWindow,
 };
 use trustgrant_domain::{
     AuthorityId, CanonicalizationProfile, GrantRevision, GrantSeriesId, KeyId, SupersessionPolicy,
@@ -102,6 +102,7 @@ pub struct TrustGrantDraft {
     revocation: Option<RawRevocation>,
     issued_at: DateTime<Utc>,
     issuer_principal: Option<RawPrincipal>,
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl TrustGrantDraft {
@@ -176,6 +177,7 @@ impl TrustGrantDraft {
             revocation: None,
             issued_at,
             issuer_principal: None,
+            interoperability_profile: None,
         })
     }
 
@@ -265,6 +267,16 @@ impl TrustGrantDraft {
         self
     }
 
+    /// Sets the interoperability profile for this draft grant.
+    #[must_use]
+    pub fn with_interoperability_profile(
+        mut self,
+        interoperability_profile: InteroperabilityProfile,
+    ) -> Self {
+        self.interoperability_profile = Some(interoperability_profile);
+        self
+    }
+
     /// Builds one raw TrustGrant document suitable for canonical signing.
     ///
     /// Protocol rule:
@@ -311,6 +323,7 @@ impl TrustGrantDraft {
             issued_at: self.issued_at,
             signature: CompactString::new(""),
             issuer_principal: self.issuer_principal.clone(),
+            interoperability_profile: self.interoperability_profile.clone(),
         })
     }
 
@@ -333,6 +346,7 @@ impl TrustGrantDraft {
             revocation,
             issued_at,
             issuer_principal,
+            interoperability_profile,
         } = self;
 
         let supersession_policy = match supersession_policy {
@@ -365,6 +379,7 @@ impl TrustGrantDraft {
             issued_at,
             signature: CompactString::new(""),
             issuer_principal,
+            interoperability_profile,
         })
     }
 

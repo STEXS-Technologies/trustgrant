@@ -415,6 +415,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("validated document should be valid: {error}"));
 
@@ -498,6 +499,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("validated document should be valid: {error}"));
 
@@ -839,6 +841,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("validated document should be valid: {error}"))
     }
@@ -1328,6 +1331,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("document should be valid: {error}"));
 
@@ -1404,6 +1408,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("document should be valid: {error}"));
 
@@ -1480,6 +1485,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("document should be valid: {error}"));
 

@@ -9,7 +9,7 @@ pub use ownership_transition::{
     RawOwnershipTransitionSelector, RawOwnershipTransitionSignature,
     RawOwnershipTransitionTimeWindow, ValidatedOwnershipTransitionDocument,
 };
-pub use raw::RawTrustGrantDocument;
+pub use raw::{InteroperabilityProfile, RawTrustGrantDocument};
 pub use validated::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedOperationScope, ValidatedPrincipal, ValidatedResourceType, ValidatedRevocation,

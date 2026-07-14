@@ -35,6 +35,8 @@ pub struct RawTrustGrantDocument {
     pub issued_at: DateTime<Utc>,
     pub signature: CompactString,
     pub issuer_principal: Option<RawPrincipal>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl RawTrustGrantDocument {
@@ -493,6 +495,44 @@ impl RawTimeWindow {
             not_before,
             not_after,
         }
+    }
+}
+
+/// A declared protocol profile that this grant follows.
+///
+/// Carries the profile name and version. The engine uses this to constrain
+/// custom operations: when `operations.all = true`, only custom operations
+/// that belong to the declared profile are authorized. Without a profile,
+/// `operations.all` only authorizes built-in operations (recognize for v0).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InteroperabilityProfile {
+    /// Profile name (e.g. `"shared_inventory_v1"`).
+    pub name: CompactString,
+    /// Profile version.
+    pub version: u64,
+}
+
+impl InteroperabilityProfile {
+    /// Creates a new interoperability profile declaration.
+    #[must_use]
+    pub fn new(name: impl Into<CompactString>, version: u64) -> Self {
+        Self {
+            name: name.into(),
+            version,
+        }
+    }
+
+    /// The profile name.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The profile version.
+    #[must_use]
+    pub const fn version(&self) -> u64 {
+        self.version
     }
 }
 

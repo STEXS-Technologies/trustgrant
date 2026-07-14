@@ -873,6 +873,7 @@ mod tests {
                 .with_timezone(&Utc),
             signature: "base64-signature".into(),
             issuer_principal: Some(RawPrincipal::new("service", "issuer-worker")),
+            interoperability_profile: None,
         };
 
         assert_matches_oracle(&raw_document);

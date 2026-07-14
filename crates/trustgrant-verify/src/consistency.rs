@@ -1134,6 +1134,7 @@ mod tests {
             revocation: validated.revocation().cloned(),
             issued_at: validated.issued_at(),
             issuer_principal: validated.issuer_principal().cloned(),
+            interoperability_profile: validated.interoperability_profile().cloned(),
         };
 
         let normalized = NormalizedTrustGrantDocument::from_parts(parts);

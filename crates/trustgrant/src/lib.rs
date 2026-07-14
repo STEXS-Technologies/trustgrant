@@ -25,14 +25,14 @@ pub use discovery::{
     SignatureProfile, parse_authority_discovery_document, parse_delegated_principal_key_document,
 };
 pub use document::{
-    OwnershipTransitionAcceptance, OwnershipTransitionSignature, RawOwnershipTransitionAcceptance,
-    RawOwnershipTransitionDocument, RawOwnershipTransitionGlobalConstraints,
-    RawOwnershipTransitionResourceScope, RawOwnershipTransitionResourceType,
-    RawOwnershipTransitionSelector, RawOwnershipTransitionSignature,
-    RawOwnershipTransitionTimeWindow, RawTrustGrantDocument, ValidatedAudienceEntry,
-    ValidatedCapabilities, ValidatedOperationScope, ValidatedOwnershipTransitionDocument,
-    ValidatedPrincipal, ValidatedResourceType, ValidatedScope, ValidatedSelector,
-    ValidatedTrustGrantDocument,
+    InteroperabilityProfile, OwnershipTransitionAcceptance, OwnershipTransitionSignature,
+    RawOwnershipTransitionAcceptance, RawOwnershipTransitionDocument,
+    RawOwnershipTransitionGlobalConstraints, RawOwnershipTransitionResourceScope,
+    RawOwnershipTransitionResourceType, RawOwnershipTransitionSelector,
+    RawOwnershipTransitionSignature, RawOwnershipTransitionTimeWindow, RawTrustGrantDocument,
+    ValidatedAudienceEntry, ValidatedCapabilities, ValidatedOperationScope,
+    ValidatedOwnershipTransitionDocument, ValidatedPrincipal, ValidatedResourceType,
+    ValidatedScope, ValidatedSelector, ValidatedTrustGrantDocument,
 };
 pub use domain::{
     AuthorityId, AuthorityScheme, CanonicalizationProfile, CustomOperationName, GrantLineage,

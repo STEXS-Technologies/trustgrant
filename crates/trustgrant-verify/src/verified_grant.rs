@@ -6,9 +6,10 @@ use compact_str::CompactString;
 use trustgrant_discovery::ResolvedSignerBinding;
 use trustgrant_document::RawTrustGrantDocument;
 use trustgrant_document::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-    RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
-    RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTypeCapabilities, RawTypeConstraints,
+    InteroperabilityProfile, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+    RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
+    RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
+    RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedPrincipal, ValidatedResourceType,
@@ -42,6 +43,7 @@ pub struct NormalizedTrustGrantDocument {
     revocation: Option<ValidatedRevocation>,
     issued_at: DateTime<Utc>,
     issuer_principal: Option<ValidatedPrincipal>,
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,6 +60,7 @@ pub(crate) struct NormalizedTrustGrantDocumentParts {
     pub(crate) revocation: Option<ValidatedRevocation>,
     pub(crate) issued_at: DateTime<Utc>,
     pub(crate) issuer_principal: Option<ValidatedPrincipal>,
+    pub(crate) interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl NormalizedTrustGrantDocument {
@@ -77,6 +80,7 @@ impl NormalizedTrustGrantDocument {
             revocation: parts.revocation,
             issued_at: parts.issued_at,
             issuer_principal: parts.issuer_principal,
+            interoperability_profile: parts.interoperability_profile,
         }
     }
 
@@ -152,6 +156,13 @@ impl NormalizedTrustGrantDocument {
         self.issuer_principal.as_ref()
     }
 
+    /// Interoperability profile declares the operational context for custom
+    /// operations.
+    #[must_use]
+    pub fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
+        self.interoperability_profile.as_ref()
+    }
+
     pub(crate) fn into_raw_document_for_consistency_check(
         self,
     ) -> Result<RawTrustGrantDocument, TrustGrantError> {
@@ -223,6 +234,7 @@ impl NormalizedTrustGrantDocument {
             // document field to be present and non-empty.
             signature: CompactString::from("rehydrated-signature"),
             issuer_principal: self.issuer_principal.as_ref().map(raw_principal),
+            interoperability_profile: self.interoperability_profile.clone(),
         })
     }
 }
@@ -242,6 +254,7 @@ impl From<ValidatedTrustGrantDocument> for NormalizedTrustGrantDocument {
             revocation: document.revocation().cloned(),
             issued_at: document.issued_at(),
             issuer_principal: document.issuer_principal().cloned(),
+            interoperability_profile: document.interoperability_profile().cloned(),
         })
     }
 }
@@ -509,6 +522,7 @@ mod tests {
             revocation: document.revocation().cloned(),
             issued_at: document.issued_at(),
             issuer_principal: document.issuer_principal().cloned(),
+            interoperability_profile: document.interoperability_profile().cloned(),
         })
     }
 

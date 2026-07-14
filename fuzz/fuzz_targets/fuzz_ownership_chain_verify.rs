@@ -93,6 +93,7 @@ fn build_matching_document(
         issued_at: raw.effective_at,
         signature: "valid-signature".to_owned().into(),
         issuer_principal: None,
+        interoperability_profile: None,
     };
 
     ValidatedTrustGrantDocument::try_from(raw_doc)
