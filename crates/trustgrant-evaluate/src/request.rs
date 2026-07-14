@@ -664,19 +664,14 @@ impl IntentId {
         Ok(Self(normalize_context_value("intent_id", &value.into())?))
     }
 
-    /// Generates an infallible, unique intent ID using the current timestamp.
+    /// Generates an infallible, universally unique intent ID.
     ///
     /// Suitable for machine-generated IDs where an external tracking system
-    /// is not involved. The generated ID is scoped to nanosecond precision
-    /// and prefixed with `intent_` for recognizable logging.
+    /// is not involved. The generated ID is a UUIDv4 prefixed with `intent_`
+    /// for recognizable logging.
     #[must_use = "intent IDs should be consumed by the request builder"]
     pub fn generate() -> Self {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        Self(format!("intent_{nanos}"))
+        Self(format!("intent_{}", uuid::Uuid::new_v4()))
     }
 
     #[must_use = "intent IDs are used for idempotency lookup"]

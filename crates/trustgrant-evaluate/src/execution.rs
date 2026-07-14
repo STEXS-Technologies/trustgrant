@@ -517,8 +517,8 @@ mod tests {
         InMemoryExecutionError, MutationRequest,
     };
     use crate::{
-        EvaluationDenyReason, EvaluationRequest, RequestedCapability, RequestedOperation,
-        ResourceBinding, ResourceContext, ResourceRef, TemplateRef,
+        EvaluationDenyReason, EvaluationRequest, IntentId, RequestedCapability,
+        RequestedOperation, ResourceBinding, ResourceContext, ResourceRef, TemplateRef,
     };
 
     fn timestamp() -> chrono::DateTime<Utc> {
@@ -626,7 +626,9 @@ mod tests {
         resource
     }
 
-    fn existing_mutation(intent_id: IntentId, expected_version: u64) -> MutationRequest {
+    fn existing_mutation(intent_id: &str, expected_version: u64) -> MutationRequest {
+        let intent_id = IntentId::new(intent_id)
+            .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
         let request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
             ResourceBinding::Existing(
@@ -649,7 +651,9 @@ mod tests {
             .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
     }
 
-    fn mint_mutation(intent_id: IntentId) -> MutationRequest {
+    fn mint_mutation(intent_id: &str) -> MutationRequest {
+        let intent_id = IntentId::new(intent_id)
+            .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
         let mut request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
             ResourceBinding::Mint(
@@ -665,10 +669,8 @@ mod tests {
         request
             .insert_audience_principal_selector("actor", "player-123")
             .unwrap_or_else(|error| panic!("principal should be valid: {error}"));
-        MutationRequest::try_from(
-            request.with_intent_id(intent_id),
-        )
-        .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
+        MutationRequest::try_from(request.with_intent_id(intent_id))
+            .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
     }
 
     #[test]
