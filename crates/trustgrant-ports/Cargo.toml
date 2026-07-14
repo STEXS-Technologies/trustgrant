@@ -12,11 +12,11 @@ trustgrant-domain = { path = "../trustgrant-domain" }
 trustgrant-document = { path = "../trustgrant-document" }
 trustgrant-discovery = { path = "../trustgrant-discovery" }
 trustgrant-revocation = { path = "../trustgrant-revocation" }
-chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
-serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
+chrono.workspace = true
+serde.workspace = true
 
 [dev-dependencies]
-serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
+serde_json.workspace = true
 
 [lints]
 workspace = true

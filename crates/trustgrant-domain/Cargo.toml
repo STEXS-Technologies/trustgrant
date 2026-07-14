@@ -7,14 +7,14 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
-serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
+chrono.workspace = true
+serde.workspace = true
 trustgrant-error = { path = "../trustgrant-error" }
-url = { version = "2.5.7", features = ["serde"] }
-uuid = { version = "1.18.1", features = ["serde", "v4", "js"] }
+url.workspace = true
+uuid = { workspace = true, features = ["serde", "js"] }
 
 [dev-dependencies]
-serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
+serde_json.workspace = true
 
 [lints]
 workspace = true
