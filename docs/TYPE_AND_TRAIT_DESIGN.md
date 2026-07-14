@@ -1,7 +1,6 @@
 **Document Version:** 0.7\
 **Last Updated:** 2026-04-08\
 **Status:** Draft\
-**Owner:** CTO (Wladimir Trubizin)\
 **Related Documents:** [TrustGrant Crate Docs](README.md),
 [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Interoperability and Proof Models](INTEROPERABILITY_AND_PROOF_MODELS.md),

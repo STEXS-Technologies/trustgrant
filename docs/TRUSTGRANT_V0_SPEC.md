@@ -1,7 +1,6 @@
 **Document Version:** 1.3\
 **Last Updated:** 2026-07-13\
 **Status:** Draft\
-**Owner:** CTO (Wladimir Trubizin)\
 **Related Documents:** [TrustGrant Crate Docs](README.md),
 [TrustGrant Authority Discovery](TRUSTGRANT_AUTHORITY_DISCOVERY.md),
 [TrustGrant Federation Flow](TRUSTGRANT_FEDERATION_FLOW.md),

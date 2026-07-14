@@ -1,7 +1,6 @@
 **Document Version:** 0.6\
 **Last Updated:** 2026-04-07\
 **Status:** Draft\
-**Owner:** CTO (Wladimir Trubizin)\
 **Related Documents:** [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Federation Flow](TRUSTGRANT_FEDERATION_FLOW.md),
 [TrustGrant Type and Trait Design](TYPE_AND_TRAIT_DESIGN.md),

@@ -1,7 +1,6 @@
 **Document Version:** 0.1\
 **Last Updated:** 2026-04-08\
 **Status:** Draft\
-**Owner:** CTO (Wladimir Trubizin)\
 **Related Documents:** [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Authority Discovery](TRUSTGRANT_AUTHORITY_DISCOVERY.md),
 [TrustGrant Ownership Authority Transitions](OWNERSHIP_AUTHORITY_TRANSITIONS.md),

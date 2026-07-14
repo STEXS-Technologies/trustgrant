@@ -1,7 +1,6 @@
 **Document Version:** 0.9\
 **Last Updated:** 2026-04-08\
 **Status:** Draft\
-**Owner:** CTO (Wladimir Trubizin)\
 **Related Documents:** [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Use Cases](USE_CASES.md),
 [TrustGrant Integration Guide](INTEGRATION_GUIDE.md),
