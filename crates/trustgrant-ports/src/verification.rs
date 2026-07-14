@@ -9,12 +9,25 @@ use trustgrant_revocation::RevocationRecord;
 
 use super::signature::VerificationPosture;
 
+/// Temporal and policy context for one verification call.
+///
+/// Carries the effective verification timestamp and the
+/// [`VerificationPosture`] that governs which proof sources to consult.
+/// All verification entry points in the TrustGrant core accept this
+/// context to ensure consistent time-based and posture-aware evaluation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VerificationContext {
     verified_at: DateTime<Utc>,
     posture: VerificationPosture,
 }
 
+/// One assembled set of proof sources for a single verification call.
+///
+/// Groups the three proof-source traits that the verification pipeline
+/// needs: authority discovery, revocation proof, and ownership transition
+/// proof. Created by the surrounding adapter after any multi-source
+/// reconciliation, then passed to the pipeline's source-driven entry
+/// points.
 #[derive(Clone, Copy)]
 pub struct VerificationSources<'source> {
     discovery_source: &'source dyn AuthorityDiscoverySource,

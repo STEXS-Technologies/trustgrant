@@ -5,10 +5,27 @@ use trustgrant_error::TrustGrantError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The finality level of a revocation proof.
+///
+/// Describes how conclusive the proof is, from an unknown state through
+/// to cryptographically finalized (e.g. on-chain settlement).
 pub enum ProofFinality {
+    /// No finality information is available.
     Unknown,
+    /// The proof was observed from a live endpoint response.
+    ///
+    /// Indicates the revocation status was obtained by calling an
+    /// authority's revocation endpoint at a point in time.
     Observed,
+    /// The proof comes from a trusted snapshot.
+    ///
+    /// Suitable for offline or cached verification where the snapshot
+    /// is considered authoritative by the verifier's policy.
     TrustedSnapshot,
+    /// The proof is cryptographically finalized.
+    ///
+    /// The revocation status has been settled on a blockchain or other
+    /// finality-providing layer and cannot be reversed.
     Finalized,
 }
 
@@ -21,11 +38,21 @@ pub enum RevocationStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The kind of source that produced a revocation proof.
+///
+/// Distinguishes between live API responses, static snapshots, embedded
+/// proof bundles, on-chain state, and other sources. Used by the
+/// verification pipeline to apply posture-aware freshness policies.
 pub enum RevocationSourceKind {
+    /// Live response from an authority's revocation API endpoint.
     Api,
+    /// Static revocation snapshot (e.g. a pre-compiled list).
     Snapshot,
+    /// Revocation proof embedded in a proof bundle.
     ProofBundle,
+    /// On-chain revocation state (e.g. a smart contract).
     ChainState,
+    /// Any other source not covered by the above variants.
     Other,
 }
 
@@ -104,8 +131,15 @@ impl RevocationRecord {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The resolved revocation state after verification.
+///
+/// Indicates whether the TrustGrant is non-revocable (revocation was
+/// never configured) or has been checked against a revocation source
+/// and produced a [`RevocationRecord`].
 pub enum VerifiedRevocationState {
+    /// The grant is non-revocable — no revocation proof was required.
     NonRevocable,
+    /// The grant was checked and a revocation record was produced.
     Checked(RevocationRecord),
 }
 

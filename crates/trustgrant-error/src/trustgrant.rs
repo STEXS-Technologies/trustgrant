@@ -165,16 +165,28 @@ pub enum TrustGrantError {
     InvalidOwnershipTransitionEffectiveAt,
     #[error("ownership transition acceptance timestamp must not be in the future")]
     InvalidOwnershipTransitionAcceptanceTime,
+    /// The supersession policy in an ownership transition cannot be encoded in the
+    /// v0 wire format. The v1+ policy model is not backward-compatible with v0.
     #[error("supersession policy cannot be converted to the v0 wire contract")]
     UnsupportedV0WireSupersessionPolicy,
+    /// A field in a persisted verified-grant record (cached verification result)
+    /// contains an invalid or corrupt value.
     #[error("persisted verified-grant record field `{0}` is invalid")]
     InvalidPersistedVerifiedGrantRecord(&'static str),
+    /// The version of a persisted verified-grant record is not supported by this
+    /// verifier. The record may have been written by a newer version.
     #[error("unsupported persisted verified-grant record version `{0}`")]
     UnsupportedPersistedVerifiedGrantRecordVersion(u16),
+    /// A time window has `not_before` after `not_after`, which is an invalid range.
+    /// The start must precede or equal the end.
     #[error("time window must have not_before before or equal to not_after")]
     InvalidTimeWindow,
+    /// A key validity window has `not_before` after `not_after`, which is an invalid
+    /// range. The key's activation must precede or equal its expiration.
     #[error("key validity window must have not_before before or equal to not_after")]
     InvalidKeyValidityWindow,
+    /// A document declares revision zero. Revisions must be strictly greater than
+    /// zero.
     #[error("revision must be greater than zero")]
     ZeroRevision,
 }

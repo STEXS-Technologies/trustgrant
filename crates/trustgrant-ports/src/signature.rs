@@ -8,12 +8,36 @@ use trustgrant_error::TrustGrantError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The verification posture describes how proof material was obtained.
+///
+/// Used by the verification pipeline to select which proof sources to
+/// consult and how to evaluate freshness.
 pub enum VerificationPosture {
+    /// Live verification against authoritative endpoints.
+    ///
+    /// Proof material is fetched in real time from the issuing or owning
+    /// authority's online endpoint. Provides the strongest freshness
+    /// guarantee.
     Online,
+    /// Verification using previously cached proof material.
+    ///
+    /// Proof material was fetched earlier and is being reused within its
+    /// freshness window. Suitable for read-heavy or latency-sensitive paths.
     Cached,
+    /// Verification with no live or cached proof material.
+    ///
+    /// The verifier relies entirely on embedded proof bundles without
+    /// external endpoint calls. Freshness guarantees depend on the bundle's
+    /// own timestamps.
     Offline,
 }
 
+/// One signature verification request assembled by the verification pipeline.
+///
+/// Carries the canonical bytes, canonicalization profile, resolved signer
+/// binding (authority + key + algorithm + public key), and the signature
+/// string. Implementations of [`SignatureVerifier`] receive this request
+/// and must verify the signature against the public key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SignatureVerificationRequest<'request> {
     canonical_bytes: &'request [u8],

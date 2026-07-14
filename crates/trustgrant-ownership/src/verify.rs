@@ -11,6 +11,12 @@ use trustgrant_ports::{
 
 use super::canonicalize::{canonicalize_transition_acceptance, canonicalize_transition_proposal};
 
+/// Metadata captured during one ownership transition verification.
+///
+/// Records when verification occurred, which verification posture was used,
+/// and the resolved signer bindings for both the predecessor and successor
+/// parties. This metadata is attached to a [`VerifiedOwnershipTransition`]
+/// for audit and policy evaluation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipTransitionVerificationMetadata {
     verified_at: DateTime<Utc>,
@@ -56,6 +62,13 @@ impl OwnershipTransitionVerificationMetadata {
     }
 }
 
+/// One fully verified ownership transition.
+///
+/// Produced by [`OwnershipTransitionVerifier`] after parsing, validation,
+/// signer resolution, canonicalization, and dual signature verification
+/// (predecessor proposal + successor acceptance). Contains the validated
+/// document, verification metadata, and a normalized
+/// [`OwnershipTransitionRecord`] suitable for chain verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedOwnershipTransition {
     document: ValidatedOwnershipTransitionDocument,
@@ -93,6 +106,12 @@ impl VerifiedOwnershipTransition {
     }
 }
 
+/// Verifier for ownership transition proofs.
+///
+/// Parses, validates, and verifies one ownership transition document.
+/// Handles signer resolution, canonicalization, and dual signature
+/// verification (predecessor proposal signature + successor acceptance
+/// signature). Produces a [`VerifiedOwnershipTransition`] on success.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OwnershipTransitionVerifier;
 

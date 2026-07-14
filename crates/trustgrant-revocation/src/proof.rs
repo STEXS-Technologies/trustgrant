@@ -63,6 +63,13 @@ struct RawRevocationStatusProof {
     checked_at: DateTime<Utc>,
 }
 
+/// One parsed revocation status proof from a revocation endpoint.
+///
+/// Contains the TrustGrant identifier, the revocation status (active or
+/// revoked), and the timestamp when the status was checked. Use
+/// [`into_record`](Self::into_record) to normalise this proof into a
+/// [`RevocationRecord`] with source kind, finality, and freshness policy
+/// applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RevocationStatusProof {
     trustgrant_id: TrustGrantId,
@@ -134,6 +141,44 @@ impl TryFrom<RawRevocationStatusProof> for RevocationStatusProof {
 }
 
 /// Parses one revocation proof payload into normalized proof input.
+///
+/// # Examples
+///
+/// Parse an active-status proof and normalise it into a revocation record:
+///
+/// ```rust
+/// # use trustgrant_revocation::{
+/// #     parse_revocation_status_proof,
+/// #     ProofFinality, RevocationFreshnessPolicy, RevocationSourceKind,
+/// #     RevocationStatus,
+/// # };
+/// let json = r#"{
+///   "trustgrant_id": "tg_123e4567-e89b-12d3-a456-426614174000",
+///   "status": "active",
+///   "checked_at": "2026-04-07T12:00:00Z"
+/// }"#;
+///
+/// let proof = parse_revocation_status_proof(json)
+///     .expect("valid revocation proof");
+///
+/// assert_eq!(proof.status(), RevocationStatus::Active);
+/// assert_eq!(
+///     proof.trustgrant_id().to_string(),
+///     "tg_123e4567-e89b-12d3-a456-426614174000",
+/// );
+///
+/// // Normalise into a record with policy
+/// let policy = RevocationFreshnessPolicy::new(120, 900)
+///     .expect("valid policy");
+/// let record = proof
+///     .into_record(
+///         RevocationSourceKind::Api,
+///         ProofFinality::Observed,
+///         policy,
+///     )
+///     .expect("valid record");
+/// assert_eq!(record.status(), RevocationStatus::Active);
+/// ```
 ///
 /// # Errors
 ///

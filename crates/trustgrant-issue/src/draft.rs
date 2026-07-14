@@ -13,6 +13,13 @@ use trustgrant_domain::{
 use trustgrant_error::TrustGrantError;
 use trustgrant_verify::{CanonicalTrustGrantBytes, canonicalize_trustgrant};
 
+/// One validated set of authority identifiers for a TrustGrant draft.
+///
+/// Contains the issuer, origin, and active owning authority that together
+/// define the authority boundary for a [`TrustGrantDraft`]. Use
+/// [`Self::self_owned`] when all three authorities are the same (common
+/// for first-party issuance), or [`Self::new`] when they differ (ownership
+/// transfer scenarios).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrustGrantDraftAuthorities {
     issuer_authority: AuthorityId,
@@ -59,6 +66,23 @@ impl TrustGrantDraftAuthorities {
     }
 }
 
+/// One issuer-side TrustGrant draft before cryptographic signing.
+///
+/// A draft carries the full grant payload with auto-generated protocol
+/// identifiers ([`TrustGrantId`], [`GrantSeriesId`]). Builder-pattern
+/// methods let you refine the draft (lineage, time window, audience,
+/// revocation, principal) before producing a signable document.
+///
+/// # Lifecycle
+///
+/// 1. **Draft** — [`TrustGrantDraft::new`] creates the initial draft.
+/// 2. **Refine** — use `with_*` methods to customise the draft.
+/// 3. **Signable** — [`signable_document`](Self::signable_document)
+///    or [`canonical_bytes`](Self::canonical_bytes) produces the payload
+///    to be signed.
+/// 4. **Signed** — [`into_signed_document`](Self::into_signed_document)
+///    attaches the cryptographic signature and yields the final
+///    [`RawTrustGrantDocument`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrustGrantDraft {
     trustgrant_id: TrustGrantId,
@@ -82,6 +106,45 @@ pub struct TrustGrantDraft {
 
 impl TrustGrantDraft {
     /// Creates one issuer-side TrustGrant draft with generated protocol IDs.
+    ///
+    /// # Examples
+    ///
+    /// Basic draft → signable → signed flow:
+    ///
+    /// ```rust
+    /// # use std::collections::BTreeMap;
+    /// # use chrono::{TimeZone, Utc};
+    /// # use trustgrant_document::raw::{
+    /// #     RawCapabilities, RawResourceScope, RawScope,
+    /// # };
+    /// # use trustgrant_issue::{TrustGrantDraft, TrustGrantDraftAuthorities};
+    /// let authorities = TrustGrantDraftAuthorities::self_owned(
+    ///     "https://issuer.example.com",
+    /// )
+    /// .expect("valid authorities");
+    ///
+    /// let draft = TrustGrantDraft::new(
+    ///     authorities,
+    ///     "root-key-1",
+    ///     RawScope::all(),
+    ///     RawCapabilities::new(true, false),
+    ///     RawResourceScope::new(BTreeMap::new()),
+    ///     Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0)
+    ///         .single()
+    ///         .expect("valid timestamp"),
+    /// )
+    /// .expect("valid draft");
+    ///
+    /// // Draft → signable document (borrows the draft)
+    /// let signable = draft.signable_document().expect("signable document");
+    /// assert!(signable.signature.is_empty());
+    ///
+    /// // Signable → signed document (consumes the draft)
+    /// let signed = draft
+    ///     .into_signed_document("valid-signature-v1")
+    ///     .expect("signed document");
+    /// assert_eq!(signed.signature, "valid-signature-v1");
+    /// ```
     ///
     /// # Errors
     ///

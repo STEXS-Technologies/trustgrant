@@ -14,6 +14,12 @@ use trustgrant_document::{
 use trustgrant_domain::{CanonicalizationProfile, Utf16Key};
 use trustgrant_error::TrustGrantError;
 
+/// Deterministic signable bytes for one ownership transition.
+///
+/// Produced by [`canonicalize_transition_proposal`] or
+/// [`canonicalize_transition_acceptance`]. The bytes represent the
+/// canonically serialized payload that the predecessor or successor must
+/// sign, with signature fields excluded as required by the protocol.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalOwnershipTransitionBytes(Vec<u8>);
 
