@@ -142,14 +142,16 @@ impl SelectorContext {
 
 /// An immutable reference to an existing resource.
 ///
-/// Carries the origin authority that created or owns the resource and the
-/// resource's unique identifier within that authority's namespace. Used in
+/// Carries the origin authority that created or owns the resource, the
+/// resource's unique identifier within that authority's namespace, and an
+/// optional expected version for stale-state detection. Used in
 /// [`ResourceBinding::Existing`] to bind an evaluation request to a specific
 /// resource instance.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResourceRef {
     origin_authority: AuthorityId,
     resource_id: String,
+    expected_version: Option<u64>,
 }
 
 impl ResourceRef {
@@ -159,6 +161,7 @@ impl ResourceRef {
         Self {
             origin_authority,
             resource_id,
+            expected_version: None,
         }
     }
 
@@ -172,6 +175,23 @@ impl ResourceRef {
     #[must_use = "resource ID identifies the specific resource instance"]
     pub fn resource_id(&self) -> &str {
         &self.resource_id
+    }
+
+    /// The expected version of the resource, if known.
+    ///
+    /// When set, the execution layer MUST verify that the current resource
+    /// version matches this value before applying any mutation. This enables
+    /// stale-state detection in concurrent environments.
+    #[must_use = "expected version is used for stale-state detection"]
+    pub const fn expected_version(&self) -> Option<u64> {
+        self.expected_version
+    }
+
+    /// Sets the expected resource version for stale-state detection.
+    #[must_use = "builder should be consumed"]
+    pub const fn with_expected_version(mut self, version: u64) -> Self {
+        self.expected_version = Some(version);
+        self
     }
 }
 
@@ -313,6 +333,7 @@ impl ResourceContext {
 pub struct EvaluationRequest {
     operation: RequestedOperation,
     resource_binding: ResourceBinding,
+    intent_id: Option<String>,
     target_authority: AuthorityId,
     target_context: SelectorContext,
     audience_authority: AuthorityId,
@@ -379,6 +400,7 @@ impl EvaluationRequest {
         Ok(Self {
             operation,
             resource_binding,
+            intent_id: None,
             target_authority,
             target_context,
             audience_authority,
@@ -435,6 +457,17 @@ impl EvaluationRequest {
         self
     }
 
+    /// Sets an intent ID for this request.
+    ///
+    /// An intent ID uniquely identifies an authorization attempt. When set, the
+    /// evaluation outcome is bound to this ID, enabling the execution layer to
+    /// detect and reject duplicate or replayed authorization attempts.
+    #[must_use = "intent ID should be set for idempotent authorization"]
+    pub fn with_intent_id(mut self, intent_id: impl Into<String>) -> Self {
+        self.intent_id = Some(intent_id.into());
+        self
+    }
+
     #[must_use = "requested operation is required for evaluation"]
     pub const fn operation(&self) -> &RequestedOperation {
         &self.operation
@@ -445,6 +478,14 @@ impl EvaluationRequest {
     #[must_use = "resource binding is required for evaluation and spec §13 step 3"]
     pub const fn resource_binding(&self) -> &ResourceBinding {
         &self.resource_binding
+    }
+
+    /// The intent ID for this request, if set.
+    ///
+    /// Binds the evaluation outcome to a specific authorization attempt.
+    #[must_use = "intent ID is required for idempotent authorization"]
+    pub fn intent_id(&self) -> Option<&str> {
+        self.intent_id.as_deref()
     }
 
     /// The origin authority bound to this request (convenience accessor).

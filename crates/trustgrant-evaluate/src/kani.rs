@@ -98,6 +98,6 @@ fn verify_evaluate_basic() {
         ts(),
     )
     .unwrap();
-    let decision = engine.evaluate(&grant, &request);
-    black_box(decision);
+    let outcome = engine.evaluate(&grant, &request);
+    black_box(outcome);
 }

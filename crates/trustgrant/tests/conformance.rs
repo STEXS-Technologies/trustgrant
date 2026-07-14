@@ -4,9 +4,10 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 
 use trustgrant::{
-    AuthorityId, CustomOperationName, EvaluationDecision, EvaluationDenyReason, EvaluationEngine,
+    AuthorityId, CustomOperationName, EvaluationDenyReason, EvaluationEngine,
     EvaluationRequest, MintContext, RequestedCapability, RequestedOperation, ResourceBinding,
     ResourceContext, ResourceRef, TemplateRef, VerifiedRevocationState,
+    evaluate::EvaluationOutcome,
     discovery::{
         AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
     },
@@ -196,7 +197,7 @@ fn make_custom_op_request(
     .unwrap_or_else(|e| panic!("evaluation request: {e}"))
 }
 
-fn evaluate_json(doc_json: &str, request: &EvaluationRequest) -> EvaluationDecision {
+fn evaluate_json(doc_json: &str, request: &EvaluationRequest) -> EvaluationOutcome {
     let validated = parse_and_validate(doc_json);
     let grant = wrap_grant(validated);
     EvaluationEngine::new().evaluate(&grant, request)
@@ -590,9 +591,9 @@ fn conformance_s6_resource_scope_deny_is_evaluated_after_allow() {
         "https://audience.example.com",
         "weapons",
     );
-    let decision = EvaluationEngine::new().evaluate(&grant, &request);
+    let outcome = EvaluationEngine::new().evaluate(&grant, &request);
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::ResourceDenied),
         "deny after allow: when both match, deny should win"
     );
@@ -657,9 +658,9 @@ fn conformance_s6_1_v0_compat_recognize_implies_recognize_allowed() {
         "https://audience.example.com",
         "weapons",
     );
-    let decision = evaluate_json(&json, &request);
+    let outcome = evaluate_json(&json, &request);
     assert!(
-        decision.is_allowed(),
+        outcome.decision().is_allowed(),
         "v0 compat: recognize should be allowed"
     );
 }
@@ -703,9 +704,9 @@ fn conformance_s6_1_v0_compat_mint_implies_create_allowed() {
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
     .with_mint_context(MintContext::new(0, 0));
-    let decision = evaluate_json(&json, &request);
+    let outcome = evaluate_json(&json, &request);
     assert!(
-        decision.is_allowed(),
+        outcome.decision().is_allowed(),
         "v0 compat: mint should be allowed via implicit create"
     );
 }
@@ -737,9 +738,9 @@ fn conformance_s6_1_custom_operation_requires_explicit_operations() {
         "weapons",
         "custom:use",
     );
-    let decision = evaluate_json(&json, &request);
+    let outcome = evaluate_json(&json, &request);
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::OperationDenied),
         "custom op without explicit operations scope should be denied"
     );
@@ -805,8 +806,8 @@ fn conformance_s6_1_explicit_operations_allow_primary_deny_subtractive() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"));
-    let decision2 = evaluate_json(&json, &request2);
-    assert!(decision2.is_allowed(), "custom:op2 should be allowed");
+    let outcome2 = evaluate_json(&json, &request2);
+    assert!(outcome2.decision().is_allowed(), "custom:op2 should be allowed");
 
     // Denied op should be rejected despite being in allow list
     let op1 = CustomOperationName::new("custom:op1").unwrap_or_else(|e| panic!("custom op1: {e}"));
@@ -828,9 +829,9 @@ fn conformance_s6_1_explicit_operations_allow_primary_deny_subtractive() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"));
-    let decision1 = evaluate_json(&json, &request1);
+    let outcome1 = evaluate_json(&json, &request1);
     assert_eq!(
-        decision1.deny_reason(),
+        outcome1.decision().deny_reason(),
         Some(EvaluationDenyReason::OperationDenied),
         "custom:op1 should be denied (in deny list)"
     );
@@ -1091,9 +1092,9 @@ fn conformance_s9_audience_scope_override_replaces_default() {
         "https://audience-a.example.com",
         "weapons",
     );
-    let decision_a = evaluate_json(&json, &request_a);
+    let outcome_a = evaluate_json(&json, &request_a);
     assert_eq!(
-        decision_a.deny_reason(),
+        outcome_a.decision().deny_reason(),
         Some(EvaluationDenyReason::AudienceNotAllowed),
         "audience A from default should be denied when override replaces it"
     );
@@ -1104,9 +1105,9 @@ fn conformance_s9_audience_scope_override_replaces_default() {
         "https://audience-b.example.com",
         "weapons",
     );
-    let decision_b = evaluate_json(&json, &request_b);
+    let outcome_b = evaluate_json(&json, &request_b);
     assert!(
-        decision_b.is_allowed(),
+        outcome_b.decision().is_allowed(),
         "audience B from type-level override should be allowed"
     );
 }
@@ -1150,9 +1151,9 @@ fn conformance_s9_empty_audience_scope_on_type_uses_default() {
         "https://audience.example.com",
         "weapons",
     );
-    let decision = evaluate_json(&json, &request);
+    let outcome = evaluate_json(&json, &request);
     assert!(
-        decision.is_allowed(),
+        outcome.decision().is_allowed(),
         "empty audience_scope on type should fall back to default"
     );
 }
@@ -1198,9 +1199,9 @@ fn conformance_s9_principal_scope_restricts_audience_does_not_grant() {
     request_ok
         .insert_audience_principal_selector("actor", "player-42")
         .unwrap_or_else(|e| panic!("principal selector: {e}"));
-    let decision_ok = evaluate_json(&json, &request_ok);
+    let outcome_ok = evaluate_json(&json, &request_ok);
     assert!(
-        decision_ok.is_allowed(),
+        outcome_ok.decision().is_allowed(),
         "matching principal should be allowed"
     );
 
@@ -1213,9 +1214,9 @@ fn conformance_s9_principal_scope_restricts_audience_does_not_grant() {
     request_denied
         .insert_audience_principal_selector("actor", "player-99")
         .unwrap_or_else(|e| panic!("principal selector: {e}"));
-    let decision_denied = evaluate_json(&json, &request_denied);
+    let outcome_denied = evaluate_json(&json, &request_denied);
     assert_eq!(
-        decision_denied.deny_reason(),
+        outcome_denied.decision().deny_reason(),
         Some(EvaluationDenyReason::AudiencePrincipalNotAllowed),
         "non-matching principal should be denied"
     );
@@ -1264,7 +1265,7 @@ fn conformance_s9_multiple_audience_entries() {
         "weapons",
     );
     assert!(
-        evaluate_json(&json, &request_a).is_allowed(),
+        evaluate_json(&json, &request_a).decision().is_allowed(),
         "audience A should be allowed"
     );
 
@@ -1274,7 +1275,7 @@ fn conformance_s9_multiple_audience_entries() {
         "weapons",
     );
     assert!(
-        evaluate_json(&json, &request_b).is_allowed(),
+        evaluate_json(&json, &request_b).decision().is_allowed(),
         "audience B should be allowed"
     );
 
@@ -1285,7 +1286,7 @@ fn conformance_s9_multiple_audience_entries() {
         "weapons",
     );
     assert_eq!(
-        evaluate_json(&json, &request_c).deny_reason(),
+        evaluate_json(&json, &request_c).decision().deny_reason(),
         Some(EvaluationDenyReason::AudienceNotAllowed),
         "non-matching audience should be denied"
     );
@@ -1299,7 +1300,7 @@ fn conformance_s9_multiple_audience_entries() {
 fn conformance_s10_allow_is_primary_and_explicit() {
     // Spec Section 10: "allow is primary and explicit"
     let json = make_grant_json(&[]);
-    let decision = evaluate_json(
+    let outcome = evaluate_json(
         &json,
         &make_recognize_request(
             "https://target.example.com",
@@ -1307,10 +1308,10 @@ fn conformance_s10_allow_is_primary_and_explicit() {
             "weapons",
         ),
     );
-    assert!(decision.is_allowed(), "matching allow should produce Allow");
+    assert!(outcome.decision().is_allowed(), "matching allow should produce Allow");
 
     // Request not matching allow → denied
-    let decision_not_allowed = evaluate_json(
+    let outcome_not_allowed = evaluate_json(
         &json,
         &make_recognize_request(
             "https://other.example.com",
@@ -1319,7 +1320,7 @@ fn conformance_s10_allow_is_primary_and_explicit() {
         ),
     );
     assert_eq!(
-        decision_not_allowed.deny_reason(),
+        outcome_not_allowed.decision().deny_reason(),
         Some(EvaluationDenyReason::TargetNotAllowed),
         "non-matching allow should produce deny"
     );
@@ -1337,7 +1338,7 @@ fn conformance_s10_deny_checked_after_allow() {
             "deny": [{"kind": "authority", "all": false, "values": ["https://target.example.com"], "expressions": null}]
         }),
     )]);
-    let decision = evaluate_json(
+    let outcome = evaluate_json(
         &json,
         &make_recognize_request(
             "https://target.example.com",
@@ -1346,7 +1347,7 @@ fn conformance_s10_deny_checked_after_allow() {
         ),
     );
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::TargetDenied),
         "deny should be checked after allow and win when both match"
     );
@@ -1364,7 +1365,7 @@ fn conformance_s10_deny_cannot_expand_privilege() {
             "deny": [{"kind": "authority", "all": false, "values": ["https://other.example.com"], "expressions": null}]
         }),
     )]);
-    let decision = evaluate_json(
+    let outcome = evaluate_json(
         &json,
         &make_recognize_request(
             "https://other.example.com",
@@ -1373,7 +1374,7 @@ fn conformance_s10_deny_cannot_expand_privilege() {
         ),
     );
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::TargetNotAllowed),
         "deny alone should not expand privilege; non-matching allow should fail first"
     );
@@ -1403,9 +1404,9 @@ fn conformance_s10_default_is_fail_closed() {
         ts("2026-06-15T12:00:00Z"),
     )
     .unwrap_or_else(|e| panic!("request: {e}"));
-    let decision = evaluate_json(&json, &request);
+    let outcome = evaluate_json(&json, &request);
     assert!(
-        !decision.is_allowed(),
+        !outcome.decision().is_allowed(),
         "fail-closed: non-matching resource type should be denied"
     );
 }
@@ -1455,9 +1456,9 @@ fn conformance_s11_per_type_capability_overrides_global() {
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
     .with_mint_context(MintContext::new(0, 0));
-    let decision_disabled = evaluate_json(&json_disabled, &request_mint);
+    let outcome_disabled = evaluate_json(&json_disabled, &request_mint);
     assert_eq!(
-        decision_disabled.deny_reason(),
+        outcome_disabled.decision().deny_reason(),
         Some(EvaluationDenyReason::CapabilityDisabled),
         "per-type mint=false should override global mint=true"
     );
@@ -1499,9 +1500,9 @@ fn conformance_s11_per_type_capability_overrides_global() {
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
     .with_mint_context(MintContext::new(0, 0));
-    let decision_global_false = evaluate_json(&json_global_false, &request_mint2);
+    let outcome_global_false = evaluate_json(&json_global_false, &request_mint2);
     assert_eq!(
-        decision_global_false.deny_reason(),
+        outcome_global_false.decision().deny_reason(),
         Some(EvaluationDenyReason::CapabilityDisabled),
         "per-type mint=null should inherit global mint=false"
     );
@@ -1543,9 +1544,9 @@ fn conformance_s11_per_type_capability_overrides_global() {
     )
     .unwrap_or_else(|e| panic!("request: {e}"))
     .with_mint_context(MintContext::new(0, 0));
-    let decision_override_true = evaluate_json(&json_override_true, &request_mint3);
+    let outcome_override_true = evaluate_json(&json_override_true, &request_mint3);
     assert!(
-        decision_override_true.is_allowed(),
+        outcome_override_true.decision().is_allowed(),
         "per-type mint=true should override global mint=false"
     );
 }
@@ -1612,26 +1613,26 @@ fn conformance_s12_minting_constraints_are_per_type() {
         .insert_audience_principal_selector("actor", "player-42")
         .unwrap_or_else(|e| panic!("principal selector: {e}"));
 
-    let decision = evaluate_json(&json_a, &request);
+    let outcome = evaluate_json(&json_a, &request);
     assert!(
-        decision.is_allowed(),
+        outcome.decision().is_allowed(),
         "mint within constraints should be allowed"
     );
 
     // Exceed max_total
     let request_exceed_total = request.clone().with_mint_context(MintContext::new(5, 1));
-    let decision_exceed = evaluate_json(&json_a, &request_exceed_total);
+    let outcome_exceed = evaluate_json(&json_a, &request_exceed_total);
     assert_eq!(
-        decision_exceed.deny_reason(),
+        outcome_exceed.decision().deny_reason(),
         Some(EvaluationDenyReason::MintTotalLimitReached),
         "exceeding max_total should be denied"
     );
 
     // Exceed max_per_user
     let request_exceed_user = request.clone().with_mint_context(MintContext::new(4, 2));
-    let decision_exceed_user = evaluate_json(&json_a, &request_exceed_user);
+    let outcome_exceed_user = evaluate_json(&json_a, &request_exceed_user);
     assert_eq!(
-        decision_exceed_user.deny_reason(),
+        outcome_exceed_user.decision().deny_reason(),
         Some(EvaluationDenyReason::MintPerUserLimitReached),
         "exceeding max_per_user should be denied"
     );
@@ -1708,9 +1709,9 @@ fn conformance_s12_audience_scope_in_constraints_replaces_default() {
         "https://default-audience.example.com",
         "weapons",
     );
-    let decision_default = evaluate_json(&json, &request_default);
+    let outcome_default = evaluate_json(&json, &request_default);
     assert_eq!(
-        decision_default.deny_reason(),
+        outcome_default.decision().deny_reason(),
         Some(EvaluationDenyReason::AudienceNotAllowed),
         "default audience should be denied when constraints override"
     );
@@ -1721,9 +1722,9 @@ fn conformance_s12_audience_scope_in_constraints_replaces_default() {
         "https://constraint-audience.example.com",
         "weapons",
     );
-    let decision_constraint = evaluate_json(&json, &request_constraint);
+    let outcome_constraint = evaluate_json(&json, &request_constraint);
     assert!(
-        decision_constraint.is_allowed(),
+        outcome_constraint.decision().is_allowed(),
         "constraint audience should be allowed"
     );
 }

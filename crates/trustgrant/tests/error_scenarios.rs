@@ -273,9 +273,9 @@ fn expired_grant_evaluation_denied() {
     // not_after is 2026-04-08T12:00:00Z — evaluate after that window
     let engine = EvaluationEngine::new();
     let request = recognize_request_at("player-123", fixed_timestamp(2026, 4, 9, 12, 0, 0));
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
 
-    assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Expired));
+    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Expired));
 }
 
 // ---------------------------------------------------------------------------
@@ -289,10 +289,10 @@ fn not_yet_valid_grant_evaluation_denied() {
     // not_before is 2026-04-07T12:00:00Z — evaluate before that
     let engine = EvaluationEngine::new();
     let request = recognize_request_at("player-123", fixed_timestamp(2026, 4, 6, 12, 0, 0));
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::NotYetValid)
     );
 }
@@ -306,9 +306,9 @@ fn revoked_grant_evaluation_denied() {
     let grant = verified_grant_from_json(VALID_TRUSTGRANT_JSON, RevocationStatus::Revoked);
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&grant, &recognize_request("player-123"));
+    let outcome = engine.evaluate(&grant, &recognize_request("player-123"));
 
-    assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Revoked));
+    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
 }
 
 // ---------------------------------------------------------------------------
@@ -369,11 +369,11 @@ fn target_scope_deny_evaluation_denied() {
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
 
     // The target doesn't match the allow list → TargetNotAllowed (no deny list entry matches)
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::TargetNotAllowed)
     );
 }
@@ -413,10 +413,10 @@ fn audience_mismatch_evaluation_denied() {
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::AudienceNotAllowed)
     );
 }
@@ -449,10 +449,10 @@ fn resource_type_not_granted_evaluation_denied() {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::ResourceTypeNotGranted)
     );
 }
@@ -489,10 +489,10 @@ fn operation_deny_list_evaluation_denied() {
     let grant = verified_grant_from_json(json, RevocationStatus::Active);
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&grant, &recognize_request("player-123"));
+    let outcome = engine.evaluate(&grant, &recognize_request("player-123"));
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::OperationDenied)
     );
 }
@@ -557,10 +557,10 @@ fn missing_mint_context_evaluation_denied() {
     // NOTE: We do NOT call request.with_mint_context(...) — intentionally omitting it.
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::MissingMintContext)
     );
 }

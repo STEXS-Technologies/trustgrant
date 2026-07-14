@@ -450,10 +450,10 @@ fn source_driven_verification_and_evaluation_allow_matching_request() {
             ),
         )
         .unwrap_or_else(|error| panic!("source-driven verification should succeed: {error}"));
-    let decision =
+    let outcome =
         EvaluationEngine::new().evaluate(artifacts.verified_grant(), &matching_request());
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 const DELEGATED_ROOT_DISCOVERY_JSON: &str = r#"{

@@ -461,10 +461,10 @@ fn issue_verify_evaluate_recognize() {
 
     // 3. Evaluate: check a recognize request against the verified grant
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(verified_grant, &recognize_request());
+    let outcome = engine.evaluate(verified_grant, &recognize_request());
 
-    assert!(decision.is_allowed());
-    assert_eq!(decision.deny_reason(), None);
+    assert!(outcome.decision().is_allowed());
+    assert_eq!(outcome.decision().deny_reason(), None);
 }
 
 #[test]
@@ -486,10 +486,10 @@ fn issue_verify_evaluate_mint() {
     // 3. Evaluate: mint request with MintContext (within limits)
     let engine = EvaluationEngine::new();
     let request = mint_request().with_mint_context(MintContext::new(5, 0));
-    let decision = engine.evaluate(verified_grant, &request);
+    let outcome = engine.evaluate(verified_grant, &request);
 
-    assert!(decision.is_allowed());
-    assert_eq!(decision.deny_reason(), None);
+    assert!(outcome.decision().is_allowed());
+    assert_eq!(outcome.decision().deny_reason(), None);
 }
 
 #[test]
@@ -510,10 +510,10 @@ fn issue_verify_evaluate_custom_operation() {
 
     // 3. Evaluate: custom operation request
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(verified_grant, &custom_operation_request());
+    let outcome = engine.evaluate(verified_grant, &custom_operation_request());
 
-    assert!(decision.is_allowed());
-    assert_eq!(decision.deny_reason(), None);
+    assert!(outcome.decision().is_allowed());
+    assert_eq!(outcome.decision().deny_reason(), None);
 }
 
 #[test]
@@ -533,10 +533,10 @@ fn issue_verify_evaluate_recognize_revoked_denied() {
     let verified_grant = artifacts.verified_grant();
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(verified_grant, &recognize_request());
+    let outcome = engine.evaluate(verified_grant, &recognize_request());
 
-    assert!(!decision.is_allowed());
-    assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Revoked));
+    assert!(!outcome.decision().is_allowed());
+    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
 }
 
 #[test]
@@ -555,11 +555,11 @@ fn issue_verify_evaluate_mint_without_context_denied() {
     let verified_grant = artifacts.verified_grant();
 
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(verified_grant, &mint_request());
+    let outcome = engine.evaluate(verified_grant, &mint_request());
 
-    assert!(!decision.is_allowed());
+    assert!(!outcome.decision().is_allowed());
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::MissingMintContext)
     );
 }

@@ -18,7 +18,8 @@ use trustgrant::document::raw::{
 use trustgrant::domain::Utf16Key;
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, CanonicalizationProfile, DelegatedPrincipalRef,
-    EvaluationDecision, EvaluationDenyReason, EvaluationEngine, EvaluationRequest, MintContext,
+    EvaluationDenyReason, EvaluationEngine, EvaluationRequest, MintContext,
+    evaluate::EvaluationOutcome,
     OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
     RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
     RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
@@ -436,11 +437,11 @@ proptest! {
         let engine = EvaluationEngine::new();
         let request = build_recognize_request();
 
-        let decision1 = engine.evaluate(verified_grant, &request);
-        let decision2 = engine.evaluate(verified_grant, &request);
+        let outcome1 = engine.evaluate(verified_grant, &request);
+        let outcome2 = engine.evaluate(verified_grant, &request);
 
-        prop_assert_eq!(decision1.is_allowed(), decision2.is_allowed());
-        prop_assert_eq!(decision1.deny_reason(), decision2.deny_reason());
+        prop_assert_eq!(outcome1.decision().is_allowed(), outcome2.decision().is_allowed());
+        prop_assert_eq!(outcome1.decision().deny_reason(), outcome2.decision().deny_reason());
     }
 }
 
@@ -464,11 +465,11 @@ proptest! {
         let engine = EvaluationEngine::new();
         let request = build_recognize_request();
 
-        let decision1 = engine.evaluate(artifacts1.verified_grant(), &request);
-        let decision2 = engine.evaluate(artifacts2.verified_grant(), &request);
+        let outcome1 = engine.evaluate(artifacts1.verified_grant(), &request);
+        let outcome2 = engine.evaluate(artifacts2.verified_grant(), &request);
 
-        prop_assert_eq!(decision1.is_allowed(), decision2.is_allowed());
-        prop_assert_eq!(decision1.deny_reason(), decision2.deny_reason());
+        prop_assert_eq!(outcome1.decision().is_allowed(), outcome2.decision().is_allowed());
+        prop_assert_eq!(outcome1.decision().deny_reason(), outcome2.decision().deny_reason());
     }
 }
 
@@ -568,7 +569,7 @@ fn make_metadata() -> VerificationMetadata {
     )
 }
 
-fn evaluate_json(json: &str, target: &str, namespace: &str) -> EvaluationDecision {
+fn evaluate_json(json: &str, target: &str, namespace: &str) -> EvaluationOutcome {
     let validated =
         ValidatedTrustGrantDocument::try_from(RawTrustGrantDocument::parse_json_str(json).unwrap())
             .unwrap();
@@ -590,7 +591,7 @@ fn evaluate_json(json: &str, target: &str, namespace: &str) -> EvaluationDecisio
     EvaluationEngine::new().evaluate(&grant, &request)
 }
 
-fn evaluate_request_json(json: &str, request: &EvaluationRequest) -> EvaluationDecision {
+fn evaluate_request_json(json: &str, request: &EvaluationRequest) -> EvaluationOutcome {
     let validated =
         ValidatedTrustGrantDocument::try_from(RawTrustGrantDocument::parse_json_str(json).unwrap())
             .unwrap();
@@ -616,9 +617,9 @@ proptest! {
                 "deny": [{"kind": "authority", "all": false, "values": ["https://target.example.com"], "expressions": null}]
             })),
         ]);
-        let decision = evaluate_json(&json, "https://target.example.com", "weapons");
+        let outcome = evaluate_json(&json, "https://target.example.com", "weapons");
         prop_assert!(
-            !decision.is_allowed(),
+            !outcome.decision().is_allowed(),
             "deny must be subtractive: when target is in both allow and deny, result must be denial"
         );
     }
@@ -642,9 +643,9 @@ proptest! {
                 "deny": null
             })),
         ]);
-        let decision = evaluate_json(&json, "https://other.example.com", "weapons");
+        let outcome = evaluate_json(&json, "https://other.example.com", "weapons");
         prop_assert!(
-            !decision.is_allowed(),
+            !outcome.decision().is_allowed(),
             "allow must be explicit: non-matching target must be denied"
         );
     }
@@ -675,9 +676,9 @@ proptest! {
             resource,
             ts("2026-06-15T12:00:00Z"),
         ).unwrap();
-        let decision = evaluate_request_json(&json, &request);
+        let outcome = evaluate_request_json(&json, &request);
         prop_assert!(
-            !decision.is_allowed(),
+            !outcome.decision().is_allowed(),
             "fail-closed: non-matching resource type must be denied"
         );
     }
@@ -721,9 +722,9 @@ proptest! {
             resource,
             ts("2026-06-15T12:00:00Z"),
         ).unwrap().with_mint_context(MintContext::new(0, 0));
-        let decision = evaluate_request_json(&json_disabled, &request);
+        let outcome = evaluate_request_json(&json_disabled, &request);
         prop_assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
             "per-type mint=false overrides global mint=true"
         );
@@ -744,9 +745,9 @@ proptest! {
             resource2,
             ts("2026-06-15T12:00:00Z"),
         ).unwrap().with_mint_context(MintContext::new(0, 0));
-        let decision2 = evaluate_request_json(&json_global, &request2);
+        let outcome2 = evaluate_request_json(&json_global, &request2);
         prop_assert_eq!(
-            decision2.deny_reason(),
+            outcome2.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
             "per-type mint=null inherits global mint=false"
         );
@@ -769,9 +770,9 @@ proptest! {
                 "time": { "not_before": "2025-01-01T00:00:00Z", "not_after": "2025-06-01T00:00:00Z" }
             })),
         ]);
-        let decision = evaluate_json(&json, "https://nonexistent.example.com", "weapons");
+        let outcome = evaluate_json(&json, "https://nonexistent.example.com", "weapons");
         prop_assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::Expired),
             "expired check must happen before target scope check"
         );
@@ -802,9 +803,9 @@ proptest! {
             resource,
             ts("2026-06-15T12:00:00Z"),
         ).unwrap();
-        let decision = evaluate_request_json(&json, &request);
+        let outcome = evaluate_request_json(&json, &request);
         prop_assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OriginAuthorityMismatch),
             "origin authority mismatch must be enforced"
         );

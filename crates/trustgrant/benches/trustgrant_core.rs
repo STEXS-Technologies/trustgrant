@@ -352,9 +352,11 @@ fn trustgrant_benchmarks(criterion: &mut Criterion) {
         let engine = EvaluationEngine::new();
 
         bench.iter(|| {
-            engine.evaluate(
-                black_box(&verified_for_evaluation),
-                black_box(&evaluation_request),
+            black_box(
+                engine.evaluate(
+                    black_box(&verified_for_evaluation),
+                    black_box(&evaluation_request),
+                )
             )
         });
     });

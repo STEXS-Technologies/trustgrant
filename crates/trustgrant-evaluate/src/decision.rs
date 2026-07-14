@@ -1,4 +1,7 @@
-use trustgrant_domain::TrustGrantId;
+use chrono::{DateTime, Utc};
+use trustgrant_domain::{AuthorityId, TrustGrantId};
+
+use crate::request::ResourceBinding;
 
 /// Reasons why an evaluation request was denied.
 ///
@@ -89,6 +92,79 @@ impl EvaluationDecision {
     }
 }
 
+/// The outcome of evaluating one grant against one request.
+///
+/// Wraps an [`EvaluationDecision`] with the execution context that produced it:
+/// the intent ID (if any), the resource binding used, and the evaluation
+/// timestamp. This is the record that the execution layer MUST use to ensure
+/// atomic, idempotent authorization.
+///
+/// The execution layer must:
+/// - Verify that `intent_id` has not been previously processed (replay prevention)
+/// - When acting on an existing resource, check that the current resource
+///   version matches the version in the binding (stale-state detection)
+/// - Persist the outcome as an append-only audit event before applying any
+///   state mutation
+/// - Treat an allow outcome as a precondition, not a standalone authorization
+///   to execute without the above checks
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EvaluationOutcome {
+    decision: EvaluationDecision,
+    intent_id: Option<String>,
+    resource_binding: ResourceBinding,
+    origin_authority: AuthorityId,
+    evaluated_at: DateTime<Utc>,
+}
+
+impl EvaluationOutcome {
+    #[must_use = "evaluation outcomes should be inspected by callers"]
+    pub(crate) fn new(
+        decision: EvaluationDecision,
+        intent_id: Option<String>,
+        resource_binding: ResourceBinding,
+        evaluated_at: DateTime<Utc>,
+    ) -> Self {
+        let origin_authority = resource_binding.origin_authority().clone();
+        Self {
+            decision,
+            intent_id,
+            resource_binding,
+            origin_authority,
+            evaluated_at,
+        }
+    }
+
+    /// The evaluation decision (allow or deny).
+    #[must_use = "the decision determines whether to authorize work"]
+    pub const fn decision(&self) -> &EvaluationDecision {
+        &self.decision
+    }
+
+    /// The intent ID that was bound to this evaluation, if any.
+    #[must_use = "intent ID enables replay detection"]
+    pub fn intent_id(&self) -> Option<&str> {
+        self.intent_id.as_deref()
+    }
+
+    /// The resource binding used during evaluation.
+    #[must_use = "resource binding identifies what was authorized"]
+    pub const fn resource_binding(&self) -> &ResourceBinding {
+        &self.resource_binding
+    }
+
+    /// The origin authority from the resource binding.
+    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    pub const fn origin_authority(&self) -> &AuthorityId {
+        &self.origin_authority
+    }
+
+    /// When the evaluation was performed.
+    #[must_use = "evaluation timestamp is required for audit"]
+    pub const fn evaluated_at(&self) -> DateTime<Utc> {
+        self.evaluated_at
+    }
+}
+
 impl std::fmt::Display for EvaluationDenyReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -126,7 +202,6 @@ impl std::fmt::Display for EvaluationDenyReason {
 #[cfg(test)]
 mod tests {
     use trustgrant_domain::TrustGrantId;
-
     use crate::decision::{EvaluationDecision, EvaluationDenyReason};
 
     #[test]

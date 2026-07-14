@@ -230,8 +230,8 @@ fn offline_verification_detects_revoked_grant() {
     )
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
-    let decision = engine.evaluate(artifacts.verified_grant(), &request);
-    assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Revoked));
+    let outcome = engine.evaluate(artifacts.verified_grant(), &request);
+    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
 }
 
 #[test]

@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
-use super::decision::{EvaluationDecision, EvaluationDenyReason};
+use super::decision::{EvaluationDecision, EvaluationDenyReason, EvaluationOutcome};
 use super::request::{EvaluationRequest, RequestedCapability, RequestedOperation, SelectorContext};
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedResourceType, ValidatedScope, ValidatedSelector,
 };
+use trustgrant_domain::TrustGrantId;
 use trustgrant_verify::{NormalizedTrustGrantDocument, VerifiedTrustGrant};
 
 /// The core authorization engine that evaluates a verified grant against an
@@ -46,7 +47,7 @@ impl EvaluationEngine {
         self,
         grant: &VerifiedTrustGrant,
         request: &EvaluationRequest,
-    ) -> EvaluationDecision {
+    ) -> EvaluationOutcome {
         let _span = tracing::info_span!("evaluate",
             trustgrant_id = %grant.lineage().trustgrant_id(),
             operation = ?request.operation(),
@@ -54,6 +55,22 @@ impl EvaluationEngine {
         .entered();
         let trustgrant_id = grant.lineage().trustgrant_id();
 
+        let decision = self.evaluate_inner(grant, request, trustgrant_id);
+
+        EvaluationOutcome::new(
+            decision,
+            request.intent_id().map(String::from),
+            request.resource_binding().clone(),
+            request.evaluated_at(),
+        )
+    }
+
+    fn evaluate_inner(
+        self,
+        grant: &VerifiedTrustGrant,
+        request: &EvaluationRequest,
+        trustgrant_id: TrustGrantId,
+    ) -> EvaluationDecision {
         if grant.metadata().revocation().is_revoked() {
             tracing::debug!(
                 trustgrant_id = %trustgrant_id,
@@ -477,13 +494,13 @@ mod tests {
         AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
     };
     use trustgrant_document::ValidatedTrustGrantDocument;
+    use trustgrant_domain::AuthorityId;
     use trustgrant_document::raw::{
         RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
         RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation,
         RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument,
         RawTypeCapabilities, RawTypeConstraints,
     };
-    use trustgrant_domain::AuthorityId;
     use trustgrant_domain::{
         CustomOperationName, OwnershipProofKind, OwnershipVerificationRecord, Utf16Key,
     };
@@ -1066,10 +1083,10 @@ mod tests {
     #[test]
     fn evaluation_allows_matching_recognize_request() {
         let engine = EvaluationEngine::new();
-        let decision = engine.evaluate(&verified_grant(), &recognize_request());
+        let outcome = engine.evaluate(&verified_grant(), &recognize_request());
 
-        assert!(decision.is_allowed());
-        assert_eq!(decision.deny_reason(), None);
+        assert!(outcome.decision().is_allowed());
+        assert_eq!(outcome.decision().deny_reason(), None);
     }
 
     #[test]
@@ -1101,9 +1118,9 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
-        assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Revoked));
+        assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
     }
 
     #[test]
@@ -1127,20 +1144,20 @@ mod tests {
             panic!("audience principal selector should be valid: {error}");
         }
 
-        let decision = engine.evaluate(&verified_grant(), &request);
+        let outcome = engine.evaluate(&verified_grant(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::AudiencePrincipalNotAllowed)
         );
     }
 
     #[test]
     fn evaluation_denies_mint_without_runtime_mint_context() {
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &mint_request());
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &mint_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MissingMintContext)
         );
     }
@@ -1189,11 +1206,11 @@ mod tests {
         }
         .with_mint_context(MintContext::new(5, 0));
 
-        let decision =
+        let outcome =
             EvaluationEngine::new().evaluate(&mint_grant_without_principal_scope(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MissingAudiencePrincipalContext),
         );
     }
@@ -1201,10 +1218,10 @@ mod tests {
     #[test]
     fn evaluation_denies_mint_when_total_limit_is_reached() {
         let request = mint_request().with_mint_context(MintContext::new(10, 0));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &request);
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MintTotalLimitReached)
         );
     }
@@ -1212,10 +1229,10 @@ mod tests {
     #[test]
     fn evaluation_denies_mint_when_per_user_limit_is_reached() {
         let request = mint_request().with_mint_context(MintContext::new(2, 1));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &request);
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MintPerUserLimitReached)
         );
     }
@@ -1223,34 +1240,34 @@ mod tests {
     #[test]
     fn evaluation_allows_mint_when_constraints_are_respected() {
         let request = mint_request().with_mint_context(MintContext::new(9, 0));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &request);
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
-        assert!(decision.is_allowed());
+        assert!(outcome.decision().is_allowed());
     }
 
     #[test]
     fn evaluation_allows_create_when_mint_operations_are_absent() {
         let request = mint_request().with_mint_context(MintContext::new(9, 0));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant_without_operations(), &request);
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant_without_operations(), &request);
 
-        assert!(decision.is_allowed());
+        assert!(outcome.decision().is_allowed());
     }
 
     #[test]
     fn evaluation_allows_matching_selector_expression() {
-        let decision = EvaluationEngine::new()
+        let outcome = EvaluationEngine::new()
             .evaluate(&expression_grant(), &expression_request("weapon_epic"));
 
-        assert!(decision.is_allowed());
+        assert!(outcome.decision().is_allowed());
     }
 
     #[test]
     fn evaluation_denies_non_matching_selector_expression() {
-        let decision = EvaluationEngine::new()
+        let outcome = EvaluationEngine::new()
             .evaluate(&expression_grant(), &expression_request("armor_epic"));
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceNotAllowed)
         );
     }
@@ -1286,8 +1303,8 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
-        assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Expired));
+        let outcome = engine.evaluate(&grant, &request);
+        assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Expired));
     }
 
     #[test]
@@ -1321,9 +1338,9 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::NotYetValid)
         );
     }
@@ -1358,9 +1375,9 @@ mod tests {
             Ok(request) => request,
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceTypeNotGranted)
         );
     }
@@ -1474,9 +1491,9 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&deny_grant, &recognize_request());
+        let outcome = engine.evaluate(&deny_grant, &recognize_request());
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::TargetDenied)
         );
     }
@@ -1587,9 +1604,9 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&deny_grant, &recognize_request());
+        let outcome = engine.evaluate(&deny_grant, &recognize_request());
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied)
         );
     }
@@ -1698,10 +1715,10 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
         );
     }
@@ -1828,10 +1845,10 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::AudienceDenied),
         );
     }
@@ -1950,10 +1967,10 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::AudienceNotAllowed),
         );
     }
@@ -2062,10 +2079,10 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
     }
@@ -2107,10 +2124,10 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
     }
@@ -2253,9 +2270,9 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
-        assert!(decision.is_allowed());
+        assert!(outcome.decision().is_allowed());
     }
 
     #[test]
@@ -2397,10 +2414,10 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
     }
@@ -2547,13 +2564,13 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         // CapabilityDisabled must come first — it is checked before resource
         // scope in the spec ordering.  If resource scope were checked first,
         // the deny reason would incorrectly be ResourceNotAllowed.
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
         );
     }
@@ -2675,10 +2692,10 @@ mod tests {
 
         // Request namespace "weapons" — matches both allow and deny.
         // Deny must win, and the reason must be ResourceDenied (not ResourceNotAllowed).
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceDenied),
         );
     }
@@ -2825,18 +2842,18 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         // Operations scope is the sole gate for custom operations.
         // "upload" is not in the allow list ["download"], so it must be
         // OperationDenied — never CapabilityDisabled (which only applies
         // to built-in recognize/mint capabilities).
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
         assert_ne!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
         );
     }
@@ -2903,12 +2920,12 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         // Target "https://target.example.com" is in both allow and deny of
         // target_scope.  Deny must win with TargetDenied — not TargetNotAllowed.
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::TargetDenied),
         );
     }
@@ -3009,19 +3026,19 @@ mod tests {
         let grant_b = make_grant(json_b, "tg_b");
         let request = recognize_request();
 
-        let decision_a = engine.evaluate(&grant_a, &request);
-        let decision_b = engine.evaluate(&grant_b, &request);
+        let outcome_a = engine.evaluate(&grant_a, &request);
+        let outcome_b = engine.evaluate(&grant_b, &request);
 
         // Both should allow — empty deny list and null deny are equivalent.
         assert!(
-            decision_a.is_allowed(),
+            outcome_a.decision().is_allowed(),
             "grant A (null deny) should allow, got: {:?}",
-            decision_a.deny_reason(),
+            outcome_a.decision().deny_reason(),
         );
         assert!(
-            decision_b.is_allowed(),
+            outcome_b.decision().is_allowed(),
             "grant B (empty deny) should allow, got: {:?}",
-            decision_b.deny_reason(),
+            outcome_b.decision().deny_reason(),
         );
     }
 
@@ -3091,17 +3108,17 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         // First audience entry has scope all=true (allows everything).
         // Second entry has all=false with no allow (denies everything).
         // .find() returns the first match, so the first entry wins → ALLOW.
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "first audience entry should win, got deny: {:?}",
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
         );
-        assert_eq!(decision.deny_reason(), None);
+        assert_eq!(outcome.decision().deny_reason(), None);
     }
 
     // ── Multi-resource-type evaluation ─────────────────────────────────
@@ -3199,20 +3216,20 @@ mod tests {
         let grant = multi_type_grant();
 
         // Evaluating "item" with namespace "weapons" → allowed
-        let decision_item = engine.evaluate(&grant, &recognize_request_for("item", "weapons"));
+        let outcome_item = engine.evaluate(&grant, &recognize_request_for("item", "weapons"));
         assert!(
-            decision_item.is_allowed(),
+            outcome_item.decision().is_allowed(),
             "item recognition should be allowed, got: {:?}",
-            decision_item.deny_reason(),
+            outcome_item.decision().deny_reason(),
         );
 
         // Evaluating "badge" with namespace "achievements" → allowed
-        let decision_badge =
+        let outcome_badge =
             engine.evaluate(&grant, &recognize_request_for("badge", "achievements"));
         assert!(
-            decision_badge.is_allowed(),
+            outcome_badge.decision().is_allowed(),
             "badge recognition should be allowed, got: {:?}",
-            decision_badge.deny_reason(),
+            outcome_badge.decision().deny_reason(),
         );
     }
 
@@ -3222,9 +3239,9 @@ mod tests {
         let grant = multi_type_grant();
 
         // Requesting resource type "weapon" which is NOT in the grant → ResourceTypeNotGranted
-        let decision = engine.evaluate(&grant, &recognize_request_for("weapon", "weapons"));
+        let outcome = engine.evaluate(&grant, &recognize_request_for("weapon", "weapons"));
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceTypeNotGranted),
         );
     }
@@ -3357,12 +3374,12 @@ mod tests {
         let engine = EvaluationEngine::new();
         let grant = mint_grant_without_constraints();
         let request = mint_request(); // No .with_mint_context()
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "expected allow, got deny: {:?}",
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
         );
     }
 
@@ -3477,12 +3494,12 @@ mod tests {
         // Use a namespace that would NOT match a normal value-based selector
         // to prove the `all: true` on the selector makes it match anything.
         let request = recognize_request_for("item", "something_completely_different");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "expected allow with all:true selector, got deny: {:?}",
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
         );
     }
 
@@ -3531,11 +3548,11 @@ mod tests {
             panic!("audience principal selector should be valid: {error}");
         }
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "expected allow with matching selector via HashSet path, got deny: {:?}",
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
         );
     }
 

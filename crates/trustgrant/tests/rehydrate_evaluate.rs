@@ -333,9 +333,9 @@ fn rehydrated_recognize_grant_allows_matching_request() {
 
     // 5. Evaluate
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&rehydrated, &recognize_request());
+    let outcome = engine.evaluate(&rehydrated, &recognize_request());
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 // ---------------------------------------------------------------------------
@@ -359,9 +359,9 @@ fn rehydrated_mint_grant_allows_under_total_limit() {
 
     // 3. Evaluate at 9/10 → should be allowed
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&rehydrated, &mint_request(9, 0));
+    let outcome = engine.evaluate(&rehydrated, &mint_request(9, 0));
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -381,10 +381,10 @@ fn rehydrated_mint_grant_denies_at_total_limit() {
 
     // 3. Evaluate at 10/10 → should deny with MintTotalLimitReached
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&rehydrated, &mint_request(10, 0));
+    let outcome = engine.evaluate(&rehydrated, &mint_request(10, 0));
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::MintTotalLimitReached)
     );
 }
@@ -400,9 +400,9 @@ fn rehydrated_revoked_grant_preserves_deny_reason() {
 
     // 2. Evaluate before persistence → should deny for Revoked
     let engine = EvaluationEngine::new();
-    let original_decision = engine.evaluate(&verified, &recognize_request());
+    let original_outcome = engine.evaluate(&verified, &recognize_request());
     assert_eq!(
-        original_decision.deny_reason(),
+        original_outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::Revoked)
     );
 
@@ -417,9 +417,9 @@ fn rehydrated_revoked_grant_preserves_deny_reason() {
         .unwrap_or_else(|error| panic!("rehydration should succeed: {error}"));
 
     // 4. Evaluate after rehydration → same deny reason
-    let rehydrated_decision = engine.evaluate(&rehydrated, &recognize_request());
+    let rehydrated_outcome = engine.evaluate(&rehydrated, &recognize_request());
     assert_eq!(
-        rehydrated_decision.deny_reason(),
+        rehydrated_outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::Revoked)
     );
 }

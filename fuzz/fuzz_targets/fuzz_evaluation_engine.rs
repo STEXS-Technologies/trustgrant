@@ -310,7 +310,8 @@ fn build_mismatched_target_request(
 
 fn evaluate_and_check(grant: &VerifiedTrustGrant, request: &EvaluationRequest) {
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(grant, request);
+    let outcome = engine.evaluate(grant, request);
+    let decision = outcome.decision();
 
     // Canonical invariants: the decision never panics (already verified by
     // virtue of reaching this point), and always returns either allow or deny.

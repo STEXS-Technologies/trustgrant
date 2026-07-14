@@ -255,35 +255,35 @@ fn fixed_timestamp(
 #[test]
 fn parse_validate_verify_and_evaluate_allows_matching_request() {
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(
+    let outcome = engine.evaluate(
         &verified_grant(RevocationStatus::Active),
         &recognize_request("player-123"),
     );
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
 fn parse_validate_verify_and_evaluate_denies_revoked_grant() {
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(
+    let outcome = engine.evaluate(
         &verified_grant(RevocationStatus::Revoked),
         &recognize_request("player-123"),
     );
 
-    assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Revoked));
+    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
 }
 
 #[test]
 fn parse_validate_verify_and_evaluate_denies_audience_principal_mismatch() {
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(
+    let outcome = engine.evaluate(
         &verified_grant(RevocationStatus::Active),
         &recognize_request("player-999"),
     );
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::AudiencePrincipalNotAllowed)
     );
 }
@@ -291,7 +291,7 @@ fn parse_validate_verify_and_evaluate_denies_audience_principal_mismatch() {
 #[test]
 fn parse_validate_verify_and_evaluate_allows_authority_id_target_selector_alias() {
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(
+    let outcome = engine.evaluate(
         &verified_grant_from_json(
             AUTHORITY_ID_TARGET_TRUSTGRANT_JSON,
             RevocationStatus::Active,
@@ -299,13 +299,13 @@ fn parse_validate_verify_and_evaluate_allows_authority_id_target_selector_alias(
         &recognize_request("player-123"),
     );
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
 fn parse_validate_verify_and_evaluate_allows_mixed_case_actor_principal_kind() {
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(
+    let outcome = engine.evaluate(
         &verified_grant_from_json(
             MIXED_CASE_PRINCIPAL_TRUSTGRANT_JSON,
             RevocationStatus::Active,
@@ -314,7 +314,7 @@ fn parse_validate_verify_and_evaluate_allows_mixed_case_actor_principal_kind() {
     );
 
     assert!(
-        decision.is_allowed(),
+        outcome.decision().is_allowed(),
         "Actor (mixed case) should be recognized as the built-in actor kind"
     );
 }
@@ -324,12 +324,12 @@ fn parse_validate_verify_and_evaluate_allows_exact_profile_custom_operation() {
     let engine = EvaluationEngine::new();
     let request = custom_operation_request("asset.download", "player-123")
         .unwrap_or_else(|error| panic!("custom operation request should be valid: {error}"));
-    let decision = engine.evaluate(
+    let outcome = engine.evaluate(
         &verified_grant_from_json(CUSTOM_OPERATION_TRUSTGRANT_JSON, RevocationStatus::Active),
         &request,
     );
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -337,13 +337,13 @@ fn parse_validate_verify_and_evaluate_denies_mixed_case_custom_operation_without
     let engine = EvaluationEngine::new();
     let request = custom_operation_request("Asset.Download", "player-123")
         .unwrap_or_else(|error| panic!("custom operation request should be valid: {error}"));
-    let decision = engine.evaluate(
+    let outcome = engine.evaluate(
         &verified_grant_from_json(CUSTOM_OPERATION_TRUSTGRANT_JSON, RevocationStatus::Active),
         &request,
     );
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::OperationDenied)
     );
 }

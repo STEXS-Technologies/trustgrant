@@ -67,10 +67,10 @@ fn run() -> Result<u64, EvaluateHotPathError> {
     let mut allowed_count = 0_u64;
 
     for _ in 0..iterations {
-        let decision =
+        let outcome =
             black_box(engine.evaluate(black_box(&verified_grant), black_box(&evaluation_request)));
 
-        if decision.is_allowed() {
+        if outcome.decision().is_allowed() {
             allowed_count = allowed_count.saturating_add(1);
         }
     }

@@ -4,7 +4,8 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use trustgrant::{
-    AuthorityId, CustomOperationName, EvaluationDecision, EvaluationEngine, EvaluationRequest,
+    AuthorityId, CustomOperationName, EvaluationEngine, EvaluationRequest,
+    evaluate::EvaluationOutcome,
     MintContext, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
     ResourceRef, TemplateRef, TrustGrantError, VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile},
@@ -109,7 +110,7 @@ fn make_metadata(
 fn run_evaluation(
     grant: &trustgrant::verify::VerifiedTrustGrant,
     eval: &serde_json::Value,
-) -> EvaluationDecision {
+) -> EvaluationOutcome {
     let engine = EvaluationEngine::new();
 
     let req = &eval["request"];
@@ -200,11 +201,11 @@ fn run_evaluation(
     engine.evaluate(grant, &request)
 }
 
-fn check_decision(decision: EvaluationDecision, expected: &serde_json::Value) -> bool {
-    if decision.is_allowed() && expected == "Allowed" {
+fn check_decision(decision: &EvaluationOutcome, expected: &serde_json::Value) -> bool {
+    if decision.decision().is_allowed() && expected == "Allowed" {
         return true;
     }
-    if let Some(deny_reason) = decision.deny_reason()
+    if let Some(deny_reason) = decision.decision().deny_reason()
         && let serde_json::Value::Object(map) = expected
         && let Some(expected_reason) = map.get("Denied").and_then(|v| v.as_str())
     {
@@ -240,11 +241,11 @@ fn run_vector(path: &Path) -> Result<(), String> {
         for eval in evaluations {
             let desc = eval["description"].as_str().unwrap_or("unnamed");
             let expected = &eval["expected"];
-            let decision = run_evaluation(grant, eval);
+            let outcome = run_evaluation(grant, eval);
 
-            if !check_decision(decision, expected) {
+            if !check_decision(&outcome, expected) {
                 return Err(format!(
-                    "{description} / {desc}: expected {expected}, got {decision:?}",
+                    "{description} / {desc}: expected {expected}, got {outcome:?}",
                 ));
             }
         }

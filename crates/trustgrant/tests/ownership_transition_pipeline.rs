@@ -226,8 +226,8 @@ fn full_ownership_transition_pipeline_verifies_and_evaluates() {
     )
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
-    let decision = engine.evaluate(verified, &request);
-    assert!(decision.is_allowed());
+    let outcome = engine.evaluate(verified, &request);
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -338,9 +338,9 @@ fn ownership_transition_pipeline_rejects_evaluation_with_audience_mismatch() {
     )
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
-    let decision = engine.evaluate(artifacts.verified_grant(), &request);
+    let outcome = engine.evaluate(artifacts.verified_grant(), &request);
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::AudienceNotAllowed)
     );
 }

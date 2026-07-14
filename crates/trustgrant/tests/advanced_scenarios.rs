@@ -574,8 +574,8 @@ fn multi_resource_grant_verifies_and_allows_item() {
     let engine = EvaluationEngine::new();
     let request = recognize_request("item", "weapons", "player-123");
 
-    let decision = engine.evaluate(&grant, &request);
-    assert!(decision.is_allowed());
+    let outcome = engine.evaluate(&grant, &request);
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -584,8 +584,8 @@ fn multi_resource_grant_allows_badge() {
     let engine = EvaluationEngine::new();
     let request = recognize_request("badge", "achievements", "player-123");
 
-    let decision = engine.evaluate(&grant, &request);
-    assert!(decision.is_allowed());
+    let outcome = engine.evaluate(&grant, &request);
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -595,9 +595,9 @@ fn multi_resource_grant_denies_unknown_resource_type() {
     // "weapon" is not one of the granted resource types ("item" or "badge")
     let request = simple_recognize_request("weapon", "swords");
 
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::ResourceTypeNotGranted)
     );
 }
@@ -612,8 +612,8 @@ fn selector_expression_grant_verifies_and_allows_matching_prefix() {
     let engine = EvaluationEngine::new();
     let request = simple_recognize_request("item", "weapon_sword");
 
-    let decision = engine.evaluate(&grant, &request);
-    assert!(decision.is_allowed());
+    let outcome = engine.evaluate(&grant, &request);
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -622,9 +622,9 @@ fn selector_expression_grant_denies_non_matching_prefix() {
     let engine = EvaluationEngine::new();
     let request = simple_recognize_request("item", "armor_shield");
 
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::ResourceNotAllowed)
     );
 }
@@ -639,8 +639,8 @@ fn audience_principal_scope_allows_matching_player() {
     let engine = EvaluationEngine::new();
     let request = recognize_request("item", "general", "player-123");
 
-    let decision = engine.evaluate(&grant, &request);
-    assert!(decision.is_allowed());
+    let outcome = engine.evaluate(&grant, &request);
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -649,9 +649,9 @@ fn audience_principal_scope_denies_non_matching_player() {
     let engine = EvaluationEngine::new();
     let request = recognize_request("item", "general", "player-999");
 
-    let decision = engine.evaluate(&grant, &request);
+    let outcome = engine.evaluate(&grant, &request);
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::AudiencePrincipalNotAllowed)
     );
 }
@@ -696,8 +696,8 @@ fn revocation_bundle_evaluation_allows_active_grant() {
     let engine = EvaluationEngine::new();
     let request = simple_recognize_request("item", "general");
 
-    let decision = engine.evaluate(artifacts.verified_grant(), &request);
-    assert!(decision.is_allowed());
+    let outcome = engine.evaluate(artifacts.verified_grant(), &request);
+    assert!(outcome.decision().is_allowed());
 }
 
 // ---------------------------------------------------------------------------
@@ -717,9 +717,9 @@ fn capabilities_inheritance_global_overrides_per_type() {
     {
         let grant = verified_grant_from_json(CAP_BRANCH1_JSON);
         let request = simple_mint_request("item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
             "branch 1: global mint=true, per-type mint=false should disable mint",
         );
@@ -729,9 +729,9 @@ fn capabilities_inheritance_global_overrides_per_type() {
     {
         let grant = verified_grant_from_json(CAP_BRANCH2_JSON);
         let request = simple_mint_request("item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
             "branch 2: global mint=false, per-type mint=null should fall through to global (disabled)",
         );
@@ -741,9 +741,9 @@ fn capabilities_inheritance_global_overrides_per_type() {
     {
         let grant = verified_grant_from_json(CAP_BRANCH3_JSON);
         let request = simple_mint_request("item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "branch 3: global mint=false, per-type mint=true should allow mint",
         );
     }
@@ -779,9 +779,9 @@ fn origin_authority_mismatch_denies_evaluation() {
             fixed_timestamp(2026, 4, 7, 13, 0, 0),
         )
         .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "matching origin_authority should be allowed",
         );
     }
@@ -806,9 +806,9 @@ fn origin_authority_mismatch_denies_evaluation() {
             fixed_timestamp(2026, 4, 7, 13, 0, 0),
         )
         .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OriginAuthorityMismatch),
             "mismatched origin_authority should be denied",
         );
@@ -827,9 +827,9 @@ fn mint_with_explicit_operations_scope() {
     {
         let grant = verified_grant_from_json(OP_SCOPE_CREATE_JSON);
         let request = simple_mint_request("item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "mint should be allowed when operations scope contains 'create'",
         );
     }
@@ -838,9 +838,9 @@ fn mint_with_explicit_operations_scope() {
     {
         let grant = verified_grant_from_json(OP_SCOPE_RECOGNIZE_JSON);
         let request = simple_mint_request("item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
             "mint should be denied when operations scope lacks 'create'",
         );
@@ -942,16 +942,16 @@ fn empty_deny_list_equals_null_deny() {
 
     let request = simple_recognize_request("item", "weapons");
 
-    let decision_null = engine.evaluate(&grant_null, &request);
-    let decision_empty = engine.evaluate(&grant_empty, &request);
+    let outcome_null = engine.evaluate(&grant_null, &request);
+    let outcome_empty = engine.evaluate(&grant_empty, &request);
 
     assert_eq!(
-        decision_null.is_allowed(),
-        decision_empty.is_allowed(),
+        outcome_null.decision().is_allowed(),
+        outcome_empty.decision().is_allowed(),
         "empty deny list should yield same result as null deny",
     );
     assert!(
-        decision_null.is_allowed(),
+        outcome_null.decision().is_allowed(),
         "matching resource should be allowed regardless of deny format",
     );
 }
@@ -1024,25 +1024,25 @@ fn multiple_audience_entries_both_allowed() {
     {
         let request =
             recognize_request_for_audience("item", "general", "https://audience-a.example.com");
-        let decision = engine.evaluate(&grant, &request);
-        assert!(decision.is_allowed(), "audience A should be allowed");
+        let outcome = engine.evaluate(&grant, &request);
+        assert!(outcome.decision().is_allowed(), "audience A should be allowed");
     }
 
     // Request with audience B → allowed
     {
         let request =
             recognize_request_for_audience("item", "general", "https://audience-b.example.com");
-        let decision = engine.evaluate(&grant, &request);
-        assert!(decision.is_allowed(), "audience B should be allowed");
+        let outcome = engine.evaluate(&grant, &request);
+        assert!(outcome.decision().is_allowed(), "audience B should be allowed");
     }
 
     // Request with audience C → AudienceNotAllowed
     {
         let request =
             recognize_request_for_audience("item", "general", "https://audience-c.example.com");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::AudienceNotAllowed),
             "audience C should not be allowed",
         );
@@ -1117,9 +1117,9 @@ fn mixed_operations_scope_builtin_and_custom() {
     // Request recognize → allowed (via operations, not just capabilities)
     {
         let request = simple_recognize_request("item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "recognize should be allowed via operations scope",
         );
     }
@@ -1127,9 +1127,9 @@ fn mixed_operations_scope_builtin_and_custom() {
     // Request custom:export → allowed
     {
         let request = custom_operation_request("custom:export", "item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "custom:export should be allowed via operations scope",
         );
     }
@@ -1137,9 +1137,9 @@ fn mixed_operations_scope_builtin_and_custom() {
     // Request custom:import → OperationDenied
     {
         let request = custom_operation_request("custom:import", "item", "weapons");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
             "custom:import should be denied",
         );

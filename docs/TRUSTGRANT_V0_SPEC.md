@@ -951,6 +951,70 @@ v1 operational direction:
 - grants should be short-lived
 - revocation should act as a kill switch, not the primary lifecycle mechanism
 
+## 15. Atomic Execution Boundary
+
+### 15.1 Intent
+
+A successful evaluation (`allow`) is an **authorization precondition**, not a standalone
+authorization to execute. The protocol defines a required *authorize-and-execute* transaction
+boundary that must be satisfied before any state mutation is applied.
+
+### 15.2 Intent ID
+
+The evaluation request MAY carry an `intent_id` — a caller-supplied unique identifier for the
+authorization attempt. When present, the evaluation outcome is bound to this ID. The execution
+layer MUST:
+
+- Verify that `intent_id` has not been previously processed (replay prevention)
+- Persist the outcome keyed by `intent_id` before applying any mutation
+- Return the original outcome for duplicate `intent_id` values (idempotency)
+
+Without an `intent_id`, the evaluation outcome is ephemeral and the execution layer cannot
+guarantee exactly-once authorization semantics.
+
+### 15.3 Resource Version
+
+For existing-resource requests, the `ResourceRef` MAY carry an `expected_version`. When set,
+the execution layer MUST verify that the current resource version matches this value before
+applying any mutation. This enables stale-state detection in concurrent environments.
+
+### 15.4 Evaluation Outcome
+
+The evaluation returns an `EvaluationOutcome` that bundles:
+- The `EvaluationDecision` (allow/deny + reason)
+- The `intent_id` from the request (if any)
+- The `ResourceBinding` used during evaluation
+- The evaluation timestamp
+
+The outcome is the **authorization record** that the execution layer persists as an
+append-only audit event before applying any state mutation.
+
+### 15.5 Required Transaction Boundary
+
+A compliant implementation MUST execute the following steps within a single serializable
+transaction or equivalent compare-and-swap operation:
+
+1. Read the current resource state (ownership, balance, version, revocation status)
+2. Evaluate the grant against the request
+3. On allow:
+   a. Verify `intent_id` has not been processed (replay check)
+   b. Verify `expected_version` matches current state (stale-state check)
+   c. Apply the mutation (mint, transfer, burn, update)
+   d. Increment the resource version
+   e. Persist the `EvaluationOutcome` as an audit event
+4. On deny: persist the `EvaluationOutcome` as an audit event (optional, recommended)
+
+Steps 3a–3e MUST be atomic: if any step fails, all preceding steps in the boundary MUST
+be rolled back.
+
+### 15.6 Failure Semantics
+
+| Condition | Behavior |
+|-----------|----------|
+| Duplicate `intent_id` | Return the original outcome; do not re-execute |
+| Version mismatch | Reject with a stale-state error; do not apply mutation |
+| Transaction abort | Roll back all changes; caller MAY retry with same `intent_id` |
+
 ## Review & Maintenance
 
 - **Last Reviewed:** 2026-07-14

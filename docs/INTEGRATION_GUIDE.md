@@ -316,8 +316,9 @@ Example:
 
 ```rust
 use trustgrant::{
-    EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation,
-    ResourceBinding, ResourceContext, ResourceRef, VerifiedTrustGrantRecord,
+    EvaluationEngine, EvaluationOutcome, EvaluationRequest, RequestedCapability,
+    RequestedOperation, ResourceBinding, ResourceContext, ResourceRef,
+    VerifiedTrustGrantRecord,
 };
 
 let record: VerifiedTrustGrantRecord = load_verified_record()?;
@@ -329,14 +330,24 @@ let request = EvaluationRequest::new(
     ResourceBinding::Existing(ResourceRef::new(
         origin_authority,
         "resource-42".to_owned(),
-    )),
+    ).with_expected_version(7)),  // ← stale-state detection
     target_authority,
     audience_authority,
     resource,
     evaluation_time,
-)?;
+)?
+.with_intent_id("txn-001");  // ← replay prevention
 
-let decision = EvaluationEngine::new().evaluate(&verified_grant, &request);
+let outcome: EvaluationOutcome = EvaluationEngine::new()
+    .evaluate(&verified_grant, &request);
+
+// The outcome bundles the decision with execution context:
+let decision = outcome.decision();
+if decision.is_allowed() {
+    // Execute the mutation atomically with the outcome's intent_id
+    // and expected_version. See spec §15 for the required transaction
+    // boundary.
+}
 ```
 
 This is the key architectural payoff:
@@ -357,6 +368,9 @@ Every adopter must still provide:
 - one signature verifier implementation
 - one policy for online / cached / offline posture
 - one storage strategy for verified records
+- an atomic execution boundary (spec §15) — replay detection via `intent_id`,
+  stale-state detection via `expected_version`, and an append-only audit log
+  of `EvaluationOutcome` records
 
 If source-driven verification is used, the adopter must also provide:
 - one authority discovery source

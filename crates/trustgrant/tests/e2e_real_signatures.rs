@@ -180,8 +180,8 @@ fn e2e_real_signing_and_verification() {
     )
     .unwrap_or_else(|e| panic!("request: {e}"));
 
-    let decision = EvaluationEngine::new().evaluate(black_box(verified), black_box(&request));
-    assert!(decision.is_allowed(), "should allow: {decision:?}");
+    let outcome = EvaluationEngine::new().evaluate(black_box(verified), black_box(&request));
+    assert!(outcome.decision().is_allowed(), "should allow: {outcome:?}");
 
     // 8. Tampered document must fail
     let tampered_json = signed_json.replace("weapons", "armor");
