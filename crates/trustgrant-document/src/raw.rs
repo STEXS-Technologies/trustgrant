@@ -496,12 +496,36 @@ impl RawTimeWindow {
     }
 }
 
+/// What happens after a grant is revoked.
+///
+/// Defines which operations remain available and how existing resources
+/// are affected. This is a signed policy field in the grant document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PostRevocationEffect {
+    /// Only future mint operations are blocked. Recognition and custom
+    /// operations on already-issued resources still work.
+    BlockMintingOnly,
+    /// All operations on the grant are blocked. This is the default and
+    /// most conservative behavior.
+    BlockAll,
+}
+
+impl Default for PostRevocationEffect {
+    fn default() -> Self {
+        Self::BlockAll
+    }
+}
+
 /// Wire representation of a revocation policy.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawRevocation {
     pub revocable: bool,
     pub revocation_endpoint: CompactString,
+    /// Optional on the wire — defaults to `BlockAll` in [`ValidatedRevocation`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_revocation_effect: Option<PostRevocationEffect>,
 }
 
 impl RawRevocation {
@@ -511,7 +535,18 @@ impl RawRevocation {
         Self {
             revocable,
             revocation_endpoint: revocation_endpoint.into(),
+            post_revocation_effect: None,
         }
+    }
+
+    /// Sets the post-revocation effect for this policy.
+    #[must_use]
+    pub const fn with_post_revocation_effect(
+        mut self,
+        effect: PostRevocationEffect,
+    ) -> Self {
+        self.post_revocation_effect = Some(effect);
+        self
     }
 }
 

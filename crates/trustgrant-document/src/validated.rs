@@ -4,10 +4,10 @@ use chrono::{DateTime, Utc};
 use compact_str::CompactString;
 
 use crate::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-    RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
-    RawSelector, RawSupersessionPolicy, RawTrustGrantDocument, RawTypeCapabilities,
-    RawTypeConstraints,
+    PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+    RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
+    RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTrustGrantDocument,
+    RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_domain::{
     AuthorityId, GrantLineage, GrantRevision, GrantSeriesId, KeyId, OperationName,
@@ -732,6 +732,7 @@ impl ValidatedTimeWindow {
 pub struct ValidatedRevocation {
     revocable: bool,
     revocation_endpoint: CompactString,
+    post_revocation_effect: PostRevocationEffect,
 }
 
 impl ValidatedRevocation {
@@ -741,11 +742,16 @@ impl ValidatedRevocation {
         Self {
             revocable,
             revocation_endpoint,
+            post_revocation_effect: PostRevocationEffect::BlockAll,
         }
     }
 
     fn from_raw(raw: RawRevocation) -> Self {
-        Self::new(raw.revocable, raw.revocation_endpoint)
+        Self {
+            revocable: raw.revocable,
+            revocation_endpoint: raw.revocation_endpoint,
+            post_revocation_effect: raw.post_revocation_effect.unwrap_or(PostRevocationEffect::BlockAll),
+        }
     }
 
     /// Revocable flag participates in revocation policy.
@@ -758,6 +764,12 @@ impl ValidatedRevocation {
     #[must_use]
     pub fn revocation_endpoint(&self) -> &str {
         &self.revocation_endpoint
+    }
+
+    /// What happens after this grant is revoked.
+    #[must_use]
+    pub const fn post_revocation_effect(&self) -> PostRevocationEffect {
+        self.post_revocation_effect
     }
 }
 

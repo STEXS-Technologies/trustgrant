@@ -102,14 +102,30 @@ impl EvaluationEngine {
                         EvaluationDenyReason::StaleRevocationData,
                     );
                 }
-                if record.status() == trustgrant_revocation::RevocationStatus::Revoked {
-                    tracing::debug!(
-                        trustgrant_id = %trustgrant_id,
-                        operation = ?request.operation(),
-                        reason = ?EvaluationDenyReason::Revoked,
-                    );
-                    return EvaluationDecision::deny(trustgrant_id, EvaluationDenyReason::Revoked);
+        if record.status() == trustgrant_revocation::RevocationStatus::Revoked {
+            // Check post-revocation effect: if the grant only blocks minting
+            // and this is a recognize or custom operation, allow it.
+            let should_deny = match grant.document().revocation() {
+                Some(rev) if rev.post_revocation_effect()
+                    == trustgrant_document::raw::PostRevocationEffect::BlockMintingOnly =>
+                {
+                    matches!(
+                        request.operation(),
+                        RequestedOperation::Capability(RequestedCapability::Mint)
+                    )
                 }
+                _ => true,
+            };
+            if should_deny {
+                tracing::debug!(
+                    trustgrant_id = %trustgrant_id,
+                    operation = ?request.operation(),
+                    reason = ?EvaluationDenyReason::Revoked,
+                );
+                return EvaluationDecision::deny(trustgrant_id, EvaluationDenyReason::Revoked);
+            }
+            // BlockMintingOnly + non-mint operation → allow through
+        }
             }
             trustgrant_revocation::VerifiedRevocationState::NonRevocable => {}
         }
@@ -603,6 +619,71 @@ mod tests {
         )
     }
 
+    fn verified_grant_with_effect(
+        effect: trustgrant_document::raw::PostRevocationEffect,
+    ) -> VerifiedTrustGrant {
+        let effect_str = match effect {
+            trustgrant_document::raw::PostRevocationEffect::BlockMintingOnly => {
+                r#","post_revocation_effect":"block_minting_only""#
+            }
+            trustgrant_document::raw::PostRevocationEffect::BlockAll => {
+                r#","post_revocation_effect":"block_all""#
+            }
+        };
+        let json = format!(
+            r#"{{
+              "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+              "version":0,
+              "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001",
+              "revision":1,
+              "supersedes":null,
+              "supersession_policy":"coexist",
+              "issuer_authority":"https://issuer.example.com",
+              "origin_authority":"https://issuer.example.com",
+              "active_owning_authority":"https://issuer.example.com",
+              "key_id":"root-key-1",
+              "target_scope":{{"all":false,"allow":[{{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}}],"deny":null}},
+              "capabilities":{{"recognize":true,"mint":false}},
+              "default_audience_scope":null,
+              "resource_scope":{{"types":{{"item":{{"all":false,"allow":[{{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}}],"deny":null,"capabilities":{{"recognize":true,"mint":false}},"constraints":{{"minting":{{"max_total":10,"max_per_user":1}},"audience_scope":[{{"authority_id":"https://audience.example.com","scope":{{"all":true,"allow":null,"deny":null}},"principal_scope":{{"all":false,"allow":[{{"kind":"actor","all":false,"values":["player-123"],"expressions":null}}],"deny":null}}}}]}},"operations":{{"all":false,"allow":["recognize"],"deny":null}}}}}}}},
+              "global_constraints":{{"time":{{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}}}},
+              "revocation":{{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"{effect_str}}},
+              "issued_at":"2026-04-07T12:00:00Z",
+              "signature":"base64-signature",
+              "issuer_principal":{{"kind":"service","id":"issuer-worker"}}
+            }}"#,
+        );
+
+        let raw = match RawTrustGrantDocument::parse_json_str(&json) {
+            Ok(document) => document,
+            Err(error) => panic!("raw document should parse: {error}"),
+        };
+        let validated = match ValidatedTrustGrantDocument::try_from(raw) {
+            Ok(document) => document,
+            Err(error) => panic!("validated document should succeed: {error}"),
+        };
+
+        VerifiedTrustGrant::new(
+            validated,
+            VerificationMetadata::new(
+                fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                VerificationPosture::Online,
+                signer_binding(),
+                ownership_record(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        )
+    }
+
     fn mint_grant() -> VerifiedTrustGrant {
         let json = r#"{
           "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174010",
@@ -736,6 +817,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -846,6 +928,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -950,6 +1033,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1379,6 +1463,88 @@ mod tests {
     }
 
     #[test]
+    fn evaluation_allows_recognize_when_revoked_with_block_minting_only() {
+        // PostRevocationEffect::BlockMintingOnly means mint is denied but
+        // recognize still works after revocation.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant_with_effect(
+            trustgrant_document::raw::PostRevocationEffect::BlockMintingOnly,
+        );
+        let active_revocation = grant
+            .metadata()
+            .revocation()
+            .checked_record()
+            .unwrap_or_else(|| panic!("test grant should carry revocation record"));
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Revoked,
+                        active_revocation.source_kind(),
+                        active_revocation.finality(),
+                        active_revocation.checked_at(),
+                        active_revocation.fresh_until(),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        // Recognize should be allowed even though revoked
+        let outcome = engine.evaluate(&grant, &recognize_request());
+        assert!(outcome.decision().is_allowed());
+
+        // Mint should be denied
+        let outcome = engine.evaluate(&grant, &mint_request());
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Revoked)
+        );
+    }
+
+    #[test]
+    fn evaluation_denies_all_operations_with_block_all_default() {
+        // Default post-revocation effect (BlockAll) denies everything.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        let active_revocation = grant
+            .metadata()
+            .revocation()
+            .checked_record()
+            .unwrap_or_else(|| panic!("test grant should carry revocation record"));
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Revoked,
+                        active_revocation.source_kind(),
+                        active_revocation.finality(),
+                        active_revocation.checked_at(),
+                        active_revocation.fresh_until(),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Revoked)
+        );
+    }
+
+    #[test]
     fn evaluation_denies_when_principal_scope_does_not_match() {
         let engine = EvaluationEngine::new();
         let mut request = recognize_request();
@@ -1715,6 +1881,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1828,6 +1995,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1939,6 +2107,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2069,6 +2238,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2189,6 +2359,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2303,6 +2474,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2462,6 +2634,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2606,6 +2779,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2757,6 +2931,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2914,6 +3089,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3034,6 +3210,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3587,6 +3764,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3715,6 +3893,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: None,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),

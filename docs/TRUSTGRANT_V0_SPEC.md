@@ -963,11 +963,34 @@ The grant issuer controls the policy parameters (`non_revoked_ttl_seconds`,
 verifier enforces that the chosen posture meets or exceeds the policy
 requirements.
 
-After revocation:
+### 14.2 Post-Revocation Effect
+
+The grant document MAY declare a `post_revocation_effect` in its revocation block.
+This is a signed policy field that determines what happens after the grant is
+revoked:
+
+| Value | Behavior |
+|-------|----------|
+| `block_all` (default) | All operations (mint, recognize, custom) are denied. |
+| `block_minting_only` | Only mint operations are denied. Recognition and custom operations on already-issued resources are still permitted. |
+
+The evaluation engine enforces this policy:
+- When the grant is revoked and the effect is `block_all`, every operation is denied.
+- When the grant is revoked and the effect is `block_minting_only`, mint operations
+  are denied but recognize and custom operations proceed normally.
+
+This allows an issuer to stop new supply without breaking recognition of already-
+issued resources. Existing resource validity beyond authorization is an integration-
+layer concern (spec §15), not decided by the protocol.
+
+The `post_revocation_effect` field is optional and defaults to `block_all`.
+Omitting it produces the most conservative behavior.
+
+After revocation with `block_all`:
 
 - no new minting is allowed
 - no new recognition is allowed
-- existing resources may remain valid or be invalidated based on policy
+- existing resources may be invalidated based on integration policy
 
 v1 operational direction:
 
