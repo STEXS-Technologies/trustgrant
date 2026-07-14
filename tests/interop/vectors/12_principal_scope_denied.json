@@ -49,7 +49,7 @@
                   "all": false,
                   "allow": [
                     {
-                      "kind": "player_id",
+                      "kind": "actor",
                       "all": false,
                       "values": ["player-42"],
                       "expressions": null

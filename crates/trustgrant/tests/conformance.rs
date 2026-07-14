@@ -930,7 +930,7 @@ fn conformance_s7_expressions_can_be_null() {
 
 #[test]
 fn conformance_s7_builtin_kinds_match_case_insensitively() {
-    // Spec Section 7: "The three built-in kinds (authority, namespace, player_id) match case-insensitively"
+    // Spec Section 7: "The three built-in kinds (authority, namespace, actor) match case-insensitively"
     use trustgrant::domain::SelectorKind;
 
     let authority_lower = SelectorKind::new("authority").unwrap_or_else(|e| panic!("{e}"));
@@ -943,8 +943,8 @@ fn conformance_s7_builtin_kinds_match_case_insensitively() {
     let ns_upper = SelectorKind::new("NAMESPACE").unwrap_or_else(|e| panic!("{e}"));
     assert_eq!(ns_lower, ns_upper);
 
-    let pid_lower = SelectorKind::new("player_id").unwrap_or_else(|e| panic!("{e}"));
-    let pid_upper = SelectorKind::new("PLAYER_ID").unwrap_or_else(|e| panic!("{e}"));
+    let pid_lower = SelectorKind::new("actor").unwrap_or_else(|e| panic!("{e}"));
+    let pid_upper = SelectorKind::new("ACTOR").unwrap_or_else(|e| panic!("{e}"));
     assert_eq!(pid_lower, pid_upper);
 }
 
@@ -1158,7 +1158,7 @@ fn conformance_s9_principal_scope_restricts_audience_does_not_grant() {
                                 "scope": { "all": true, "allow": null, "deny": null },
                                 "principal_scope": {
                                     "all": false,
-                                    "allow": [{"kind": "player_id", "all": false, "values": ["player-42"], "expressions": null}],
+                                    "allow": [{"kind": "actor", "all": false, "values": ["player-42"], "expressions": null}],
                                     "deny": null
                                 }
                             }
@@ -1177,7 +1177,7 @@ fn conformance_s9_principal_scope_restricts_audience_does_not_grant() {
         "weapons",
     );
     request_ok
-        .insert_audience_principal_selector("player_id", "player-42")
+        .insert_audience_principal_selector("actor", "player-42")
         .unwrap_or_else(|e| panic!("principal selector: {e}"));
     let decision_ok = evaluate_json(&json, &request_ok);
     assert!(
@@ -1192,7 +1192,7 @@ fn conformance_s9_principal_scope_restricts_audience_does_not_grant() {
         "weapons",
     );
     request_denied
-        .insert_audience_principal_selector("player_id", "player-99")
+        .insert_audience_principal_selector("actor", "player-99")
         .unwrap_or_else(|e| panic!("principal selector: {e}"));
     let decision_denied = evaluate_json(&json, &request_denied);
     assert_eq!(
@@ -1544,7 +1544,7 @@ fn conformance_s12_minting_constraints_are_per_type() {
                                     "scope": { "all": true, "allow": null, "deny": null },
                                     "principal_scope": {
                                         "all": false,
-                                        "allow": [{"kind": "player_id", "all": false, "values": ["player-42"], "expressions": null}],
+                                        "allow": [{"kind": "actor", "all": false, "values": ["player-42"], "expressions": null}],
                                         "deny": null
                                     }
                                 }
@@ -1574,7 +1574,7 @@ fn conformance_s12_minting_constraints_are_per_type() {
     .unwrap_or_else(|e| panic!("request: {e}"))
     .with_mint_context(MintContext::new(4, 1));
     request
-        .insert_audience_principal_selector("player_id", "player-42")
+        .insert_audience_principal_selector("actor", "player-42")
         .unwrap_or_else(|e| panic!("principal selector: {e}"));
 
     let decision = evaluate_json(&json_a, &request);

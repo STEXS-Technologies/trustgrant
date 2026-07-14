@@ -179,7 +179,7 @@ fn build_draft() -> TrustGrantDraft {
                     AUDIENCE,
                     RawScope::all(),
                     Some(RawScope::allow(vec![RawSelector::values(
-                        "player_id",
+                        "actor",
                         vec!["player-123".into()],
                     )])),
                 )]),
@@ -233,7 +233,7 @@ fn build_recognize_request() -> EvaluationRequest {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request

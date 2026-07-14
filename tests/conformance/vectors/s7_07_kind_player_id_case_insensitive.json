@@ -1,6 +1,0 @@
-{
-  "spec_section": "7",
-  "description": "selector kind 'player_id' and 'PLAYER_ID' are case-insensitive built-in kinds",
-  "selector_kind": { "a": "player_id", "b": "PLAYER_ID", "expect_equal": true },
-  "assert": { "validation": "accepted" }
-}

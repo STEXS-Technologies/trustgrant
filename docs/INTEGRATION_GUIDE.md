@@ -1,5 +1,5 @@
-**Document Version:** 0.1\
-**Last Updated:** 2026-04-08\
+**Document Version:** 0.2\
+**Last Updated:** 2026-07-14\
 **Status:** Draft\
 **Related Documents:** [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Authority Discovery](TRUSTGRANT_AUTHORITY_DISCOVERY.md),
@@ -59,8 +59,9 @@ Current v0 core note:
   aliases for target and audience authority contexts
 - this is a compatibility helper for common v0 issuer vocabularies, not a global
   selector registry
-- outside that narrow helper, selector kinds, operation names, and principal kinds
-  remain exact validated tokens with no general aliasing or case-folding
+- outside that narrow helper, operation names and principal kinds remain exact validated
+  tokens with no general aliasing or case-folding; the built-in selector kinds
+  `authority`, `namespace`, and `actor` are case-insensitive
 
 * * *
 
@@ -92,23 +93,24 @@ use trustgrant::{
     TrustGrantDraft, TrustGrantDraftAuthorities,
 };
 use trustgrant::document::raw::{
-    RawCapabilities, RawResourceScope, RawResourceType, RawScope, RawSelector,
-    RawTypeCapabilities, RawTypeConstraints,
+    RawCapabilities, RawMintingConstraints, RawResourceScope, RawResourceType, RawScope,
+    RawSelector, RawTypeCapabilities, RawTypeConstraints,
 };
+use trustgrant::domain::Utf16Key;
 
 let mut resource_types = BTreeMap::new();
 resource_types.insert(
-    "item".to_owned(),
+    Utf16Key::new("item"),
     RawResourceType::new(
         false,
         Some(vec![RawSelector::values(
             "namespace",
-            vec!["weapons".to_owned()],
+            vec!["weapons".into()],
         )]),
         None,
         RawTypeCapabilities::new(Some(true), Some(false)),
         RawTypeConstraints::new(
-            trustgrant::RawMintingConstraints::new(Some(10), Some(1)),
+            RawMintingConstraints::new(Some(10), Some(1)),
             None,
         ),
         None,
@@ -120,7 +122,7 @@ let draft = TrustGrantDraft::new(
     "root-key-1",
     RawScope::allow(vec![RawSelector::values(
         "authority",
-        vec!["https://target.example.com".to_owned()],
+        vec!["https://target.example.com".into()],
     )]),
     RawCapabilities::new(true, false),
     RawResourceScope::new(resource_types),
@@ -402,9 +404,11 @@ This keeps the first integration understandable and hard to misuse.
 
 ## Review & Maintenance
 
-- **Last Reviewed:** 2026-04-08
+- **Last Reviewed:** 2026-07-14
 - **Next Review:** When the issuer or persistence-facing TrustGrant API changes
   materially
 - **Change Log:**
+  - v0.2 (2026-07-14): Corrected the issuer-side example imports and raw resource-map
+    key type, and documented built-in selector-kind matching precisely.
   - v0.1 (2026-04-08): Added the first crate-local integration guide covering issue,
     verify, persist, and hot-path evaluation

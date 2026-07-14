@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Delegated principal key resolution
 - Backend-agnostic port traits: `DiscoverySource`, `RevocationSource`, `StorageSource`
 - `tracing` instrumentation at key verification and evaluation decision points
-- Selector-based matching with built-in kinds (authority, namespace, player_id)
+- Selector-based matching with built-in kinds (authority, namespace, actor)
 - Custom operation scope with allow/deny lists
 - Audience scope with authority and principal constraints
 - Mint constraints (max total, max per user)
@@ -73,4 +73,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TRACING_GUIDE.md` — spans, events, and subscriber setup
 - `IMPLEMENTATION_GUIDE.md` (interop) — cross-impl implementation order
 - `AUDIT.md` — deep audit report (local-only)
-- 16 docs total covering all spec sections, architecture, integration, interop
+- 17 Markdown documents and 2 schemas covering the specification, architecture,
+  integration, and interoperability

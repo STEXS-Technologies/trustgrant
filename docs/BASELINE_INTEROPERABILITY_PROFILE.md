@@ -1,5 +1,5 @@
-**Document Version:** 0.1\
-**Last Updated:** 2026-04-08\
+**Document Version:** 0.2\
+**Last Updated:** 2026-07-14\
 **Status:** Draft\
 **Related Documents:** [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Interoperability and Proof Models](INTEROPERABILITY_AND_PROOF_MODELS.md),
@@ -22,7 +22,11 @@ It is intentionally narrow:
 - exact tokens only
 - lowercase `snake_case` for shared selector and principal-kind names
 - no general aliasing
-- no case-folded matching
+- lowercase spellings for the built-in selector kinds
+
+The core matches the built-in selector kinds `authority`, `namespace`, and `actor`
+case-insensitively. This profile nevertheless requires their lowercase spellings on the
+wire; all other selector and principal-kind tokens use exact matching.
 
 ## 2. Profile Name
 
@@ -52,7 +56,8 @@ Semantics:
 
 Current v0 helper note:
 - `EvaluationRequest::new(...)` also populates `authority`
-- that alias exists as a narrow compatibility helper for common v0 issuers
+- `authority` is the built-in selector kind; the extra context entry exists as a narrow
+  compatibility helper for common v0 issuers
 - baseline-profile documents should still prefer `authority_id`
 
 ### 3.2 Audience Entry
@@ -76,7 +81,8 @@ Recommended shared resource selector kinds:
 - `tag`
 
 Semantics:
-- all are exact validated tokens
+- `id`, `project`, and `tag` are exact validated tokens; `namespace` is a built-in
+  selector kind and is case-insensitive in the core
 - values are exact string matches unless expressions are used
 - if deployments want portable meaning for these selectors, they should use the exact
   spellings above
@@ -85,13 +91,16 @@ Semantics:
 
 Recommended shared principal-scope selector kinds:
 
-- `player_id`
+- `actor`
 - `user_id`
 - `service_id`
 - `organization_id`
 
 These are selector kinds used inside `principal_scope`, not a closed subject taxonomy
 for every deployment.
+
+`actor` is a built-in selector kind and is case-insensitive in the core. The other
+recommended tokens are exact.
 
 If a deployment wants a narrower contract, it should publish that explicitly as its own
 profile variant.
@@ -180,8 +189,10 @@ authorization may fail closed because exact token matching will not line up.
 
 ## Review & Maintenance
 
-- **Last Reviewed:** 2026-04-08
+- **Last Reviewed:** 2026-07-14
 - **Next Review:** When a second concrete interoperability profile is added
 - **Change Log:**
+  - v0.2 (2026-07-14): Distinguished the core's case-insensitive built-in selector
+    matching from this profile's lowercase wire-token convention.
   - v0.1 (2026-04-08): Added a concrete baseline interoperability profile with exact
     selector, principal-kind, operation, and signature-profile conventions

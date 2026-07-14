@@ -9,6 +9,9 @@ constraints. Grants are revocable, time-bound, and verifiable offline.
 
 ## Quick example
 
+This is a conceptual excerpt, not a complete signed v0 document. The full required wire
+shape is in the [protocol spec](../../docs/TRUSTGRANT_V0_SPEC.md).
+
 ```json
 {
   "trustgrant_id": "tg_550e8400-e29b-41d4-a716-446655440000",

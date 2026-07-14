@@ -791,7 +791,7 @@ mod tests {
                 "https://audience.example.com",
                 RawScope::all(),
                 Some(RawScope::allow(vec![RawSelector::expressions(
-                    "player_id",
+                    "actor",
                     vec!["contains(\"player\")".into()],
                 )])),
             )]),

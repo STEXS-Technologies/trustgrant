@@ -163,7 +163,7 @@ fn make_recognize_draft() -> TrustGrantDraft {
                     AUDIENCE,
                     RawScope::all(),
                     Some(RawScope::allow(vec![RawSelector::values(
-                        "player_id",
+                        "actor",
                         vec!["player-123".into()],
                     )])),
                 )]),
@@ -227,7 +227,7 @@ fn make_mint_draft() -> TrustGrantDraft {
                     AUDIENCE,
                     RawScope::all(),
                     Some(RawScope::allow(vec![RawSelector::values(
-                        "player_id",
+                        "actor",
                         vec!["player-123".into()],
                     )])),
                 )]),
@@ -368,7 +368,7 @@ fn recognize_request() -> EvaluationRequest {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request
@@ -393,7 +393,7 @@ fn mint_request() -> EvaluationRequest {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request
@@ -421,7 +421,7 @@ fn custom_operation_request() -> EvaluationRequest {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request

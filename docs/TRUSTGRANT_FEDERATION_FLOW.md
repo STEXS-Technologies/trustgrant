@@ -1,5 +1,5 @@
-**Document Version:** 0.7\
-**Last Updated:** 2026-04-08\
+**Document Version:** 0.8\
+**Last Updated:** 2026-07-14\
 **Status:** Draft\
 **Related Documents:** [TrustGrant Crate Docs](README.md),
 [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
@@ -192,11 +192,9 @@ X-TrustGrant-ID: <trustgrant_id>
 ```
 
 2. control plane loads the TrustGrant from cache or storage
-3. verification pipeline runs:
-   - check TrustGrant exists and is active
-   - check not-before / not-after
-   - check revocation status using the active proof source, cached state, and background
-     refresh where applicable
+3. the runtime evaluator runs against the previously verified grant:
+   - check the stored revocation state and not-before / not-after
+   - check the resource origin authority when the request supplies it
    - check current authority matches `target_scope`
    - check capability allows operation
    - check resource matches `resource_scope`
@@ -204,6 +202,10 @@ X-TrustGrant-ID: <trustgrant_id>
    - check minting constraints
 4. if all checks pass, approve the operation
 5. otherwise reject
+
+Fresh discovery, ownership, signature, and revocation proof resolution are cold-path
+verification work. They refresh verified state before runtime use; they are not repeated
+by every hot-path evaluation.
 
 Runtime evaluation should use the exact referenced `trustgrant_id`.
 
@@ -345,9 +347,11 @@ For production v1 rollouts, strongly prefer:
 
 ## Review & Maintenance
 
-- **Last Reviewed:** 2026-04-08
+- **Last Reviewed:** 2026-07-14
 - **Next Review:** When authority-resolution or proof-source modeling changes materially
 - **Change Log:**
+  - v0.8 (2026-07-14): Distinguished cold-path verification from hot-path evaluation
+    in the runtime flow and documented origin-authority request handling.
   - v0.7 (2026-04-08): Distinguished protocol-level federation openness from the current
     core guarantees for non-HTTP authority resolution, effective signer bindings, and
     interoperability-profile responsibility

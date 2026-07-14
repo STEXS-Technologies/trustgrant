@@ -164,7 +164,7 @@ pub struct SelectorKind {
 enum SelectorKindClassification {
     Authority,
     Namespace,
-    PlayerId,
+    Actor,
     Other,
 }
 
@@ -207,14 +207,14 @@ impl SelectorKind {
     /// |-------------|-------|
     /// | Authority   | 0     |
     /// | Namespace   | 1     |
-    /// | PlayerId    | 2     |
+    /// | Actor       | 2     |
     /// | Other       | None  |
     #[must_use = "selector kind index enables O(1) lookup in SelectorContext"]
     pub const fn kind_index(&self) -> Option<usize> {
         match self.classification {
             SelectorKindClassification::Authority => Some(0),
             SelectorKindClassification::Namespace => Some(1),
-            SelectorKindClassification::PlayerId => Some(2),
+            SelectorKindClassification::Actor => Some(2),
             SelectorKindClassification::Other => None,
         }
     }
@@ -253,7 +253,7 @@ impl Ord for SelectorKind {
                 SelectorKindClassification::Other => self.value.cmp(&other.value),
                 SelectorKindClassification::Authority
                 | SelectorKindClassification::Namespace
-                | SelectorKindClassification::PlayerId => Ordering::Equal,
+                | SelectorKindClassification::Actor => Ordering::Equal,
             },
             ordering @ Ordering::Less | ordering @ Ordering::Greater => ordering,
         }
@@ -275,7 +275,7 @@ impl SelectorKindClassification {
         match value.to_lowercase().as_str() {
             "authority" => Self::Authority,
             "namespace" => Self::Namespace,
-            "player_id" => Self::PlayerId,
+            "actor" => Self::Actor,
             _ => Self::Other,
         }
     }
@@ -556,7 +556,7 @@ mod tests {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let player_id = match SelectorKind::new("player_id") {
+        let actor = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
@@ -577,8 +577,8 @@ mod tests {
             }
         );
         assert_eq!(
-            player_id,
-            match SelectorKind::new("player_id") {
+            actor,
+            match SelectorKind::new("actor") {
                 Ok(value) => value,
                 Err(error) => panic!("selector kind should be valid: {error}"),
             }
@@ -594,8 +594,8 @@ mod tests {
         // different built-in kinds are not equal
         assert!(!authority.same_kind(&namespace));
         assert_ne!(authority, namespace);
-        assert_ne!(authority, player_id);
-        assert_ne!(namespace, player_id);
+        assert_ne!(authority, actor);
+        assert_ne!(namespace, actor);
     }
 
     #[test]
@@ -652,21 +652,21 @@ mod tests {
         assert_eq!(namespace, namespace_upper);
         assert_eq!(namespace, namespace_mixed);
 
-        // PlayerId built-in also works with case variations
-        let player_id = match SelectorKind::new("player_id") {
+        // Actor built-in also works with case variations
+        let actor = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let player_id_upper = match SelectorKind::new("PLAYER_ID") {
+        let actor_upper = match SelectorKind::new("ACTOR") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let player_id_mixed = match SelectorKind::new("Player_Id") {
+        let actor_mixed = match SelectorKind::new("Actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        assert_eq!(player_id, player_id_upper);
-        assert_eq!(player_id, player_id_mixed);
+        assert_eq!(actor, actor_upper);
+        assert_eq!(actor, actor_mixed);
     }
 
     #[test]
@@ -683,7 +683,7 @@ mod tests {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let pid = match SelectorKind::new("player_id") {
+        let pid = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
@@ -694,14 +694,14 @@ mod tests {
         assert!(!hash_set.insert(a2.clone()));
         assert!(hash_set.insert(ns));
         assert!(hash_set.insert(pid));
-        assert_eq!(hash_set.len(), 3); // authority, namespace, player_id
+        assert_eq!(hash_set.len(), 3); // authority, namespace, actor
 
         // Ord: built-ins of same classification sort equal
         let mut tree_set = BTreeSet::new();
         assert!(tree_set.insert(a1));
         assert!(!tree_set.insert(a2));
 
-        // Built-in ordering is deterministic: Authority < Namespace < PlayerId
+        // Built-in ordering is deterministic: Authority < Namespace < Actor
         let authority = match SelectorKind::new("authority") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
@@ -890,8 +890,8 @@ mod tests {
     }
 
     #[test]
-    fn selector_kind_kind_index_player_id_is_two() {
-        let kind = match SelectorKind::new("player_id") {
+    fn selector_kind_kind_index_actor_is_two() {
+        let kind = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
@@ -932,7 +932,7 @@ mod tests {
         let inputs = [
             "authority",
             "namespace",
-            "player_id",
+            "actor",
             "custom",
             "Foo",
             "shard-1",

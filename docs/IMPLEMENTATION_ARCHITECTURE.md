@@ -1,5 +1,5 @@
-**Document Version:** 1.0\
-**Last Updated:** 2026-04-08\
+**Document Version:** 1.1\
+**Last Updated:** 2026-07-14\
 **Status:** Draft\
 **Related Documents:** [TrustGrant Crate Docs](README.md),
 [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
@@ -421,7 +421,7 @@ This is especially important for deployments where a successor authority may nee
 continue issuing TrustGrants for transferred resources after an organization, studio, or
 publisher change.
 
-## 15. Normalization and Verified Grants
+## 16. Normalization and Verified Grants
 
 A successful verification pipeline should output a normalized `VerifiedTrustGrant`.
 
@@ -439,7 +439,7 @@ That normalized form should:
 
 Runtime evaluation should consume this normalized form, not the raw signed document.
 
-## 16. Evaluation Engine
+## 17. Evaluation Engine
 
 The evaluation engine should accept:
 - a `VerifiedTrustGrant`
@@ -463,7 +463,7 @@ Hot-path evaluation should also aim for:
 - bounded matching work per request
 - minimal allocation during evaluation itself
 
-## 17. Persistence and Cache Integration
+## 18. Persistence and Cache Integration
 
 The crate should not implement persistence or cache backends.
 
@@ -478,7 +478,7 @@ It should, however, be designed so consumers can:
 The crate should expose stable serializable types for those integrations and avoid
 forcing consumers to persist raw intermediate state.
 
-## 18. Consumer Integration Model
+## 19. Consumer Integration Model
 
 Consumer-specific semantics stay outside this crate.
 
@@ -491,7 +491,7 @@ The expected usage is:
 
 Those deployment semantics belong in consumer documentation, not here.
 
-## 19. Protocol Performance Requirements
+## 20. Protocol Performance Requirements
 
 Beyond general performance goals, a performant protocol implementation should also
 account for:
@@ -522,7 +522,7 @@ account for:
 Performance-sensitive protocol behavior should be documented as invariants and covered
 by tests or fuzzing when implementation begins.
 
-## 20. Security Requirements
+## 21. Security Requirements
 
 The implementation should treat hostile input as the default:
 - enforce document size bounds
@@ -533,7 +533,7 @@ The implementation should treat hostile input as the default:
 - keep hot-path evaluation bounded and deterministic
 - fail closed when proof-source finality or freshness is insufficient
 
-## 21. Testing Strategy
+## 22. Testing Strategy
 
 The crate should be built with:
 - unit tests for parsing and validation
@@ -557,7 +557,7 @@ Performance-sensitive invariants should also be added as permanent checks:
 - exact-match evaluation paths do not allocate unnecessarily
 - lineage-aware management does not alter exact-document evaluation semantics
 
-## 22. Repository Extraction Direction
+## 23. Repository Extraction Direction
 
 For now, `trustgrant` remains in a host monorepo for faster iteration.
 
@@ -572,10 +572,12 @@ describe only deployment-profile and integration semantics.
 
 ## Review & Maintenance
 
-- **Last Reviewed:** 2026-04-08
+- **Last Reviewed:** 2026-07-14
 - **Next Review:** When parser, verifier, or evaluation-engine boundaries change
   materially
 - **Change Log:**
+  - v1.1 (2026-07-14): Corrected duplicate section numbering after the ownership-
+    transition section.
   - v1.0 (2026-04-08): Updated the module-layout guidance to match the current `issue/`,
     `ports/`, `verify/record.rs`, and `verify/verified_grant.rs` structure
   - v0.9 (2026-04-08): Added explicit guidance for any future TrustGrant-specific

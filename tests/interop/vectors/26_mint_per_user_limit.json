@@ -84,7 +84,7 @@
         "evaluated_at": "2026-06-15T12:00:00Z",
         "mint_context": { "total_minted": 0, "user_minted": 1 },
         "audience_principal_selectors": {
-          "player_id": ["player-42"]
+          "actor": ["player-42"]
         }
       },
       "expected": { "Denied": "MintPerUserLimitReached" }

@@ -1,5 +1,5 @@
-**Document Version:** 0.1\
-**Last Updated:** 2026-04-08\
+**Document Version:** 0.2\
+**Last Updated:** 2026-07-14\
 **Status:** Draft\
 **Related Documents:** [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Implementation Architecture](IMPLEMENTATION_ARCHITECTURE.md),
@@ -11,8 +11,9 @@
 
 This document defines the safe optimization boundary for TrustGrant v0 canonicalization.
 
-The current implementation uses `serde_jcs` to produce RFC 8785 canonical signing bytes.
-Profiling shows that canonicalization is the dominant cold-path cost in TrustGrant
+The current implementation uses fixed TrustGrant-specific canonical writers to produce
+RFC 8785-equivalent signing bytes. `serde_jcs` remains the equivalence oracle in tests.
+Profiling shows that canonicalization is a material cold-path cost in TrustGrant
 verification.
 
 This document exists so performance work does not drift the protocol semantics.
@@ -24,27 +25,24 @@ The current TrustGrant v0 canonicalization path:
 - excludes the `signature` field from the signed payload
 - emits RFC 8785-equivalent canonical JSON through a TrustGrant-specific canonical
   writer
-- uses the previous `serde_jcs` path as the correctness oracle in tests and differential
-  fuzzing
+- uses the previous `serde_jcs` path as the correctness oracle in unit tests
 
 The ownership-transition canonicalization path now follows the same discipline:
 - proposal and acceptance payloads use fixed ownership-transition canonical writers
 - predecessor and successor signature exclusion rules remain explicit
-- the previous `serde_jcs` path remains the oracle in tests and differential fuzzing
+- the previous `serde_jcs` path remains the oracle in unit tests
 
 Measured current state from [TrustGrant Performance Baseline](PERFORMANCE_BASELINE.md):
-- full verify path: about `5.23 µs`
-- canonicalization alone: about `0.825 µs`
-- the specialized writer reduced full verify wall time by about `69.9%` on the measured
-  fixture compared with the pre-specialization baseline
-- ownership-transition verify path: about `2.97 µs`
-- ownership-transition proposal + acceptance canonicalization: about `0.917 µs`
-- the specialized ownership-transition writer reduced transition verify wall time by
-  about `80.8%` on the measured fixture compared with the pre-specialization baseline
+- full verify path: about `5.26 µs`
+- TrustGrant canonicalization alone: about `0.736 µs`
+- ownership-transition verify path: about `3.08 µs`
+
+The performance baseline records current measurements, not a durable comparison against
+the pre-specialization implementation.
 
 Current audit posture:
 - the specialization is accepted
-- the semantic risk is controlled by oracle tests and differential fuzzing
+- the semantic risk is controlled by oracle tests and canonicalization fuzz coverage
 - any later change to the canonical writer must preserve the same safeguards
 
 ## 3. Non-Negotiable Semantic Invariants
@@ -134,19 +132,17 @@ For TrustGrant v0, "materially" should mean:
 - visible in repeated `perf stat` and benchmark runs
 - not purchased with substantially more maintenance risk than the gain
 
-## 8. First Candidate Scope
+## 8. Initial Candidate Scope
 
-The first candidate specialization should stay narrow:
+The initial specialization was deliberately narrow:
 
 1. main TrustGrant document canonicalization only
-2. no transition canonicalization rewrite in the same change
-3. no parser changes
-4. no verified-state redesign in the same pass
+2. no parser changes
+3. no verified-state redesign in the same pass
 
-That keeps the experiment attributable.
+That kept the experiment attributable. Ownership-transition canonicalization followed as
+a separate pass under the same oracle-equivalence safeguards.
 
-If the main document writer proves worthwhile, transition canonicalization can follow in
-a separate measured pass.
 
 ## 9. Audit Checklist For The Future Pass
 
@@ -171,12 +167,22 @@ Before accepting a specialized canonical writer, review all of the following:
 
 The current recommendation is:
 
-- keep the specialized writer as the main TrustGrant v0 canonicalization path
-- do not widen it beyond the fixed v0 document shape without new measurements and oracle
-  coverage
-- if more cold-path gains are required, the next serious candidate is
-  ownership-transition canonicalization, but only as a separate measured pass under the
-  same equivalence discipline
+- keep the specialized writers as the main canonicalization paths for the fixed v0
+  TrustGrant and ownership-transition wire shapes
+- do not widen either writer without new measurements and oracle coverage
+- evaluate any later cold-path optimization in a separate pass under the same
+  equivalence discipline
 
 The important rule remains the same: semantic equivalence is mandatory, and performance
 work that cannot prove equivalence is rejected.
+
+## Review & Maintenance
+
+- **Last Reviewed:** 2026-07-14
+- **Next Review:** When the v0 wire shape or canonicalization implementation changes
+  materially
+- **Change Log:**
+  - v0.2 (2026-07-14): Corrected the implementation description and synchronized current
+    benchmark figures and specialization status with the code and performance baseline.
+  - v0.1 (2026-04-08): Defined the original safety boundary and rollout criteria for
+    TrustGrant-specific canonicalization.

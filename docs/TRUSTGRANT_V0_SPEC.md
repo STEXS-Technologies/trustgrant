@@ -1,5 +1,5 @@
-**Document Version:** 1.3\
-**Last Updated:** 2026-07-13\
+**Document Version:** 1.4\
+**Last Updated:** 2026-07-14\
 **Status:** Draft\
 **Related Documents:** [TrustGrant Crate Docs](README.md),
 [TrustGrant Authority Discovery](TRUSTGRANT_AUTHORITY_DISCOVERY.md),
@@ -171,7 +171,7 @@ such as:
 TrustGrant v0 keeps those selector kinds issuer-defined rather than standardizing them
 into a closed protocol enum.
 
-The three built-in selector kinds (`authority`, `namespace`, `player_id`) are matched
+The three built-in selector kinds (`authority`, `namespace`, `actor`) are matched
 case-insensitively. Other selector kinds continue to be exact-case tokens. This is a
 deliberate design choice to prevent common casing mistakes in the built-in kinds while
 keeping the open kind space case-sensitive by default.
@@ -463,7 +463,7 @@ Target selector kinds may include:
 
 - `authority`
 - `namespace`
-- `player_id`
+- `actor`
 - `other`
 
 Issuer-defined selector kinds may also express namespace-like or deployment-local
@@ -581,17 +581,18 @@ if scope.deny not null and matches_any(requested_operation, scope.deny):
 
 #### Reserved Names
 
-The strings `"recognize"`, `"mint"`, and `"create"` are reserved and must not appear
-as custom operation names in a protocol-compliant grant:
+The strings `"recognize"`, `"mint"`, and `"create"` are reserved and must not be used
+to construct custom operation requests:
 
 - `"recognize"` — reserved: maps to the recognize capability
 - `"create"` — reserved: maps to the mint capability
 - `"mint"` — reserved: the capability name itself; the corresponding operation
   name is `"create"`
 
-Using a reserved name in the operations scope as an explicit allow/deny entry is
-permitted but will never match a protocol-issued request (the reserved names are
-routed to their capability-specific paths).
+The `recognize` and `create` names are permitted in an operations scope. They match the
+corresponding built-in capability requests after those requests have passed their
+capability gate. `mint` is a capability spelling, not a requested operation name, so a
+scope entry named `mint` cannot authorize a mint request.
 
 #### Custom Operations
 
@@ -840,8 +841,8 @@ All minting and audience limits should be per-type.
 
 When `max_per_user` is set, the evaluation engine requires audience
 principal context to be present on the evaluation request (spec §13,
-step 9). If no audience principal context is provided, the engine rejects
-the request with `MissingAudiencePrincipalContext`. This ensures that
+step 10). If no audience principal context is provided, the engine returns
+the `MissingAudiencePrincipalContext` deny reason. This ensures that
 per-user limits are always evaluated against a known principal, preventing
 unbounded minting through anonymous requests.
 
@@ -867,16 +868,16 @@ to be accepted.
 
 ### Phase 1: Cold-Path Verification (performed once per document)
 
-1. **Canonicalize** — produce RFC 8785 canonical bytes of the raw document
-2. **Validate** — parse and validate the document structure; reject structurally
-   invalid documents
-3. **Verify signer binding** — resolve the signer authority and key from discovery
-4. **Verify signature** — verify the cryptographic signature against the canonical
-   bytes; reject if signature does not match the declared issuer and key
-5. **Verify ownership chain** — verify the ownership transition chain (if any)
-   for continuity, monotonicity, and scope coverage
-6. **Check revocation state** — verify revocation freshness and consistency with
-   the document's revocation policy
+1. **Parse and validate** — parse the raw document and reject structurally invalid
+   input before using it for any further protocol step.
+2. **Resolve verification inputs** — resolve or accept the signer binding, ownership
+   transition chain, and revocation evidence. Source-driven verification verifies the
+   transition chain at this stage.
+3. **Canonicalize** — produce RFC 8785 canonical bytes of the validated raw document.
+4. **Check metadata and revocation policy** — ensure the resolved signer, ownership,
+   posture, freshness, and revocation state are consistent with the document.
+5. **Verify signature** — verify the cryptographic signature against the canonical
+   bytes and resolved signer binding.
 
 If any step fails, reject. The cold-path produces a `VerifiedTrustGrant` that
 can be evaluated repeatedly.
@@ -952,9 +953,11 @@ v1 operational direction:
 
 ## Review & Maintenance
 
-- **Last Reviewed:** 2026-04-08
+- **Last Reviewed:** 2026-07-14
 - **Next Review:** When schema or signer-proof modeling changes materially
 - **Change Log:**
+  - v1.4 (2026-07-14): Aligned built-in operation-scope semantics and the cold-path
+    verification order with the v0 implementation.
   - v1.3 (2026-07-13): Added documentation for `MissingAudiencePrincipalContext`
     error when `max_per_user` is set without audience principal context (§12).
   - v1.2 (2026-07-12): Fixed canonical example — target scope selector kind

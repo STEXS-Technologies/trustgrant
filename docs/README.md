@@ -1,5 +1,5 @@
-**Document Version:** 0.9\
-**Last Updated:** 2026-04-08\
+**Document Version:** 1.6\
+**Last Updated:** 2026-07-14\
 **Status:** Draft\
 **Related Documents:** [TrustGrant v0 Spec](TRUSTGRANT_V0_SPEC.md),
 [TrustGrant Use Cases](USE_CASES.md),
@@ -10,14 +10,11 @@
 [TrustGrant Performance Baseline](PERFORMANCE_BASELINE.md),
 [TrustGrant Canonicalization Specialization](CANONICALIZATION_SPECIALIZATION.md)
 
-# TrustGrant Crate Docs
+# TrustGrant Documentation
 
-This folder contains the protocol-level technical documentation for the TrustGrant
-crate.
+This directory contains the protocol-level technical documentation for TrustGrant.
 
-Platform-specific semantics and deployment-profile design belong outside this
-crate-local documentation set.
-This crate-local doc set stays focused on:
+It stays focused on:
 - protocol mechanics
 - document structure
 - discovery and federation flow
@@ -26,17 +23,10 @@ This crate-local doc set stays focused on:
 
 ## Documentation Boundary
 
-**Root `docs/` covers platform semantics:**
-- authority ownership model in the platform
-- integration with inventory and auth
-- platform-level revocation and provenance rules
-
-**`docs/` covers protocol mechanics:**
-- TrustGrant v0 document model
-- authority discovery
-- federation flow
-- implementation architecture of the core crate
-- machine-readable schema
+The protocol documents define portable TrustGrant behavior. Deployment-specific material
+should complement them rather than alter the signed wire format or core evaluation
+semantics. In particular, applications own their transport, storage, inventory, and
+local trust-policy details.
 
 ## Current Docs
 
@@ -68,9 +58,11 @@ schema stay close to the crate that will implement them.
 
 ## Review & Maintenance
 
-- **Last Reviewed:** 2026-04-08
+- **Last Reviewed:** 2026-07-14
 - **Next Review:** When the protocol schema or technical flow changes materially
 - **Change Log:**
+  - v1.6 (2026-07-14): Reconciled the documentation index with the repository and
+    clarified the boundary between protocol documentation and deployment-specific policy.
   - v1.5 (2026-04-08): Hardened proof-bundle insertion against silent conflicts and
     overgrowth, and revalidated persisted verified-grant records against bounded
     cardinality on rehydrate

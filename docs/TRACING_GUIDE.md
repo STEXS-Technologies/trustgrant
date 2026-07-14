@@ -3,7 +3,7 @@
 ## Overview
 
 The protocol core emits `tracing` events and spans at key decision points.
-These are always compiled in but zero-cost when no subscriber is registered.
+They remain low-overhead when no subscriber enables them.
 
 ## Spans
 

@@ -26,7 +26,7 @@ pub struct SelectorContext {
     ///
     /// - Slot 0 → Authority
     /// - Slot 1 → Namespace
-    /// - Slot 2 → PlayerId
+    /// - Slot 2 → Actor
     /// - Slot 3 → (unused; reserved for potential future built-in kinds)
     ///
     /// `None` means no entry has been inserted for that kind yet.
@@ -582,13 +582,13 @@ mod tests {
 
         assert!(
             request
-                .insert_audience_selector("player_id", "player-42")
+                .insert_audience_selector("actor", "player-42")
                 .is_ok()
         );
         assert_eq!(
             request
                 .audience_context()
-                .values_for_kind_str("player_id")
+                .values_for_kind_str("actor")
                 .and_then(|values| values.first())
                 .map(String::as_str),
             Some("player-42")

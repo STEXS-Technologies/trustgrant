@@ -49,7 +49,7 @@
                   "all": false,
                   "allow": [
                     {
-                      "kind": "player_id",
+                      "kind": "actor",
                       "all": false,
                       "values": ["player-42"],
                       "expressions": null
@@ -57,7 +57,7 @@
                   ],
                   "deny": [
                     {
-                      "kind": "player_id",
+                      "kind": "actor",
                       "all": false,
                       "values": ["player-42"],
                       "expressions": null
@@ -97,7 +97,7 @@
         "resource_selectors": { "namespace": ["weapons"] },
         "evaluated_at": "2026-06-15T12:00:00Z",
         "audience_principal_selectors": {
-          "player_id": ["player-42"]
+          "actor": ["player-42"]
         }
       },
       "expected": { "Denied": "AudiencePrincipalDenied" }

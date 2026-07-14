@@ -25,7 +25,7 @@ const VALID_TRUSTGRANT_JSON: &str = r#"{
   "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -47,7 +47,7 @@ const AUTHORITY_ID_TARGET_TRUSTGRANT_JSON: &str = r#"{
   "target_scope":{"all":false,"allow":[{"kind":"authority_id","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -69,7 +69,7 @@ const MIXED_CASE_PRINCIPAL_TRUSTGRANT_JSON: &str = r#"{
   "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"PlayerId","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"Actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -91,7 +91,7 @@ const CUSTOM_OPERATION_TRUSTGRANT_JSON: &str = r#"{
   "target_scope":{"all":false,"allow":[{"kind":"authority_id","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["asset.download"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["asset.download"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -187,7 +187,7 @@ fn signer_binding() -> ResolvedSignerBinding {
     )
 }
 
-fn recognize_request(player_id: &str) -> EvaluationRequest {
+fn recognize_request(actor: &str) -> EvaluationRequest {
     let mut resource = ResourceContext::new("item")
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
     resource
@@ -206,7 +206,7 @@ fn recognize_request(player_id: &str) -> EvaluationRequest {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", player_id)
+        .insert_audience_principal_selector("actor", actor)
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request
@@ -214,7 +214,7 @@ fn recognize_request(player_id: &str) -> EvaluationRequest {
 
 fn custom_operation_request(
     operation_name: &str,
-    player_id: &str,
+    actor: &str,
 ) -> Result<EvaluationRequest, TrustGrantError> {
     let mut resource = ResourceContext::new("item")?;
     resource.insert_selector("namespace", "weapons")?;
@@ -227,7 +227,7 @@ fn custom_operation_request(
         fixed_timestamp(2026, 4, 7, 13, 0, 0),
     )?;
 
-    request.insert_audience_principal_selector("player_id", player_id)?;
+    request.insert_audience_principal_selector("actor", actor)?;
 
     Ok(request)
 }
@@ -296,7 +296,7 @@ fn parse_validate_verify_and_evaluate_allows_authority_id_target_selector_alias(
 }
 
 #[test]
-fn parse_validate_verify_and_evaluate_denies_mixed_case_principal_kind_without_profile_alias() {
+fn parse_validate_verify_and_evaluate_allows_mixed_case_actor_principal_kind() {
     let engine = EvaluationEngine::new();
     let decision = engine.evaluate(
         &verified_grant_from_json(
@@ -306,9 +306,9 @@ fn parse_validate_verify_and_evaluate_denies_mixed_case_principal_kind_without_p
         &recognize_request("player-123"),
     );
 
-    assert_eq!(
-        decision.deny_reason(),
-        Some(EvaluationDenyReason::AudiencePrincipalNotAllowed)
+    assert!(
+        decision.is_allowed(),
+        "Actor (mixed case) should be recognized as the built-in actor kind"
     );
 }
 

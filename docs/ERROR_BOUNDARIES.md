@@ -40,7 +40,7 @@ with the same inputs will never succeed.
 | `SignatureVerificationFailed` | The trust grant signature verification failed. | The cryptographic signature on the document does not match the claimed signer key. |
 | `OwnershipTransitionPredecessorSignatureFailed` | The predecessor signature verification failed. | The outgoing owner's signature on the ownership transition is invalid. |
 | `OwnershipTransitionSuccessorSignatureFailed` | The successor acceptance signature verification failed. | The incoming owner's acceptance signature is invalid. |
-| `SignerAuthorityMismatch` | The resolved signer authority does not match the document issuer authority. | The key resolved from discovery belongs to a different authority than the document's `issuer`. |
+| `SignerAuthorityMismatch` | The resolved signer authority does not match the document issuer authority. | The key resolved from discovery belongs to a different authority than the document's `issuer_authority`. |
 | `KeyIdMismatch` | The resolved signer key ID does not match the document key ID. | The `key_id` in the document does not match any key in the resolved authority's discovery material. |
 | `DiscoveryAuthorityMismatch` | The discovery document authority does not match the expected issuer authority. | The authority in the fetched discovery document differs from the document issuer. |
 | `DelegatedDiscoveryAuthorityMismatch` | The delegated principal document authority does not match the expected issuer authority. | The delegated principal document's authority field does not match expectations. |
@@ -66,10 +66,10 @@ with the same inputs will never succeed.
 | `MissingIdSeparator` | A prefixed ID lacks the underscore separator. | A grant ID like `tg123` was provided instead of `tg_123`. |
 | `InvalidIdPrefix` | A prefixed ID does not use the expected prefix. | A grant ID uses `tx_` instead of `tg_`. |
 | `InvalidIdUuid` | A prefixed ID does not contain a valid UUID. | The portion after the prefix is not a valid UUID string. |
-| `InvalidProtocolVersion` | An unsupported protocol version was provided. | The document declares `version: 2` but the implementation only supports version 0 or 1. |
+| `InvalidProtocolVersion` | An unsupported protocol version was provided. | The document declares a nonzero `version`, but the implementation supports only v0 wire payloads. |
 | `InvalidSupersedesForFirstRevision` | The first revision declares a supersedes field. | Revision 1 of a grant lineage includes a `supersedes` field, which is only allowed for later revisions. |
 | `MissingSupersedesForNonFirstOwnershipTransitionRevision` | A non-first ownership transition revision is missing `supersedes_transition_id`. | Revision 2+ of an ownership transition must reference the previous transition ID. |
-| `SelfSupersession` | A grant lineage supersedes itself. | A document's `supersedes` chain leads back to the same document ID, forming a cycle. |
+| `SelfSupersession` | A grant directly supersedes itself. | A document's `supersedes` field equals its own `trustgrant_id`. |
 | `InvalidOwnershipTransitionParties` | The from and to authorities in a transition are the same. | An ownership transition lists the same authority as both predecessor and successor. |
 | `InvalidOwnershipTransitionScope` | The transition requires an explicit finite resource scope. | An ownership transition uses `all` scope instead of listing specific resources. |
 | `InvalidOwnershipTransitionEffectiveAt` | The `effective_at` timestamp falls outside the declared time window. | The transition effective time is before `not_before` or after `not_after`. |

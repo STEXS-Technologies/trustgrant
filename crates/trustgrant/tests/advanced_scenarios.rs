@@ -93,7 +93,7 @@ const SELECTOR_EXPRESSION_TRUSTGRANT_JSON: &str = r#"{
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
 }"#;
 
-/// Test 3: Grant with default_audience_scope that has a principal_scope restricting by player_id.
+/// Test 3: Grant with default_audience_scope that has a principal_scope restricting by actor.
 const AUDIENCE_PRINCIPAL_SCOPE_TRUSTGRANT_JSON: &str = r#"{
   "trustgrant_id":"tg_cc000001-0000-1000-a000-000000000001",
   "version":0,
@@ -107,7 +107,7 @@ const AUDIENCE_PRINCIPAL_SCOPE_TRUSTGRANT_JSON: &str = r#"{
   "key_id":"root-key-1",
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":false},
-  "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}],
+  "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}],
   "resource_scope":{"types":{
     "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":true,"allow":null,"deny":null}}
   }},
@@ -458,8 +458,8 @@ fn verified_grant_from_json(json: &str) -> VerifiedTrustGrant {
     artifacts.verified_grant().clone()
 }
 
-/// Builds a recognition request for the given resource type, namespace, and player_id.
-fn recognize_request(resource_type: &str, namespace: &str, player_id: &str) -> EvaluationRequest {
+/// Builds a recognition request for the given resource type, namespace, and actor.
+fn recognize_request(resource_type: &str, namespace: &str, actor: &str) -> EvaluationRequest {
     let mut resource = ResourceContext::new(resource_type)
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
     resource
@@ -478,7 +478,7 @@ fn recognize_request(resource_type: &str, namespace: &str, player_id: &str) -> E
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", player_id)
+        .insert_audience_principal_selector("actor", actor)
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request

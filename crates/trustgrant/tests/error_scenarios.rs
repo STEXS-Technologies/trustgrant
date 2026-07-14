@@ -29,7 +29,7 @@ const VALID_TRUSTGRANT_JSON: &str = r#"{
   "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -157,7 +157,7 @@ fn verified_grant_from_json(json: &str, revocation_status: RevocationStatus) -> 
 }
 
 /// Builds a standard recognize request targeting the grant's expected authorities.
-fn recognize_request(player_id: &str) -> EvaluationRequest {
+fn recognize_request(actor: &str) -> EvaluationRequest {
     let mut resource = ResourceContext::new("item")
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
     resource
@@ -176,14 +176,14 @@ fn recognize_request(player_id: &str) -> EvaluationRequest {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", player_id)
+        .insert_audience_principal_selector("actor", actor)
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request
 }
 
 /// Builds a recognize request with an explicit evaluation timestamp.
-fn recognize_request_at(player_id: &str, evaluated_at: chrono::DateTime<Utc>) -> EvaluationRequest {
+fn recognize_request_at(actor: &str, evaluated_at: chrono::DateTime<Utc>) -> EvaluationRequest {
     let mut resource = ResourceContext::new("item")
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
     resource
@@ -202,7 +202,7 @@ fn recognize_request_at(player_id: &str, evaluated_at: chrono::DateTime<Utc>) ->
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", player_id)
+        .insert_audience_principal_selector("actor", actor)
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request
@@ -228,7 +228,7 @@ fn invalid_version_fails_verification() {
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":true},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -352,7 +352,7 @@ fn target_scope_deny_evaluation_denied() {
     )
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     let engine = EvaluationEngine::new();
@@ -392,7 +392,7 @@ fn audience_mismatch_evaluation_denied() {
     )
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     let engine = EvaluationEngine::new();
@@ -498,7 +498,7 @@ fn missing_mint_context_evaluation_denied() {
   "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":true},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize","create"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize","create"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -526,7 +526,7 @@ fn missing_mint_context_evaluation_denied() {
     )
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     // NOTE: We do NOT call request.with_mint_context(...) — intentionally omitting it.
