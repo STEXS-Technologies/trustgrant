@@ -355,9 +355,9 @@ impl InMemoryAtomicInventoryExecutor {
         (total_key, principal_key)
     }
 
-    fn advance(value: u64) -> Result<u64, InMemoryExecutionError> {
+    fn advance(value: u64, delta: u64) -> Result<u64, InMemoryExecutionError> {
         value
-            .checked_add(1)
+            .checked_add(delta)
             .ok_or(InMemoryExecutionError::CounterOverflow)
     }
 }
@@ -446,6 +446,9 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
         let value = apply(&mut transaction, &authorization)?;
 
         if request.is_mint() {
+            let quantity = evaluation_request.mint_context()
+                .map(|ctx| ctx.requested_quantity())
+                .unwrap_or(1);
             let total = transaction
                 .state
                 .total_mints
@@ -455,7 +458,7 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
             transaction
                 .state
                 .total_mints
-                .insert(mint_total_key, Self::advance(total)?);
+                .insert(mint_total_key, Self::advance(total, quantity)?);
 
             let per_principal = transaction
                 .state
@@ -466,7 +469,7 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
             transaction
                 .state
                 .mints_for_principal
-                .insert(mint_principal_key, Self::advance(per_principal)?);
+                .insert(mint_principal_key, Self::advance(per_principal, quantity)?);
         } else if let Some(resource_key) = existing_key {
             let current_version = transaction
                 .state
@@ -477,7 +480,7 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
             transaction
                 .state
                 .resource_versions
-                .insert(resource_key, Self::advance(current_version)?);
+                .insert(resource_key, Self::advance(current_version, 1)?);
         }
 
         transaction

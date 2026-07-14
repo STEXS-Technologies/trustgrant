@@ -345,24 +345,43 @@ impl ResourceBinding {
     }
 }
 
-/// Runtime mint counters used to enforce minting constraints.
+/// Runtime mint counters and quantity used to enforce minting constraints.
 ///
-/// Provides the current total mint count and per-audience mint count to the
-/// evaluation engine.
+/// Provides the current total mint count, per-audience mint count, and
+/// requested quantity to the evaluation engine. The quantity is the number
+/// of resource instances this mint operation intends to create. The engine
+/// checks that `current_total_mints + requested_quantity ≤ max_total`.
+///
+/// Only the [`AtomicInventoryExecutor`] should construct `MintContext` from
+/// its authoritative counter store. External callers must not provide their
+/// own counters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MintContext {
     current_total_mints: u64,
     current_mints_for_audience: u64,
+    requested_quantity: u64,
 }
 
 impl MintContext {
-    /// Mint context should be provided for mint-constraint evaluation.
+    /// Creates mint context with a single-item default quantity.
+    ///
+    /// Use [`with_quantity`](Self::with_quantity) for batch mint operations.
     #[must_use]
     pub const fn new(current_total_mints: u64, current_mints_for_audience: u64) -> Self {
         Self {
             current_total_mints,
             current_mints_for_audience,
+            requested_quantity: 1,
         }
+    }
+
+    /// Sets the requested quantity for this mint operation.
+    ///
+    /// Zero is rejected — use 1 for single-item minting.
+    #[must_use]
+    pub const fn with_quantity(mut self, quantity: u64) -> Self {
+        self.requested_quantity = if quantity == 0 { 1 } else { quantity };
+        self
     }
 
     /// Total minted count is required for max_total checks.
@@ -375,6 +394,15 @@ impl MintContext {
     #[must_use]
     pub const fn current_mints_for_audience(&self) -> u64 {
         self.current_mints_for_audience
+    }
+
+    /// Number of resource instances requested in this mint operation.
+    ///
+    /// The engine uses this to check `current_total_mints + requested_quantity ≤ max_total`.
+    /// Defaults to 1.
+    #[must_use]
+    pub const fn requested_quantity(&self) -> u64 {
+        self.requested_quantity
     }
 }
 

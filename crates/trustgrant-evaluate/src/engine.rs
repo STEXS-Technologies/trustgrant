@@ -422,10 +422,14 @@ const fn evaluate_minting_constraints(
         };
     };
 
-    if let Some(max_total) = constraints.max_total()
-        && mint_context.current_total_mints() >= max_total
-    {
-        return Err(EvaluationDenyReason::MintTotalLimitReached);
+    if let Some(max_total) = constraints.max_total() {
+        let total = mint_context.current_total_mints();
+        let quantity = mint_context.requested_quantity();
+        // Requested quantity must be at least 1 (enforced by MintContext).
+        // Check: current + quantity > max → denied.
+        if total.saturating_add(quantity) > max_total {
+            return Err(EvaluationDenyReason::MintTotalLimitReached);
+        }
     }
 
     if let Some(max_per_user) = constraints.max_per_user() {
@@ -433,7 +437,9 @@ const fn evaluate_minting_constraints(
             return Err(EvaluationDenyReason::MissingAudiencePrincipalContext);
         }
 
-        if mint_context.current_mints_for_audience() >= max_per_user {
+        let per_user = mint_context.current_mints_for_audience();
+        let quantity = mint_context.requested_quantity();
+        if per_user.saturating_add(quantity) > max_per_user {
             return Err(EvaluationDenyReason::MintPerUserLimitReached);
         }
     }
