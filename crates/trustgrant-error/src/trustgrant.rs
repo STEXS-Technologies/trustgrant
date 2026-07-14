@@ -61,6 +61,8 @@ pub enum TrustGrantError {
     DuplicateKeyId,
     #[error("duplicate operation name is not allowed")]
     DuplicateOperationName,
+    #[error("duplicate audience authority entry is not allowed")]
+    DuplicateAudienceAuthority,
     #[error("a state-changing execution request requires an intent ID")]
     MissingMutationIntentId,
     #[error("a state-changing existing-resource request requires an expected resource version")]

@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use compact_str::CompactString;
@@ -857,11 +858,16 @@ fn validate_audience_entries(
     let entries = raw.unwrap_or_default();
     ensure_collection_limit(scope_name, entries.len(), MAX_AUDIENCE_ENTRIES)?;
 
+    let mut seen_authorities = HashSet::new();
     entries
         .into_iter()
         .map(|entry| {
+            let authority_id = AuthorityId::new(entry.authority_id)?;
+            if !seen_authorities.insert(authority_id.clone()) {
+                return Err(TrustGrantError::DuplicateAudienceAuthority);
+            }
             Ok(ValidatedAudienceEntry::new(
-                AuthorityId::new(entry.authority_id)?,
+                authority_id,
                 validate_scope(scope_name, entry.scope)?,
                 entry
                     .principal_scope
@@ -1575,7 +1581,7 @@ mod tests {
     }
 
     #[test]
-    fn validated_document_accepts_duplicate_audience_authorities() {
+    fn validated_document_rejects_duplicate_audience_authorities() {
         let mut raw = parse_valid_raw_document();
         let entries = raw
             .default_audience_scope
@@ -1587,10 +1593,12 @@ mod tests {
             .unwrap_or_else(|| panic!("fixture must have audience entries"));
         raw.default_audience_scope = Some(vec![entry.clone(), entry]);
 
-        let validated = ValidatedTrustGrantDocument::try_from(raw)
-            .unwrap_or_else(|e| panic!("duplicate audience authorities should validate: {e}"));
+        let result = ValidatedTrustGrantDocument::try_from(raw);
 
-        assert_eq!(validated.default_audience_scope().len(), 2);
+        assert_eq!(
+            result,
+            Err(TrustGrantError::DuplicateAudienceAuthority)
+        );
     }
 
     // ── ValidatedSelector::new error branches ────────────────────────

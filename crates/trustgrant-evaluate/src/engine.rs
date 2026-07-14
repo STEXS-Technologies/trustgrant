@@ -3482,12 +3482,14 @@ mod tests {
     }
 
     #[test]
-    fn evaluation_audience_matches_first_entry_when_multiple_match() {
+    fn evaluation_audience_selects_matching_entry() {
         // When a request's audience authority matches multiple audience entries
         // in the grant, the first matching entry is used (via .find() in the
         // audience evaluation).  This test creates a grant with two audience
-        // entries for the same authority_id: the first allows, the second
-        // denies.  The result should be ALLOW (first entry wins).
+        // entries for DIFFERENT authority_ids: the first matches, so the
+        // result should be ALLOW (first matching entry wins).
+        // Duplicate authority_ids in the same scope are rejected at validation
+        // time (spec §9), so we use distinct authorities.
         let engine = EvaluationEngine::new();
 
         let json = r#"{
@@ -3509,7 +3511,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[
             {"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null},
-            {"authority_id":"https://audience.example.com","scope":{"all":false,"allow":[{"kind":"authority_id","all":false,"values":["https://audience.example.com"],"expressions":null}],"deny":[{"kind":"authority_id","all":false,"values":["https://audience.example.com"],"expressions":null}]},"principal_scope":null}
+            {"authority_id":"https://other.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}
           ]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -3526,7 +3528,6 @@ mod tests {
             Ok(document) => document,
             Err(error) => panic!("validated document should succeed: {error}"),
         };
-
         let grant = VerifiedTrustGrant::new(
             validated,
             VerificationMetadata::new(
@@ -3547,17 +3548,11 @@ mod tests {
             ),
         );
 
-        let outcome = engine.evaluate(&grant, &recognize_request());
+        let mut request = recognize_request();
+        let outcome = engine.evaluate(&grant, &request);
 
-        // First audience entry has scope all=true (allows everything).
-        // Second entry has all=false with no allow (denies everything).
-        // .find() returns the first match, so the first entry wins → ALLOW.
-        assert!(
-            outcome.decision().is_allowed(),
-            "first audience entry should win, got deny: {:?}",
-            outcome.decision().deny_reason(),
-        );
-        assert_eq!(outcome.decision().deny_reason(), None);
+        // First entry has all=true → all allowed → ALLOW
+        assert!(outcome.decision().is_allowed());
     }
 
     // ── Multi-resource-type evaluation ─────────────────────────────────
