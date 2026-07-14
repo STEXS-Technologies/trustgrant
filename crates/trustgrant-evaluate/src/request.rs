@@ -140,6 +140,98 @@ impl SelectorContext {
     }
 }
 
+/// An immutable reference to an existing resource.
+///
+/// Carries the origin authority that created or owns the resource and the
+/// resource's unique identifier within that authority's namespace. Used in
+/// [`ResourceBinding::Existing`] to bind an evaluation request to a specific
+/// resource instance.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResourceRef {
+    origin_authority: AuthorityId,
+    resource_id: String,
+}
+
+impl ResourceRef {
+    /// Creates a new resource reference.
+    #[must_use = "resource references are required for evaluation"]
+    pub const fn new(origin_authority: AuthorityId, resource_id: String) -> Self {
+        Self {
+            origin_authority,
+            resource_id,
+        }
+    }
+
+    /// The authority that originated the resource.
+    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    pub const fn origin_authority(&self) -> &AuthorityId {
+        &self.origin_authority
+    }
+
+    /// The resource's unique identifier within the origin authority's namespace.
+    #[must_use = "resource ID identifies the specific resource instance"]
+    pub fn resource_id(&self) -> &str {
+        &self.resource_id
+    }
+}
+
+/// A reference to a mint template or resource class for mint operations.
+///
+/// Carries the origin authority and resource class information. Used in
+/// [`ResourceBinding::Mint`] when the request is for minting new resources
+/// rather than acting on an existing one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TemplateRef {
+    origin_authority: AuthorityId,
+}
+
+impl TemplateRef {
+    /// Creates a new template reference for mint operations.
+    #[must_use = "template references are required for mint evaluation"]
+    pub const fn new(origin_authority: AuthorityId) -> Self {
+        Self { origin_authority }
+    }
+
+    /// The authority that defines the mint template or resource class.
+    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    pub const fn origin_authority(&self) -> &AuthorityId {
+        &self.origin_authority
+    }
+}
+
+/// The binding between an evaluation request and the resource being acted upon.
+///
+/// Distinguishes requests that target an existing resource (with a known
+/// [`ResourceRef`]) from requests that create new resources via minting
+/// (with a [`TemplateRef`]).
+///
+/// The binding provides the `origin_authority` used in spec §13 step 3 to
+/// verify that the grant's origin matches the resource's origin.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResourceBinding {
+    /// The request acts on an existing resource identified by a [`ResourceRef`].
+    Existing(ResourceRef),
+    /// The request creates new resources via minting, referencing a [`TemplateRef`].
+    Mint(TemplateRef),
+}
+
+impl ResourceBinding {
+    /// Returns the origin authority from whichever binding variant is active.
+    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    pub const fn origin_authority(&self) -> &AuthorityId {
+        match self {
+            Self::Existing(ref_) => ref_.origin_authority(),
+            Self::Mint(template) => template.origin_authority(),
+        }
+    }
+
+    /// Whether this binding is a mint request.
+    #[must_use = "mint vs existing-resource semantics differ during evaluation"]
+    pub const fn is_mint(&self) -> bool {
+        matches!(self, Self::Mint(_))
+    }
+}
+
 /// Runtime mint counters used to enforce minting constraints.
 ///
 /// Provides the current total mint count and per-audience mint count to the
@@ -220,7 +312,7 @@ impl ResourceContext {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvaluationRequest {
     operation: RequestedOperation,
-    origin_authority: Option<AuthorityId>,
+    resource_binding: ResourceBinding,
     target_authority: AuthorityId,
     target_context: SelectorContext,
     audience_authority: AuthorityId,
@@ -234,20 +326,30 @@ pub struct EvaluationRequest {
 impl EvaluationRequest {
     /// Creates one evaluation request with canonical authority selector entries.
     ///
+    /// The `resource_binding` parameter carries the origin authority and
+    /// distinguishes existing-resource requests from mint requests. The engine
+    /// always checks that the binding's origin authority matches the grant's
+    /// origin authority (spec §13 step 3).
+    ///
     /// # Examples
     ///
     /// ```rust
     /// use trustgrant_evaluate::{
     ///     EvaluationRequest, RequestedCapability, RequestedOperation,
-    ///     ResourceContext,
+    ///     ResourceBinding, ResourceRef, ResourceContext,
     /// };
     /// use trustgrant_domain::AuthorityId;
     /// use chrono::Utc;
     ///
+    /// let origin = AuthorityId::new("https://issuer.example.com").unwrap();
     /// let resource = ResourceContext::new("item")
     ///     .expect("valid resource type");
     /// let request = EvaluationRequest::new(
     ///     RequestedOperation::Capability(RequestedCapability::Recognize),
+    ///     ResourceBinding::Existing(ResourceRef::new(
+    ///         origin,
+    ///         "resource-42".to_owned(),
+    ///     )),
     ///     AuthorityId::new("https://target.example.com").unwrap(),
     ///     AuthorityId::new("https://audience.example.com").unwrap(),
     ///     resource,
@@ -260,6 +362,7 @@ impl EvaluationRequest {
     /// Returns [`TrustGrantError`] when resource or selector inputs are invalid.
     pub fn new(
         operation: RequestedOperation,
+        resource_binding: ResourceBinding,
         target_authority: AuthorityId,
         audience_authority: AuthorityId,
         resource: ResourceContext,
@@ -275,7 +378,7 @@ impl EvaluationRequest {
 
         Ok(Self {
             operation,
-            origin_authority: None,
+            resource_binding,
             target_authority,
             target_context,
             audience_authority,
@@ -332,19 +435,24 @@ impl EvaluationRequest {
         self
     }
 
-    /// Sets the origin authority for this request.
-    ///
-    /// When set, the evaluation engine checks that the resource's origin
-    /// authority matches the grant's origin authority (spec §13 step 3).
-    #[must_use = "origin authority should be set to enforce spec §13 step 3"]
-    pub fn with_origin_authority(mut self, origin: AuthorityId) -> Self {
-        self.origin_authority = Some(origin);
-        self
-    }
-
     #[must_use = "requested operation is required for evaluation"]
     pub const fn operation(&self) -> &RequestedOperation {
         &self.operation
+    }
+
+    /// The resource binding for this request, carrying the origin authority
+    /// and distinguishing existing-resource requests from mint requests.
+    #[must_use = "resource binding is required for evaluation and spec §13 step 3"]
+    pub const fn resource_binding(&self) -> &ResourceBinding {
+        &self.resource_binding
+    }
+
+    /// The origin authority bound to this request (convenience accessor).
+    ///
+    /// Delegates to [`ResourceBinding::origin_authority`].
+    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    pub const fn origin_authority(&self) -> &AuthorityId {
+        self.resource_binding.origin_authority()
     }
 
     #[must_use = "target authority is required for evaluation and audit"]
@@ -375,11 +483,6 @@ impl EvaluationRequest {
     #[must_use = "resource context is required for evaluation"]
     pub const fn resource(&self) -> &ResourceContext {
         &self.resource
-    }
-
-    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
-    pub const fn origin_authority(&self) -> Option<&AuthorityId> {
-        self.origin_authority.as_ref()
     }
 
     #[must_use = "mint context is required for mint-constraint evaluation"]
@@ -420,8 +523,8 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::{
-        EvaluationRequest, RequestedCapability, RequestedOperation, ResourceContext,
-        SelectorContext,
+        EvaluationRequest, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
+        ResourceRef, SelectorContext,
     };
     use trustgrant_domain::AuthorityId;
     use trustgrant_error::TrustGrantError;
@@ -492,8 +595,11 @@ mod tests {
     fn evaluation_request_populates_both_authority_selector_aliases() {
         let resource = ResourceContext::new("item")
             .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
         let request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             AuthorityId::new("https://target.example.com")
                 .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
             AuthorityId::new("https://audience.example.com")
@@ -551,8 +657,11 @@ mod tests {
     fn evaluation_request_insert_target_selector() {
         let resource = ResourceContext::new("item")
             .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
         let mut request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             AuthorityId::new("https://target.example.com")
                 .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
             AuthorityId::new("https://audience.example.com")
@@ -611,8 +720,11 @@ mod tests {
     fn evaluation_request_insert_audience_selector() {
         let resource = ResourceContext::new("item")
             .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
         let mut request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             AuthorityId::new("https://target.example.com")
                 .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
             AuthorityId::new("https://audience.example.com")

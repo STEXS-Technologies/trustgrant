@@ -7,9 +7,9 @@ use trustgrant::{
     AuthorityId, AuthorityKeyRecord, DelegatedPrincipalRef, EvaluationEngine, EvaluationRequest,
     MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
     RawTrustGrantDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
-    ResourceContext, RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    TrustGrantError, ValidatedTrustGrantDocument, VerificationMetadata, VerificationPosture,
-    VerifiedRevocationState, VerifiedTrustGrant,
+    ResourceBinding, ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind,
+    RevocationStatus, SignatureProfile, TrustGrantError, ValidatedTrustGrantDocument,
+    VerificationMetadata, VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 fn build_metadata(doc: &RawTrustGrantDocument) -> Result<VerificationMetadata, TrustGrantError> {
@@ -126,6 +126,10 @@ fn build_recognize_request(
     // Build the request.
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "resource-42".to_string(),
+        )),
         target_authority,
         audience_authority,
         resource,
@@ -194,6 +198,10 @@ fn build_mint_request(
 
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "resource-42".to_string(),
+        )),
         target_authority,
         audience_authority,
         resource,
@@ -245,6 +253,10 @@ fn build_unmatched_resource_request(
 
     EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "resource-42".to_string(),
+        )),
         target_authority,
         audience_authority,
         resource,
@@ -284,6 +296,10 @@ fn build_mismatched_target_request(
 
     EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "resource-42".to_string(),
+        )),
         target_authority,
         audience_authority,
         resource,

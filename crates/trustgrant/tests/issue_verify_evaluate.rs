@@ -18,11 +18,11 @@ use trustgrant::domain::Utf16Key;
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, CustomOperationName, EvaluationDenyReason, EvaluationEngine,
     EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceContext,
-    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TrustGrantDraft, TrustGrantDraftAuthorities,
-    TrustGrantError, VerificationMetadata, VerificationPipeline, VerificationPosture,
-    VerifiedRevocationState,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext,
+    ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
+    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantDraft,
+    TrustGrantDraftAuthorities, TrustGrantError, VerificationMetadata, VerificationPipeline,
+    VerificationPosture, VerifiedRevocationState,
 };
 
 // ---------------------------------------------------------------------------
@@ -356,8 +356,12 @@ fn recognize_request() -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new(ISSUER)
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new(TARGET)
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new(AUDIENCE)
@@ -381,8 +385,12 @@ fn mint_request() -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new(ISSUER)
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(TemplateRef::new(origin)),
         AuthorityId::new(TARGET)
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new(AUDIENCE)
@@ -406,11 +414,15 @@ fn custom_operation_request() -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new(ISSUER)
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Custom(
             CustomOperationName::new("asset.download")
                 .unwrap_or_else(|error| panic!("custom operation should be valid: {error}")),
         ),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new(TARGET)
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new(AUDIENCE)

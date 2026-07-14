@@ -5,8 +5,8 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use trustgrant::{
     AuthorityId, CustomOperationName, EvaluationDecision, EvaluationEngine, EvaluationRequest,
-    MintContext, RequestedCapability, RequestedOperation, ResourceContext, TrustGrantError,
-    VerifiedRevocationState,
+    MintContext, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
+    ResourceRef, TemplateRef, TrustGrantError, VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile},
     domain::OwnershipVerificationRecord,
     ports::{SignatureVerificationRequest, SignatureVerifier, VerificationPosture},
@@ -136,8 +136,28 @@ fn run_evaluation(
         }
     }
 
+    // Determine origin authority from request, defaulting to issuer
+    let origin_str = req
+        .get("origin_authority")
+        .and_then(|v| v.as_str())
+        .unwrap_or("https://issuer.example.com");
+    let origin = AuthorityId::new(origin_str)
+        .unwrap_or_else(|e| panic!("invalid origin authority: {e}"));
+
+    // Build appropriate resource binding based on operation
+    let resource_binding = match &operation {
+        RequestedOperation::Capability(RequestedCapability::Mint) => {
+            ResourceBinding::Mint(TemplateRef::new(origin))
+        }
+        _ => ResourceBinding::Existing(ResourceRef::new(
+            origin,
+            req["resource_type"].as_str().unwrap().to_owned(),
+        )),
+    };
+
     let mut request = EvaluationRequest::new(
         operation,
+        resource_binding,
         AuthorityId::new(req["target_authority"].as_str().unwrap())
             .unwrap_or_else(|e| panic!("invalid target authority: {e}")),
         AuthorityId::new(req["audience_authority"].as_str().unwrap())
@@ -146,13 +166,6 @@ fn run_evaluation(
         evaluated_at,
     )
     .unwrap_or_else(|e| panic!("invalid request: {e}"));
-
-    // Spec §13 step 3: optional origin authority enforcement
-    if let Some(origin) = req.get("origin_authority").and_then(|v| v.as_str()) {
-        request = request.with_origin_authority(
-            AuthorityId::new(origin).unwrap_or_else(|e| panic!("invalid origin authority: {e}")),
-        );
-    }
 
     // Handle evaluation setup — e.g. add audience principal selectors
     if let Some(setup) = eval.get("setup").and_then(|v| v.as_str()) {

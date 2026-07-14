@@ -20,11 +20,12 @@ use trustgrant::{
     AuthorityId, AuthorityKeyRecord, CanonicalizationProfile, DelegatedPrincipalRef,
     EvaluationDecision, EvaluationDenyReason, EvaluationEngine, EvaluationRequest, MintContext,
     OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
-    RequestedOperation, ResolvedSignerBinding, ResourceContext, RevocationRecord,
-    RevocationSourceKind, RevocationStatus, SignatureProfile, SignatureVerificationRequest,
-    SignatureVerifier, TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError,
-    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPipeline, VerificationPosture,
-    VerifiedRevocationState, VerifiedTrustGrant,
+    RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
+    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
+    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantDraft,
+    TrustGrantDraftAuthorities, TrustGrantError, ValidatedTrustGrantDocument,
+    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
+    VerifiedTrustGrant,
 };
 
 // ---------------------------------------------------------------------------
@@ -221,8 +222,12 @@ fn build_recognize_request() -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new(ISSUER)
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new(TARGET)
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new(AUDIENCE)
@@ -572,6 +577,10 @@ fn evaluate_json(json: &str, target: &str, namespace: &str) -> EvaluationDecisio
     resource.insert_selector("namespace", namespace).unwrap();
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "item".to_owned(),
+        )),
         AuthorityId::new(target).unwrap(),
         AuthorityId::new("https://audience.example.com").unwrap(),
         resource,
@@ -657,6 +666,10 @@ proptest! {
         resource.insert_selector("namespace", "anything").unwrap();
         let request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(
+                AuthorityId::new("https://issuer.example.com").unwrap(),
+                "nonexistent_type".to_owned(),
+            )),
             AuthorityId::new("https://target.example.com").unwrap(),
             AuthorityId::new("https://audience.example.com").unwrap(),
             resource,
@@ -700,6 +713,9 @@ proptest! {
         resource.insert_selector("namespace", "weapons").unwrap();
         let request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(TemplateRef::new(
+                AuthorityId::new("https://issuer.example.com").unwrap(),
+            )),
             AuthorityId::new("https://target.example.com").unwrap(),
             AuthorityId::new("https://audience.example.com").unwrap(),
             resource,
@@ -720,6 +736,9 @@ proptest! {
         resource2.insert_selector("namespace", "weapons").unwrap();
         let request2 = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(TemplateRef::new(
+                AuthorityId::new("https://issuer.example.com").unwrap(),
+            )),
             AuthorityId::new("https://target.example.com").unwrap(),
             AuthorityId::new("https://audience.example.com").unwrap(),
             resource2,
@@ -774,13 +793,15 @@ proptest! {
         resource.insert_selector("namespace", "weapons").unwrap();
         let request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(
+                AuthorityId::new("https://other.example.com").unwrap(),
+                "item".to_owned(),
+            )),
             AuthorityId::new("https://target.example.com").unwrap(),
             AuthorityId::new("https://audience.example.com").unwrap(),
             resource,
             ts("2026-06-15T12:00:00Z"),
-        ).unwrap().with_origin_authority(
-            AuthorityId::new("https://other.example.com").unwrap()
-        );
+        ).unwrap();
         let decision = evaluate_request_json(&json, &request);
         prop_assert_eq!(
             decision.deny_reason(),

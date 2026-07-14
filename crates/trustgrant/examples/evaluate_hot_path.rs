@@ -7,10 +7,10 @@ use thiserror::Error;
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, DelegatedPrincipalRef, EvaluationEngine, EvaluationRequest,
     OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RawTrustGrantDocument,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceContext,
-    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile, TrustGrantError,
-    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPosture,
-    VerifiedRevocationState, VerifiedTrustGrant,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    SignatureProfile, TrustGrantError, ValidatedTrustGrantDocument, VerificationMetadata,
+    VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 const VALID_TRUSTGRANT_JSON: &str = r#"{
@@ -143,6 +143,10 @@ fn recognize_request() -> Result<EvaluationRequest, EvaluateHotPathError> {
 
     Ok(EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com")?,
+            "resource-42".to_string(),
+        )),
         AuthorityId::new("https://target.example.com")?,
         AuthorityId::new("https://audience.example.com")?,
         resource,

@@ -5,10 +5,10 @@ use chrono::{TimeZone, Utc};
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
     OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
-    RequestedOperation, ResolvedSignerBinding, ResourceContext, RevocationRecord,
-    RevocationSourceKind, RevocationStatus, SignatureProfile, SignatureVerificationRequest,
-    SignatureVerifier, TrustGrantError, VerificationMetadata, VerificationPipeline,
-    VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
+    RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
+    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
+    SignatureVerificationRequest, SignatureVerifier, TrustGrantError, VerificationMetadata,
+    VerificationPipeline, VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 const VALID_TRUSTGRANT_JSON: &str = r#"{
@@ -194,8 +194,12 @@ fn recognize_request(actor: &str) -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -219,8 +223,11 @@ fn custom_operation_request(
     let mut resource = ResourceContext::new("item")?;
     resource.insert_selector("namespace", "weapons")?;
 
+    let origin = AuthorityId::new("https://issuer.example.com")?;
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Custom(trustgrant::CustomOperationName::new(operation_name)?),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")?,
         AuthorityId::new("https://audience.example.com")?,
         resource,

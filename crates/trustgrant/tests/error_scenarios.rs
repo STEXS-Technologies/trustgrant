@@ -5,10 +5,11 @@ use chrono::{TimeZone, Utc};
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
     OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
-    RequestedOperation, ResolvedSignerBinding, ResourceContext, RevocationRecord,
-    RevocationSourceKind, RevocationStatus, SignatureProfile, SignatureVerificationRequest,
-    SignatureVerifier, TrustGrantError, VerificationMetadata, VerificationPipeline,
-    VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
+    RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
+    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
+    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantError,
+    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
+    VerifiedTrustGrant,
 };
 
 // ---------------------------------------------------------------------------
@@ -164,8 +165,12 @@ fn recognize_request(actor: &str) -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -190,8 +195,12 @@ fn recognize_request_at(actor: &str, evaluated_at: chrono::DateTime<Utc>) -> Eva
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -341,8 +350,12 @@ fn target_scope_deny_evaluation_denied() {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://different-target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -381,8 +394,12 @@ fn audience_mismatch_evaluation_denied() {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://other-audience.example.com")
@@ -416,8 +433,12 @@ fn resource_type_not_granted_evaluation_denied() {
     let resource = ResourceContext::new("weapon")
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "weapon".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -515,8 +536,12 @@ fn missing_mint_context_evaluation_denied() {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(TemplateRef::new(origin)),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")

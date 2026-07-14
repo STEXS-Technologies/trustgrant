@@ -84,7 +84,9 @@ impl EvaluationEngine {
         }
 
         // Spec §13 step 3: Check origin authority
-        if let Some(request_origin) = request.origin_authority() {
+        // The binding is mandatory — failure is not optional.
+        {
+            let request_origin = request.origin_authority();
             let grant_origin = grant
                 .document()
                 .ownership_authority_state()
@@ -469,7 +471,7 @@ mod tests {
     use super::EvaluationEngine;
     use crate::{
         EvaluationDenyReason, EvaluationRequest, MintContext, RequestedCapability,
-        RequestedOperation, ResourceContext,
+        RequestedOperation, ResourceBinding, ResourceContext, ResourceRef, TemplateRef,
     };
     use trustgrant_discovery::{
         AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
@@ -926,12 +928,15 @@ mod tests {
         )
     }
 
+    fn origin() -> AuthorityId {
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"))
+    }
+
     fn ownership_record() -> OwnershipVerificationRecord {
         OwnershipVerificationRecord::new(
-            AuthorityId::new("https://issuer.example.com")
-                .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
-            AuthorityId::new("https://issuer.example.com")
-                .unwrap_or_else(|error| panic!("active owner should be valid: {error}")),
+            origin(),
+            origin(),
             fixed_timestamp(2026, 4, 7, 12, 0, 0),
             OwnershipProofKind::StaticOwner,
             None,
@@ -968,8 +973,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1001,8 +1008,10 @@ mod tests {
             panic!("mint resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(TemplateRef::new(origin)),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1034,8 +1043,10 @@ mod tests {
             panic!("expression resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1101,6 +1112,7 @@ mod tests {
         let mut request = recognize_request();
         request = match EvaluationRequest::new(
             request.operation().clone(),
+            request.resource_binding().clone(),
             request.target_authority().clone(),
             request.audience_authority().clone(),
             request.resource().clone(),
@@ -1157,8 +1169,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(TemplateRef::new(origin)),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1253,8 +1267,10 @@ mod tests {
         if let Err(error) = resource.insert_selector("namespace", "weapons") {
             panic!("resource selector should be valid: {error}");
         }
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1286,8 +1302,10 @@ mod tests {
         if let Err(error) = resource.insert_selector("namespace", "weapons") {
             panic!("resource selector should be valid: {error}");
         }
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1322,8 +1340,10 @@ mod tests {
         if let Err(error) = resource.insert_selector("namespace", "weapons") {
             panic!("resource selector should be valid: {error}");
         }
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "weapon".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1338,7 +1358,6 @@ mod tests {
             Ok(request) => request,
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
-
         let decision = engine.evaluate(&grant, &request);
         assert_eq!(
             decision.deny_reason(),
@@ -2069,8 +2088,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2213,8 +2234,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2236,8 +2259,8 @@ mod tests {
     }
 
     #[test]
-    fn evaluation_denies_custom_operation_when_operations_scope_restrictive_even_with_capabilities()
-    {
+    fn evaluation_denies_custom_operation_when_operations_scope_restrictive_even_with_capabilities(
+    ) {
         // Custom operations are gated by the operations scope alone.
         // Even with capabilities enabled, a restrictive operations scope denies.
         let engine = EvaluationEngine::new();
@@ -2355,8 +2378,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2503,8 +2528,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2779,8 +2806,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -3144,8 +3173,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, resource_type.to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -3477,8 +3508,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),

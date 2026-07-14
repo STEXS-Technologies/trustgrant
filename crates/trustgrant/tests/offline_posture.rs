@@ -3,8 +3,8 @@
 use chrono::{TimeZone, Utc};
 use trustgrant::{
     AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
-    ProofFinality, RequestedCapability, RequestedOperation, ResourceContext,
-    RevocationFreshnessPolicy, RevocationSourceKind, SignatureVerificationRequest,
+    ProofFinality, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
+    ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind, SignatureVerificationRequest,
     SignatureVerifier, TrustGrantError, TrustGrantProofBundle, VerificationContext,
     VerificationPipeline, VerificationPosture, parse_authority_discovery_document,
     parse_revocation_status_proof,
@@ -216,6 +216,11 @@ fn offline_verification_detects_revoked_grant() {
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
+            "item".to_owned(),
+        )),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://issuer.example.com")

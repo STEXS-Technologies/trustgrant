@@ -8,11 +8,11 @@ use chrono::{TimeZone, Utc};
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
     MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceContext,
-    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TrustGrantError, VerificationMetadata,
-    VerificationPipeline, VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
-    VerifiedTrustGrantRecord,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext,
+    ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
+    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantError,
+    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
+    VerifiedTrustGrant, VerifiedTrustGrantRecord,
 };
 
 // ---------------------------------------------------------------------------
@@ -178,8 +178,12 @@ fn recognize_request() -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -204,8 +208,12 @@ fn mint_request(total_mints: u64, mints_for_audience: u64) -> EvaluationRequest 
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(TemplateRef::new(origin)),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")

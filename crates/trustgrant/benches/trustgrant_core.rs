@@ -16,8 +16,8 @@ use trustgrant::{
     OwnershipTransitionParties, OwnershipTransitionRecord, OwnershipTransitionVerifier,
     OwnershipVerificationRecord, ProofFinality, RawOwnershipTransitionDocument,
     RawTrustGrantDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
-    ResourceContext, ResourceTypeName, RevocationFreshnessPolicy, RevocationRecord,
-    RevocationSourceKind, RevocationStatus, SelectorExpression, SignatureProfile,
+    ResourceBinding, ResourceContext, ResourceRef, ResourceTypeName, RevocationFreshnessPolicy,
+    RevocationRecord, RevocationSourceKind, RevocationStatus, SelectorExpression, SignatureProfile,
     SignatureVerificationRequest, SignatureVerifier, TransitionId, TransitionSeriesId,
     TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError, TrustGrantProofBundle,
     ValidatedTrustGrantDocument, VerificationContext, VerificationMetadata, VerificationPipeline,
@@ -697,6 +697,13 @@ fn recognize_request() -> EvaluationRequest {
     must(
         EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(
+                must(
+                    AuthorityId::new("https://issuer.example.com"),
+                    "origin authority should be valid",
+                ),
+                "resource-42".to_string(),
+            )),
             must(
                 AuthorityId::new("https://target.example.com"),
                 "target authority should be valid",

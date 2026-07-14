@@ -3,10 +3,10 @@
 use chrono::{TimeZone, Utc};
 use trustgrant::{
     AuthorityId, BundleRevocationProof, EvaluationEngine, EvaluationRequest, ProofFinality,
-    RawOwnershipTransitionDocument, RequestedCapability, RequestedOperation, ResourceContext,
-    RevocationFreshnessPolicy, RevocationSourceKind, SignatureVerificationRequest,
-    SignatureVerifier, TrustGrantError, TrustGrantProofBundle, VerificationContext,
-    VerificationPipeline, VerificationPosture, parse_authority_discovery_document,
+    RawOwnershipTransitionDocument, RequestedCapability, RequestedOperation, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind,
+    SignatureVerificationRequest, SignatureVerifier, TrustGrantError, TrustGrantProofBundle,
+    VerificationContext, VerificationPipeline, VerificationPosture, parse_authority_discovery_document,
     parse_delegated_principal_key_document, parse_revocation_status_proof,
 };
 
@@ -658,8 +658,12 @@ fn matching_request() -> EvaluationRequest {
     let resource = ResourceContext::new("item")
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")

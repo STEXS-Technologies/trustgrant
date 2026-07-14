@@ -4,10 +4,10 @@ use chrono::{TimeZone, Utc};
 use trustgrant::{
     AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
     ProofFinality, RawOwnershipTransitionDocument, RequestedCapability, RequestedOperation,
-    ResourceContext, RevocationFreshnessPolicy, RevocationSourceKind, SignatureVerificationRequest,
-    SignatureVerifier, TrustGrantError, TrustGrantProofBundle, VerificationContext,
-    VerificationPipeline, VerificationPosture, parse_authority_discovery_document,
-    parse_revocation_status_proof,
+    ResourceBinding, ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind,
+    SignatureVerificationRequest, SignatureVerifier, TrustGrantError, TrustGrantProofBundle,
+    VerificationContext, VerificationPipeline, VerificationPosture,
+    parse_authority_discovery_document, parse_revocation_status_proof,
 };
 
 #[derive(Debug, Default)]
@@ -212,6 +212,11 @@ fn full_ownership_transition_pipeline_verifies_and_evaluates() {
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://origin.example.com")
+                .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
+            "item".to_owned(),
+        )),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -319,6 +324,11 @@ fn ownership_transition_pipeline_rejects_evaluation_with_audience_mismatch() {
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://origin.example.com")
+                .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
+            "item".to_owned(),
+        )),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://wrong-audience.example.com")

@@ -1,5 +1,6 @@
 use crate::{
-    EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation, ResourceContext,
+    EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation, ResourceBinding,
+    ResourceContext, ResourceRef,
 };
 use chrono::{TimeZone, Utc};
 use std::hint::black_box;
@@ -87,6 +88,10 @@ fn verify_evaluate_basic() {
     resource.insert_selector("namespace", "weapons").unwrap();
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "resource-42".to_string(),
+        )),
         AuthorityId::new("https://target.example.com").unwrap(),
         AuthorityId::new("https://audience.example.com").unwrap(),
         resource,
