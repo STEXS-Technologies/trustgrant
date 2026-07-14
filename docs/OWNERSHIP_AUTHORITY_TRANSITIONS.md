@@ -6,7 +6,7 @@
 [TrustGrant Type and Trait Design](TYPE_AND_TRAIT_DESIGN.md),
 [TrustGrant Implementation Architecture](IMPLEMENTATION_ARCHITECTURE.md),
 [TrustGrant Ownership Authority Transition v0 Schema](TRUSTGRANT_OWNERSHIP_AUTHORITY_TRANSITION_V0_SCHEMA.json),
-[SDD-017 TrustGrant Federation](../../../docs/DESIGN/SDD/SDD-017-TRUSTGRANT_FEDERATION.md)
+SDD-017 TrustGrant Federation
 
 # TrustGrant Ownership Authority Transitions
 

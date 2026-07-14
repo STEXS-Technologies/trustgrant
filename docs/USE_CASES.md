@@ -11,7 +11,7 @@
 This document explains what TrustGrant v0 can be used for at the protocol level.
 
 It is intentionally generic.
-It does not describe STEXS-only product behavior.
+It does not describe product-specific behavior.
 It describes the kinds of authority, ownership, and federation problems that TrustGrant
 can solve when implemented correctly.
 

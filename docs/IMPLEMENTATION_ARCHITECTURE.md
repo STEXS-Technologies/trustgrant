@@ -8,8 +8,8 @@
 [TrustGrant Interoperability and Proof Models](INTEROPERABILITY_AND_PROOF_MODELS.md),
 [TrustGrant Type and Trait Design](TYPE_AND_TRAIT_DESIGN.md),
 [TrustGrant Canonicalization Specialization](CANONICALIZATION_SPECIALIZATION.md),
-[SDD-017 TrustGrant Federation](../../../docs/DESIGN/SDD/SDD-017-TRUSTGRANT_FEDERATION.md),
-[ADR-013 TrustGrant Protocol Boundary](../../../docs/DESIGN/ADR/ADR-013-TRUSTGRANT_PROTOCOL_BOUNDARY.md)
+SDD-017 TrustGrant Federation,
+ADR-013 TrustGrant Protocol Boundary
 
 # TrustGrant Implementation Architecture
 

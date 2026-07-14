@@ -298,7 +298,7 @@ persist_verified_record(&record)?;
 - treated as one opaque persisted record, not as a tree of public helper DTOs
 - versioned explicitly for durable storage and future migration handling
 
-It is not STEXS-specific.
+It is not implementation-specific.
 It is the generic persistence-facing verified-record contract for TrustGrant adopters.
 
 * * *
