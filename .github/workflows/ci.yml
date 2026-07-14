@@ -120,12 +120,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Rust interop vectors (evaluation scenarios)
-        run: cargo test --test interop -p trustgrant
-      - name: Rust conformance vectors (spec validation rules)
-        run: cargo test --test conformance_vectors -p trustgrant
-      - name: Rust conformance tests (spec sections)
-        run: cargo test --test conformance -p trustgrant
+      - name: Interop and conformance
+        run: cargo make interop_all
 
   smoke:
     name: Smoke Test
@@ -140,6 +136,6 @@ jobs:
         run: cargo build --release --workspace
       - name: Run examples
         run: |
-          ./target/release/examples/parse_raw_document_cold_path 100
-          ./target/release/examples/canonicalize_cold_path 100
-          ./target/release/examples/evaluate_hot_path 100000
+          cargo run --release --example parse_raw_document_cold_path -- 100
+          cargo run --release --example canonicalize_cold_path -- 100
+          cargo run --release --example evaluate_hot_path -- 100000

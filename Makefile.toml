@@ -1,0 +1,53 @@
+[config]
+skip_core_tasks = true
+default_to_workspace = false
+
+[tasks.check]
+command = "cargo"
+args = ["check", "--workspace", "--all-targets"]
+
+[tasks.test]
+command = "cargo"
+args = ["test", "--workspace"]
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+
+[tasks.fmt]
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.fmt_fix]
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.bench]
+command = "cargo"
+args = ["bench", "--workspace", "--exclude", "trustgrant-fuzz"]
+
+[tasks.interop]
+command = "cargo"
+args = ["test", "--test", "interop", "-p", "trustgrant", "--", "--nocapture"]
+
+[tasks.conformance_vectors]
+command = "cargo"
+args = ["test", "--test", "conformance_vectors", "-p", "trustgrant", "--", "--nocapture"]
+
+[tasks.conformance_tests]
+command = "cargo"
+args = ["test", "--test", "conformance", "-p", "trustgrant", "--", "--nocapture"]
+
+[tasks.interop_all]
+dependencies = ["interop", "conformance_vectors", "conformance_tests"]
+
+[tasks.wasm]
+command = "cargo"
+args = ["check", "--target", "wasm32-unknown-unknown", "--workspace", "--exclude", "trustgrant-fuzz"]
+
+[tasks.kani]
+command = "cargo"
+args = ["kani", "-p", "kani-proofs"]
+
+[tasks.ci]
+dependencies = ["check", "clippy", "fmt", "test", "bench"]
