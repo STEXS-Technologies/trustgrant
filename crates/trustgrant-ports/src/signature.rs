@@ -47,7 +47,8 @@ pub struct SignatureVerificationRequest<'request> {
 }
 
 impl<'request> SignatureVerificationRequest<'request> {
-    #[must_use = "signature verification requests should be built by the pipeline"]
+    /// Signature verification requests should be built by the pipeline.
+    #[must_use]
     pub const fn new(
         canonical_bytes: &'request [u8],
         canonicalization_profile: CanonicalizationProfile,
@@ -62,47 +63,56 @@ impl<'request> SignatureVerificationRequest<'request> {
         }
     }
 
-    #[must_use = "signature verification needs canonical bytes"]
+    /// Signature verification needs canonical bytes.
+    #[must_use]
     pub const fn canonical_bytes(&self) -> &'request [u8] {
         self.canonical_bytes
     }
 
-    #[must_use = "signature verification needs the canonicalization profile"]
+    /// Signature verification needs the canonicalization profile.
+    #[must_use]
     pub const fn canonicalization_profile(&self) -> CanonicalizationProfile {
         self.canonicalization_profile
     }
 
-    #[must_use = "signature verification needs the resolved signer binding"]
+    /// Signature verification needs the resolved signer binding.
+    #[must_use]
     pub const fn signer_binding(&self) -> &'request ResolvedSignerBinding {
         self.signer_binding
     }
 
-    #[must_use = "signature verification needs the issuer authority"]
+    /// Signature verification needs the issuer authority.
+    #[must_use]
     pub const fn issuer_authority(&self) -> &'request AuthorityId {
         self.signer_binding.issuer_authority()
     }
 
-    #[must_use = "signature verification needs the key id"]
+    /// Signature verification needs the key id.
+    #[must_use]
     pub const fn key_id(&self) -> &'request KeyId {
         self.signer_binding.key_record().key_id()
     }
 
-    #[must_use = "signature verification needs the key algorithm"]
+    /// Signature verification needs the key algorithm.
+    #[must_use]
     pub const fn algorithm(&self) -> &'request AlgorithmName {
         self.signer_binding.key_record().algorithm()
     }
 
-    #[must_use = "signature verification needs the public key"]
+    /// Signature verification needs the public key.
+    #[must_use]
     pub const fn public_key(&self) -> &'request PublicKeyMaterial {
         self.signer_binding.key_record().public_key()
     }
 
-    #[must_use = "signature verification needs the signature profile"]
+    /// Signature verification needs the signature profile.
+    #[must_use]
     pub const fn signature_profile(&self) -> &'request SignatureProfile {
         self.signer_binding.signature_profile()
     }
 
-    #[must_use = "signature verification needs the signature bytes"]
+    /// Signature verification needs the signature bytes.
+    #[must_use]
     pub const fn signature(&self) -> &str {
         self.signature
     }

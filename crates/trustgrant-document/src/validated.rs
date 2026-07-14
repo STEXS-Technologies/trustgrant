@@ -46,67 +46,80 @@ pub struct ValidatedTrustGrantDocument {
 }
 
 impl ValidatedTrustGrantDocument {
-    #[must_use = "validated lineage is required for registration and lookup"]
+    /// Validated lineage is required for registration and lookup.
+    #[must_use]
     pub const fn lineage(&self) -> &GrantLineage {
         &self.lineage
     }
 
-    #[must_use = "issuer authority is required for signature and trust evaluation"]
+    /// Issuer authority is required for signature and trust evaluation.
+    #[must_use]
     pub const fn issuer_authority(&self) -> &AuthorityId {
         &self.issuer_authority
     }
 
-    #[must_use = "ownership state is required for owner-level evaluation"]
+    /// Ownership state is required for owner-level evaluation.
+    #[must_use]
     pub const fn ownership_authority_state(&self) -> &OwnershipAuthorityState {
         &self.ownership_authority_state
     }
 
-    #[must_use = "signing key id is required for verification and audit"]
+    /// Signing key id is required for verification and audit.
+    #[must_use]
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
 
-    #[must_use = "target scope is required for evaluation"]
+    /// Target scope is required for evaluation.
+    #[must_use]
     pub const fn target_scope(&self) -> &ValidatedScope {
         &self.target_scope
     }
 
-    #[must_use = "top-level capabilities are required for evaluation"]
+    /// Top-level capabilities are required for evaluation.
+    #[must_use]
     pub const fn capabilities(&self) -> &ValidatedCapabilities {
         &self.capabilities
     }
 
-    #[must_use = "default audience entries are used for evaluation or publication"]
+    /// Default audience entries are used for evaluation or publication.
+    #[must_use]
     pub fn default_audience_scope(&self) -> &[ValidatedAudienceEntry] {
         &self.default_audience_scope
     }
 
-    #[must_use = "resource scope is required for evaluation"]
+    /// Resource scope is required for evaluation.
+    #[must_use]
     pub const fn resource_scope(&self) -> &BTreeMap<ResourceTypeName, ValidatedResourceType> {
         &self.resource_scope
     }
 
-    #[must_use = "global time window may constrain validity"]
+    /// Global time window may constrain validity.
+    #[must_use]
     pub const fn global_time_window(&self) -> Option<&ValidatedTimeWindow> {
         self.global_time_window.as_ref()
     }
 
-    #[must_use = "revocation policy may constrain validity"]
+    /// Revocation policy may constrain validity.
+    #[must_use]
     pub const fn revocation(&self) -> Option<&ValidatedRevocation> {
         self.revocation.as_ref()
     }
 
-    #[must_use = "issued_at is part of the signed wire document"]
+    /// Issued_at is part of the signed wire document.
+    #[must_use]
     pub const fn issued_at(&self) -> DateTime<Utc> {
         self.issued_at
     }
 
-    #[must_use = "signature is required for verification"]
+    /// Signature is required for verification.
+    #[must_use]
     pub fn signature(&self) -> &str {
         &self.signature
     }
 
-    #[must_use = "issuer principal may narrow the logical signer identity"]
+    /// Issuer principal may narrow the logical signer identity.
+    #[must_use]
     pub const fn issuer_principal(&self) -> Option<&ValidatedPrincipal> {
         self.issuer_principal.as_ref()
     }
@@ -230,17 +243,20 @@ pub struct ValidatedPrincipal {
 }
 
 impl ValidatedPrincipal {
-    #[must_use = "persisted principal state must stay valid by construction"]
+    /// Persisted principal state must stay valid by construction.
+    #[must_use]
     pub const fn new(kind: PrincipalKind, id: PrincipalId) -> Self {
         Self { kind, id }
     }
 
-    #[must_use = "principal kind is part of signer attribution"]
+    /// Principal kind is part of signer attribution.
+    #[must_use]
     pub const fn kind(&self) -> &PrincipalKind {
         &self.kind
     }
 
-    #[must_use = "principal identifier is part of signer attribution"]
+    /// Principal identifier is part of signer attribution.
+    #[must_use]
     pub const fn id(&self) -> &PrincipalId {
         &self.id
     }
@@ -265,7 +281,8 @@ pub struct ValidatedCapabilities {
 }
 
 impl ValidatedCapabilities {
-    #[must_use = "capability state must stay valid by construction"]
+    /// Capability state must stay valid by construction.
+    #[must_use]
     pub const fn new(recognize: bool, mint: bool) -> Self {
         Self { recognize, mint }
     }
@@ -274,12 +291,14 @@ impl ValidatedCapabilities {
         Self::new(raw.recognize, raw.mint)
     }
 
-    #[must_use = "recognize capability drives evaluation behavior"]
+    /// Recognize capability drives evaluation behavior.
+    #[must_use]
     pub const fn recognize(&self) -> bool {
         self.recognize
     }
 
-    #[must_use = "mint capability drives evaluation behavior"]
+    /// Mint capability drives evaluation behavior.
+    #[must_use]
     pub const fn mint(&self) -> bool {
         self.mint
     }
@@ -324,22 +343,26 @@ impl ValidatedSelector {
         })
     }
 
-    #[must_use = "selector kind participates in evaluation matching"]
+    /// Selector kind participates in evaluation matching.
+    #[must_use]
     pub const fn kind(&self) -> &SelectorKind {
         &self.kind
     }
 
-    #[must_use = "selector all flag participates in evaluation matching"]
+    /// Selector all flag participates in evaluation matching.
+    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "selector values participate in evaluation matching"]
+    /// Selector values participate in evaluation matching.
+    #[must_use]
     pub fn values(&self) -> &[String] {
         &self.values
     }
 
-    #[must_use = "selector expressions participate in evaluation matching"]
+    /// Selector expressions participate in evaluation matching.
+    #[must_use]
     pub fn expressions(&self) -> &[SelectorExpression] {
         &self.expressions
     }
@@ -372,17 +395,20 @@ impl ValidatedScope {
         Ok(Self { all, allow, deny })
     }
 
-    #[must_use = "scope all flag participates in evaluation matching"]
+    /// Scope all flag participates in evaluation matching.
+    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "allow selectors participate in evaluation matching"]
+    /// Allow selectors participate in evaluation matching.
+    #[must_use]
     pub fn allow(&self) -> &[ValidatedSelector] {
         &self.allow
     }
 
-    #[must_use = "deny selectors participate in evaluation matching"]
+    /// Deny selectors participate in evaluation matching.
+    #[must_use]
     pub fn deny(&self) -> &[ValidatedSelector] {
         &self.deny
     }
@@ -426,17 +452,20 @@ impl ValidatedOperationScope {
         Ok(Self { all, allow, deny })
     }
 
-    #[must_use = "operation scope all flag participates in evaluation matching"]
+    /// Operation scope all flag participates in evaluation matching.
+    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "allowed operations participate in evaluation matching"]
+    /// Allowed operations participate in evaluation matching.
+    #[must_use]
     pub fn allow(&self) -> &[OperationName] {
         &self.allow
     }
 
-    #[must_use = "denied operations participate in evaluation matching"]
+    /// Denied operations participate in evaluation matching.
+    #[must_use]
     pub fn deny(&self) -> &[OperationName] {
         &self.deny
     }
@@ -452,7 +481,8 @@ pub struct ValidatedAudienceEntry {
 }
 
 impl ValidatedAudienceEntry {
-    #[must_use = "persisted audience entry state must stay valid by construction"]
+    /// Persisted audience entry state must stay valid by construction.
+    #[must_use]
     pub const fn new(
         authority_id: AuthorityId,
         scope: ValidatedScope,
@@ -465,17 +495,20 @@ impl ValidatedAudienceEntry {
         }
     }
 
-    #[must_use = "audience authority participates in evaluation matching"]
+    /// Audience authority participates in evaluation matching.
+    #[must_use]
     pub const fn authority_id(&self) -> &AuthorityId {
         &self.authority_id
     }
 
-    #[must_use = "audience scope participates in evaluation matching"]
+    /// Audience scope participates in evaluation matching.
+    #[must_use]
     pub const fn scope(&self) -> &ValidatedScope {
         &self.scope
     }
 
-    #[must_use = "principal scope may further constrain the audience"]
+    /// Principal scope may further constrain the audience.
+    #[must_use]
     pub const fn principal_scope(&self) -> Option<&ValidatedScope> {
         self.principal_scope.as_ref()
     }
@@ -526,32 +559,38 @@ impl ValidatedResourceType {
         })
     }
 
-    #[must_use = "resource type all flag participates in evaluation matching"]
+    /// Resource type all flag participates in evaluation matching.
+    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "resource type allow selectors participate in evaluation matching"]
+    /// Resource type allow selectors participate in evaluation matching.
+    #[must_use]
     pub fn allow(&self) -> &[ValidatedSelector] {
         &self.allow
     }
 
-    #[must_use = "resource type deny selectors participate in evaluation matching"]
+    /// Resource type deny selectors participate in evaluation matching.
+    #[must_use]
     pub fn deny(&self) -> &[ValidatedSelector] {
         &self.deny
     }
 
-    #[must_use = "resource type capabilities participate in evaluation"]
+    /// Resource type capabilities participate in evaluation.
+    #[must_use]
     pub const fn capabilities(&self) -> &ValidatedTypeCapabilities {
         &self.capabilities
     }
 
-    #[must_use = "resource type constraints participate in evaluation"]
+    /// Resource type constraints participate in evaluation.
+    #[must_use]
     pub const fn constraints(&self) -> &ValidatedTypeConstraints {
         &self.constraints
     }
 
-    #[must_use = "resource type operations participate in evaluation"]
+    /// Resource type operations participate in evaluation.
+    #[must_use]
     pub const fn operations(&self) -> Option<&ValidatedOperationScope> {
         self.operations.as_ref()
     }
@@ -565,17 +604,20 @@ pub struct ValidatedTypeCapabilities {
 }
 
 impl ValidatedTypeCapabilities {
-    #[must_use = "persisted type capability state must stay valid by construction"]
+    /// Persisted type capability state must stay valid by construction.
+    #[must_use]
     pub const fn new(recognize: Option<bool>, mint: Option<bool>) -> Self {
         Self { recognize, mint }
     }
 
-    #[must_use = "resource type recognize override participates in evaluation"]
+    /// Resource type recognize override participates in evaluation.
+    #[must_use]
     pub const fn recognize(&self) -> Option<bool> {
         self.recognize
     }
 
-    #[must_use = "resource type mint override participates in evaluation"]
+    /// Resource type mint override participates in evaluation.
+    #[must_use]
     pub const fn mint(&self) -> Option<bool> {
         self.mint
     }
@@ -589,7 +631,8 @@ pub struct ValidatedTypeConstraints {
 }
 
 impl ValidatedTypeConstraints {
-    #[must_use = "persisted type constraint state must stay valid by construction"]
+    /// Persisted type constraint state must stay valid by construction.
+    #[must_use]
     pub const fn new(
         minting: ValidatedMintingConstraints,
         audience_scope: Vec<ValidatedAudienceEntry>,
@@ -600,12 +643,14 @@ impl ValidatedTypeConstraints {
         }
     }
 
-    #[must_use = "minting constraints participate in evaluation"]
+    /// Minting constraints participate in evaluation.
+    #[must_use]
     pub const fn minting(&self) -> &ValidatedMintingConstraints {
         &self.minting
     }
 
-    #[must_use = "audience constraints participate in evaluation"]
+    /// Audience constraints participate in evaluation.
+    #[must_use]
     pub fn audience_scope(&self) -> &[ValidatedAudienceEntry] {
         &self.audience_scope
     }
@@ -619,7 +664,8 @@ pub struct ValidatedMintingConstraints {
 }
 
 impl ValidatedMintingConstraints {
-    #[must_use = "persisted minting limits must stay valid by construction"]
+    /// Persisted minting limits must stay valid by construction.
+    #[must_use]
     pub const fn new(max_total: Option<u64>, max_per_user: Option<u64>) -> Self {
         Self {
             max_total,
@@ -627,12 +673,14 @@ impl ValidatedMintingConstraints {
         }
     }
 
-    #[must_use = "minting max_total participates in evaluation"]
+    /// Minting max_total participates in evaluation.
+    #[must_use]
     pub const fn max_total(&self) -> Option<u64> {
         self.max_total
     }
 
-    #[must_use = "minting max_per_user participates in evaluation"]
+    /// Minting max_per_user participates in evaluation.
+    #[must_use]
     pub const fn max_per_user(&self) -> Option<u64> {
         self.max_per_user
     }
@@ -666,12 +714,14 @@ impl ValidatedTimeWindow {
         })
     }
 
-    #[must_use = "not_before participates in time-based evaluation"]
+    /// Not_before participates in time-based evaluation.
+    #[must_use]
     pub const fn not_before(&self) -> DateTime<Utc> {
         self.not_before
     }
 
-    #[must_use = "not_after participates in time-based evaluation"]
+    /// Not_after participates in time-based evaluation.
+    #[must_use]
     pub const fn not_after(&self) -> DateTime<Utc> {
         self.not_after
     }
@@ -685,7 +735,8 @@ pub struct ValidatedRevocation {
 }
 
 impl ValidatedRevocation {
-    #[must_use = "persisted revocation policy must stay valid by construction"]
+    /// Persisted revocation policy must stay valid by construction.
+    #[must_use]
     pub const fn new(revocable: bool, revocation_endpoint: CompactString) -> Self {
         Self {
             revocable,
@@ -697,12 +748,14 @@ impl ValidatedRevocation {
         Self::new(raw.revocable, raw.revocation_endpoint)
     }
 
-    #[must_use = "revocable flag participates in revocation policy"]
+    /// Revocable flag participates in revocation policy.
+    #[must_use]
     pub const fn revocable(&self) -> bool {
         self.revocable
     }
 
-    #[must_use = "revocation endpoint participates in revocation policy"]
+    /// Revocation endpoint participates in revocation policy.
+    #[must_use]
     pub fn revocation_endpoint(&self) -> &str {
         &self.revocation_endpoint
     }

@@ -35,7 +35,8 @@ pub struct BundleRevocationProof {
 }
 
 impl BundleRevocationProof {
-    #[must_use = "bundle revocation proof should be assembled before verification"]
+    /// Bundle revocation proof should be assembled before verification.
+    #[must_use]
     pub const fn new(
         proof: RevocationStatusProof,
         source_kind: RevocationSourceKind,
@@ -99,12 +100,13 @@ impl TrustGrantProofBundle {
     /// // Populate with fluent builders:
     /// // let bundle = bundle.with_discovery_document(doc)?;
     /// ```
-    #[must_use = "empty proof bundles may be populated incrementally"]
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
+    #[must_use]
     ///
     /// # Errors
     ///
@@ -118,7 +120,8 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
+    #[must_use]
     ///
     /// # Errors
     ///
@@ -132,7 +135,8 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
+    #[must_use]
     ///
     /// # Errors
     ///
@@ -146,7 +150,8 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
+    #[must_use]
     ///
     /// # Errors
     ///
@@ -161,7 +166,8 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "shared proof bundles may act as all source types"]
+    /// Shared proof bundles may act as all source types.
+    #[must_use]
     pub fn as_sources(&self) -> VerificationSources<'_> {
         VerificationSources::new(self, self, self)
     }

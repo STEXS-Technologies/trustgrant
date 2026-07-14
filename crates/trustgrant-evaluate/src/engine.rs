@@ -20,7 +20,8 @@ use trustgrant_verify::{NormalizedTrustGrantDocument, VerifiedTrustGrant};
 pub struct EvaluationEngine;
 
 impl EvaluationEngine {
-    #[must_use = "evaluation engine should be reused for repeated authorization checks"]
+    /// Evaluation engine should be reused for repeated authorization checks.
+    #[must_use]
     pub const fn new() -> Self {
         Self
     }
@@ -42,7 +43,7 @@ impl EvaluationEngine {
     /// The caller is responsible for providing a [`VerifiedTrustGrant`] obtained
     /// through the verification pipeline and a properly populated
     /// [`EvaluationRequest`].
-    #[must_use = "evaluation result is required to authorize or deny work"]
+    #[must_use]
     pub fn evaluate(
         self,
         grant: &VerifiedTrustGrant,

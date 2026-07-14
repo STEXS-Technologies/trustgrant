@@ -179,12 +179,14 @@ impl TrustGrantDraft {
         })
     }
 
-    #[must_use = "generated trustgrant id should be used for publication or signing"]
+    /// Generated trustgrant id should be used for publication or signing.
+    #[must_use]
     pub const fn trustgrant_id(&self) -> TrustGrantId {
         self.trustgrant_id
     }
 
-    #[must_use = "generated grant series id should be used for lineage-aware issuance"]
+    /// Generated grant series id should be used for lineage-aware issuance.
+    #[must_use]
     pub const fn grant_series_id(&self) -> GrantSeriesId {
         self.grant_series_id
     }
@@ -195,7 +197,7 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when the requested supersession policy
     /// cannot be represented by the TrustGrant v0 wire contract.
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    #[must_use]
     pub fn with_lineage(
         mut self,
         grant_series_id: GrantSeriesId,
@@ -225,13 +227,15 @@ impl TrustGrantDraft {
         Ok(self)
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
+    #[must_use]
     pub fn with_default_audience_scope(mut self, audience_scope: Vec<RawAudienceEntry>) -> Self {
         self.default_audience_scope = audience_scope;
         self
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
+    #[must_use]
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the provided time window is inverted.
@@ -247,13 +251,15 @@ impl TrustGrantDraft {
         Ok(self)
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
+    #[must_use]
     pub fn with_revocation(mut self, revocation: RawRevocation) -> Self {
         self.revocation = Some(revocation);
         self
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
+    #[must_use]
     pub fn with_issuer_principal(mut self, issuer_principal: RawPrincipal) -> Self {
         self.issuer_principal = Some(issuer_principal);
         self

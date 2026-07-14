@@ -28,7 +28,8 @@ impl OperationName {
         ))
     }
 
-    #[must_use = "operation name should be inspected or matched"]
+    /// Operation name should be inspected or matched.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -70,12 +71,14 @@ impl CustomOperationName {
         Ok(Self(operation))
     }
 
-    #[must_use = "custom operation name should be inspected or matched"]
+    /// Custom operation name should be inspected or matched.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
-    #[must_use = "wrapped operation name should be available for comparisons"]
+    /// Wrapped operation name should be available for comparisons.
+    #[must_use]
     pub const fn operation_name(&self) -> &OperationName {
         &self.0
     }
@@ -114,7 +117,8 @@ impl ResourceTypeName {
         ))
     }
 
-    #[must_use = "resource type name should be inspected or matched"]
+    /// Resource type name should be inspected or matched.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -153,7 +157,8 @@ impl KeyId {
         ))
     }
 
-    #[must_use = "key identifier should be inspected or matched"]
+    /// Key identifier should be inspected or matched.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -218,12 +223,14 @@ impl SelectorKind {
         })
     }
 
-    #[must_use = "selector kind should be inspected or matched"]
+    /// Selector kind should be inspected or matched.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.value
     }
 
-    #[must_use = "hot-path selector lookup should avoid redundant string equality when possible"]
+    /// Hot-path selector lookup should avoid redundant string equality when possible.
+    #[must_use]
     pub fn same_kind(&self, other: &Self) -> bool {
         match (self.classification, other.classification) {
             (SelectorKindClassification::Other, SelectorKindClassification::Other) => {
@@ -242,7 +249,7 @@ impl SelectorKind {
     /// | Namespace   | 1     |
     /// | Actor       | 2     |
     /// | Other       | None  |
-    #[must_use = "selector kind index enables O(1) lookup in SelectorContext"]
+    #[must_use]
     pub const fn kind_index(&self) -> Option<usize> {
         match self.classification {
             SelectorKindClassification::Authority => Some(0),
@@ -336,7 +343,8 @@ impl PrincipalKind {
         ))
     }
 
-    #[must_use = "principal kind should be inspected or matched"]
+    /// Principal kind should be inspected or matched.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -376,7 +384,8 @@ impl PrincipalId {
         ))
     }
 
-    #[must_use = "principal identifier should be inspected or matched"]
+    /// Principal identifier should be inspected or matched.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

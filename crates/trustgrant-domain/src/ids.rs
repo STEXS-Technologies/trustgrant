@@ -33,17 +33,20 @@ macro_rules! prefixed_uuid_newtype {
         pub struct $name(Uuid);
 
         impl $name {
-            #[must_use = "generated protocol ID should be used in a signable document"]
+            /// Generated protocol ID should be used in a signable document.
+            #[must_use]
             pub fn generate() -> Self {
                 Self(Uuid::new_v4())
             }
 
-            #[must_use = "UUID-backed protocol ID should be used for storage or comparison"]
+            /// UUID-backed protocol ID should be used for storage or comparison.
+            #[must_use]
             pub const fn from_uuid(value: Uuid) -> Self {
                 Self(value)
             }
 
-            #[must_use = "UUID should be used for storage or comparison"]
+            /// UUID should be used for storage or comparison.
+            #[must_use]
             pub const fn as_uuid(&self) -> Uuid {
                 self.0
             }

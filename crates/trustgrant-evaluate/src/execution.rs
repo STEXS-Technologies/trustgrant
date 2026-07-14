@@ -75,19 +75,19 @@ impl TryFrom<EvaluationRequest> for MutationRequest {
 
 impl MutationRequest {
     /// Returns the validated evaluation request.
-    #[must_use = "the request must be evaluated inside the atomic boundary"]
+    #[must_use]
     pub const fn request(&self) -> &EvaluationRequest {
         &self.request
     }
 
     /// Returns the mandatory idempotency identifier.
-    #[must_use = "intent IDs are required for replay-safe mutations"]
+    #[must_use]
     pub const fn intent_id(&self) -> &IntentId {
         &self.intent_id
     }
 
     /// Whether this request creates new resources.
-    #[must_use = "minting uses quota counters rather than an existing version"]
+    #[must_use]
     pub const fn is_mint(&self) -> bool {
         matches!(
             self.request.operation(),
@@ -123,13 +123,13 @@ impl MutationAuthorization {
     }
 
     /// The complete evaluation outcome to record in the mutation audit trail.
-    #[must_use = "the authorization record must be persisted with the mutation"]
+    #[must_use]
     pub const fn outcome(&self) -> &EvaluationOutcome {
         &self.outcome
     }
 
     /// The exact request evaluated inside the transaction boundary.
-    #[must_use = "request binding prevents confused-deputy execution"]
+    #[must_use]
     pub const fn request(&self) -> &EvaluationRequest {
         self.outcome.request()
     }
@@ -146,7 +146,7 @@ impl MutationAuthorization {
 impl EvaluationEngine {
     /// Evaluates a state-changing request after it has passed mutation-binding
     /// validation. Atomic executors must invoke this within their transaction.
-    #[must_use = "mutation authorization must be consumed by an atomic executor"]
+    #[must_use]
     pub fn authorize_mutation(
         self,
         grant: &VerifiedTrustGrant,
@@ -267,7 +267,7 @@ pub struct InMemoryExecutionTransaction {
 
 impl InMemoryExecutionTransaction {
     /// Returns the current version for one registered resource.
-    #[must_use = "resource version is required for optimistic concurrency"]
+    #[must_use]
     pub fn resource_version(&self, resource: &ResourceRef) -> Option<u64> {
         ResourceKey::try_from(resource)
             .ok()
@@ -313,7 +313,7 @@ pub struct InMemoryAtomicInventoryExecutor {
 
 impl InMemoryAtomicInventoryExecutor {
     /// Creates an empty reference executor.
-    #[must_use = "the executor must be used to run atomic mutation tests"]
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -335,7 +335,7 @@ impl InMemoryAtomicInventoryExecutor {
     }
 
     /// Returns the committed audit records in execution order.
-    #[must_use = "audit records are required to inspect execution behavior"]
+    #[must_use]
     pub fn audit_log(&self) -> &[MutationAuthorization] {
         &self.state.audit_log
     }

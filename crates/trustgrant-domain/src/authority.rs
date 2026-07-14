@@ -97,17 +97,20 @@ impl AuthorityId {
         })
     }
 
-    #[must_use = "authority identifier should be inspected or persisted"]
+    /// Authority identifier should be inspected or persisted.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.value
     }
 
-    #[must_use = "authority scheme should be inspectable without reparsing"]
+    /// Authority scheme should be inspectable without reparsing.
+    #[must_use]
     pub const fn scheme(&self) -> AuthorityScheme {
         self.scheme
     }
 
-    #[must_use = "authority scheme name should be inspectable without reparsing"]
+    /// Authority scheme name should be inspectable without reparsing.
+    #[must_use]
     pub fn scheme_name(&self) -> &str {
         &self.value[..self.scheme_end]
     }
@@ -143,7 +146,8 @@ pub struct OwnershipAuthorityState {
 }
 
 impl OwnershipAuthorityState {
-    #[must_use = "ownership authority state should be used for evaluation or persistence"]
+    /// Ownership authority state should be used for evaluation or persistence.
+    #[must_use]
     pub const fn new(origin_authority: AuthorityId, active_owning_authority: AuthorityId) -> Self {
         Self {
             origin_authority,
@@ -151,12 +155,14 @@ impl OwnershipAuthorityState {
         }
     }
 
-    #[must_use = "origin authority is part of canonical resource identity"]
+    /// Origin authority is part of canonical resource identity.
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
 
-    #[must_use = "active owning authority is required for owner-level evaluation"]
+    /// Active owning authority is required for owner-level evaluation.
+    #[must_use]
     pub const fn active_owning_authority(&self) -> &AuthorityId {
         &self.active_owning_authority
     }

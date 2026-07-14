@@ -21,7 +21,8 @@ use trustgrant_error::limits::{MAX_OWNERSHIP_CHAIN_LENGTH, ensure_collection_lim
 pub struct OwnershipChainVerifier;
 
 impl OwnershipChainVerifier {
-    #[must_use = "ownership chain verifier should be reused by adapters and the verification pipeline"]
+    /// Ownership chain verifier should be reused by adapters and the verification pipeline.
+    #[must_use]
     pub const fn new() -> Self {
         Self
     }

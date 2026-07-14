@@ -37,12 +37,14 @@ impl RevocationFreshnessPolicy {
         })
     }
 
-    #[must_use = "non-revoked ttl participates in record freshness normalization"]
+    /// Non-revoked ttl participates in record freshness normalization.
+    #[must_use]
     pub const fn non_revoked_ttl_seconds(&self) -> u64 {
         self.non_revoked_ttl_seconds.get()
     }
 
-    #[must_use = "max stale seconds participates in record freshness normalization"]
+    /// Max stale seconds participates in record freshness normalization.
+    #[must_use]
     pub const fn max_stale_seconds(&self) -> u64 {
         self.max_stale_seconds.get()
     }
@@ -78,17 +80,20 @@ pub struct RevocationStatusProof {
 }
 
 impl RevocationStatusProof {
-    #[must_use = "trustgrant id participates in proof-to-document matching"]
+    /// Trustgrant id participates in proof-to-document matching.
+    #[must_use]
     pub const fn trustgrant_id(&self) -> TrustGrantId {
         self.trustgrant_id
     }
 
-    #[must_use = "status participates in verification and evaluation"]
+    /// Status participates in verification and evaluation.
+    #[must_use]
     pub const fn status(&self) -> RevocationStatus {
         self.status
     }
 
-    #[must_use = "checked_at participates in freshness normalization"]
+    /// Checked_at participates in freshness normalization.
+    #[must_use]
     pub const fn checked_at(&self) -> DateTime<Utc> {
         self.checked_at
     }

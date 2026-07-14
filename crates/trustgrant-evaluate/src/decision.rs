@@ -67,7 +67,8 @@ pub struct EvaluationDecision {
 }
 
 impl EvaluationDecision {
-    #[must_use = "allow decisions are consumed by callers"]
+    /// Allow decisions are consumed by callers.
+    #[must_use]
     pub const fn allow(trustgrant_id: TrustGrantId) -> Self {
         Self {
             trustgrant_id,
@@ -75,7 +76,8 @@ impl EvaluationDecision {
         }
     }
 
-    #[must_use = "deny decisions are consumed by callers"]
+    /// Deny decisions are consumed by callers.
+    #[must_use]
     pub const fn deny(trustgrant_id: TrustGrantId, deny_reason: EvaluationDenyReason) -> Self {
         Self {
             trustgrant_id,
@@ -83,17 +85,20 @@ impl EvaluationDecision {
         }
     }
 
-    #[must_use = "callers need to know whether evaluation passed"]
+    /// Callers need to know whether evaluation passed.
+    #[must_use]
     pub const fn is_allowed(&self) -> bool {
         self.deny_reason.is_none()
     }
 
-    #[must_use = "callers need to know which exact grant was evaluated"]
+    /// Callers need to know which exact grant was evaluated.
+    #[must_use]
     pub const fn trustgrant_id(&self) -> TrustGrantId {
         self.trustgrant_id
     }
 
-    #[must_use = "deny reason is required for audit and debugging"]
+    /// Deny reason is required for audit and debugging.
+    #[must_use]
     pub const fn deny_reason(&self) -> Option<EvaluationDenyReason> {
         self.deny_reason
     }
@@ -120,37 +125,38 @@ pub struct EvaluationOutcome {
 }
 
 impl EvaluationOutcome {
-    #[must_use = "evaluation outcomes should be inspected by callers"]
+    /// Evaluation outcomes should be inspected by callers.
+    #[must_use]
     pub(crate) const fn new(decision: EvaluationDecision, request: EvaluationRequest) -> Self {
         Self { decision, request }
     }
 
     /// The evaluation decision (allow or deny).
-    #[must_use = "the decision determines whether to authorize work"]
+    #[must_use]
     pub const fn decision(&self) -> &EvaluationDecision {
         &self.decision
     }
 
     /// The intent ID that was bound to this evaluation, if any.
-    #[must_use = "intent ID enables replay detection"]
+    #[must_use]
     pub const fn intent_id(&self) -> Option<&IntentId> {
         self.request.intent_id()
     }
 
     /// The resource binding used during evaluation.
-    #[must_use = "resource binding identifies what was authorized"]
+    #[must_use]
     pub const fn resource_binding(&self) -> &ResourceBinding {
         self.request.resource_binding()
     }
 
     /// The origin authority from the resource binding.
-    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         self.request.origin_authority()
     }
 
     /// When the evaluation was performed.
-    #[must_use = "evaluation timestamp is required for audit"]
+    #[must_use]
     pub const fn evaluated_at(&self) -> DateTime<Utc> {
         self.request.evaluated_at()
     }
@@ -160,7 +166,7 @@ impl EvaluationOutcome {
     /// Execution adapters must persist this binding, or an authenticated digest
     /// of it, alongside the decision so an allow cannot be replayed for a
     /// different resource, operation, subject, or audience.
-    #[must_use = "the evaluated request is required for atomic execution and audit"]
+    #[must_use]
     pub const fn request(&self) -> &EvaluationRequest {
         &self.request
     }

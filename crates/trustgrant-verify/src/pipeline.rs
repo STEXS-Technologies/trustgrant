@@ -28,12 +28,14 @@ pub struct VerificationArtifacts {
 }
 
 impl VerificationArtifacts {
-    #[must_use = "verified grant is required for registration and evaluation"]
+    /// Verified grant is required for registration and evaluation.
+    #[must_use]
     pub const fn verified_grant(&self) -> &VerifiedTrustGrant {
         &self.verified_grant
     }
 
-    #[must_use = "canonical bytes may be retained for audit or debugging"]
+    /// Canonical bytes may be retained for audit or debugging.
+    #[must_use]
     pub const fn canonical_bytes(&self) -> &CanonicalTrustGrantBytes {
         &self.canonical_bytes
     }
@@ -49,7 +51,8 @@ impl VerificationArtifacts {
 pub struct VerificationPipeline;
 
 impl VerificationPipeline {
-    #[must_use = "verification pipeline should be reused by adapters"]
+    /// Verification pipeline should be reused by adapters.
+    #[must_use]
     pub const fn new() -> Self {
         Self
     }

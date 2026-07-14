@@ -29,7 +29,8 @@ impl AlgorithmName {
         ))
     }
 
-    #[must_use = "algorithm name should be used during verification"]
+    /// Algorithm name should be used during verification.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -67,7 +68,8 @@ impl PublicKeyMaterial {
         ))
     }
 
-    #[must_use = "public-key material should be forwarded to crypto adapters"]
+    /// Public-key material should be forwarded to crypto adapters.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -110,7 +112,8 @@ impl SignatureFormat {
         ))
     }
 
-    #[must_use = "signature-profile format should be inspected by adapters"]
+    /// Signature-profile format should be inspected by adapters.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -153,7 +156,8 @@ impl CanonicalizationName {
         ))
     }
 
-    #[must_use = "canonicalization name should be inspected during verification"]
+    /// Canonicalization name should be inspected during verification.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -194,12 +198,14 @@ impl SignatureProfile {
         })
     }
 
-    #[must_use = "signature format participates in verifier dispatch"]
+    /// Signature format participates in verifier dispatch.
+    #[must_use]
     pub const fn format(&self) -> &SignatureFormat {
         &self.format
     }
 
-    #[must_use = "canonicalization participates in payload verification"]
+    /// Canonicalization participates in payload verification.
+    #[must_use]
     pub const fn canonicalization(&self) -> &CanonicalizationName {
         &self.canonicalization
     }
@@ -245,32 +251,38 @@ impl AuthorityKeyRecord {
         })
     }
 
-    #[must_use = "key id participates in key selection"]
+    /// Key id participates in key selection.
+    #[must_use]
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
 
-    #[must_use = "algorithm participates in verifier dispatch"]
+    /// Algorithm participates in verifier dispatch.
+    #[must_use]
     pub const fn algorithm(&self) -> &AlgorithmName {
         &self.algorithm
     }
 
-    #[must_use = "public-key material participates in signature verification"]
+    /// Public-key material participates in signature verification.
+    #[must_use]
     pub const fn public_key(&self) -> &PublicKeyMaterial {
         &self.public_key
     }
 
-    #[must_use = "not_before participates in key-validity checks"]
+    /// Not_before participates in key-validity checks.
+    #[must_use]
     pub const fn not_before(&self) -> DateTime<Utc> {
         self.not_before
     }
 
-    #[must_use = "not_after participates in key-validity checks"]
+    /// Not_after participates in key-validity checks.
+    #[must_use]
     pub const fn not_after(&self) -> DateTime<Utc> {
         self.not_after
     }
 
-    #[must_use = "signature verification must know whether a key is active"]
+    /// Signature verification must know whether a key is active.
+    #[must_use]
     pub fn is_active_at(&self, timestamp: DateTime<Utc>) -> bool {
         timestamp >= self.not_before && timestamp <= self.not_after
     }
@@ -298,12 +310,14 @@ impl DelegatedPrincipalRef {
         })
     }
 
-    #[must_use = "principal kind participates in signer attribution"]
+    /// Principal kind participates in signer attribution.
+    #[must_use]
     pub const fn kind(&self) -> &PrincipalKind {
         &self.kind
     }
 
-    #[must_use = "principal id participates in signer attribution"]
+    /// Principal id participates in signer attribution.
+    #[must_use]
     pub const fn id(&self) -> &PrincipalId {
         &self.id
     }
@@ -329,7 +343,7 @@ impl ResolvedSignerBinding {
     /// boundary: richer signer models from deployment profiles must be
     /// collapsed into one effective binding before verification enters the
     /// core.
-    #[must_use = "resolved signer bindings should be passed into verification metadata"]
+    #[must_use]
     pub const fn new(
         issuer_authority: AuthorityId,
         key_record: AuthorityKeyRecord,
@@ -344,22 +358,26 @@ impl ResolvedSignerBinding {
         }
     }
 
-    #[must_use = "issuer authority participates in trust and signature checks"]
+    /// Issuer authority participates in trust and signature checks.
+    #[must_use]
     pub const fn issuer_authority(&self) -> &AuthorityId {
         &self.issuer_authority
     }
 
-    #[must_use = "resolved key record participates in verification"]
+    /// Resolved key record participates in verification.
+    #[must_use]
     pub const fn key_record(&self) -> &AuthorityKeyRecord {
         &self.key_record
     }
 
-    #[must_use = "signature profile participates in canonical verification"]
+    /// Signature profile participates in canonical verification.
+    #[must_use]
     pub const fn signature_profile(&self) -> &SignatureProfile {
         &self.signature_profile
     }
 
-    #[must_use = "delegated principal may participate in signer attribution"]
+    /// Delegated principal may participate in signer attribution.
+    #[must_use]
     pub const fn delegated_principal(&self) -> Option<&DelegatedPrincipalRef> {
         self.delegated_principal.as_ref()
     }

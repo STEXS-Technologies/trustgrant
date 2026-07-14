@@ -114,7 +114,8 @@ pub enum RawSupersessionPolicy {
 }
 
 impl RawSupersessionPolicy {
-    #[must_use = "supersession policy string representation for canonicalization"]
+    /// Supersession policy string representation for canonicalization.
+    #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Coexist => "coexist",
@@ -134,7 +135,8 @@ pub struct RawPrincipal {
 }
 
 impl RawPrincipal {
-    #[must_use = "raw issuer principal should be forwarded into one draft or document"]
+    /// Raw issuer principal should be forwarded into one draft or document.
+    #[must_use]
     pub fn new(kind: impl Into<CompactString>, id: impl Into<CompactString>) -> Self {
         Self {
             kind: kind.into(),
@@ -156,7 +158,8 @@ pub struct RawScope {
 }
 
 impl RawScope {
-    #[must_use = "all-scope should be used in a raw document or draft"]
+    /// All-scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn all() -> Self {
         Self {
             all: true,
@@ -165,7 +168,8 @@ impl RawScope {
         }
     }
 
-    #[must_use = "allow-scope should be used in a raw document or draft"]
+    /// Allow-scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn allow(selectors: Vec<RawSelector>) -> Self {
         Self {
             all: false,
@@ -174,7 +178,8 @@ impl RawScope {
         }
     }
 
-    #[must_use = "custom scope should be used in a raw document or draft"]
+    /// Custom scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(
         all: bool,
         allow: Option<Vec<RawSelector>>,
@@ -199,7 +204,8 @@ pub struct RawSelector {
 }
 
 impl RawSelector {
-    #[must_use = "all-selector should be used in a raw document or draft"]
+    /// All-selector should be used in a raw document or draft.
+    #[must_use]
     pub fn all(kind: impl Into<CompactString>) -> Self {
         Self {
             kind: kind.into(),
@@ -209,7 +215,8 @@ impl RawSelector {
         }
     }
 
-    #[must_use = "value-selector should be used in a raw document or draft"]
+    /// Value-selector should be used in a raw document or draft.
+    #[must_use]
     pub fn values(kind: impl Into<CompactString>, values: Vec<CompactString>) -> Self {
         Self {
             kind: kind.into(),
@@ -219,7 +226,8 @@ impl RawSelector {
         }
     }
 
-    #[must_use = "expression-selector should be used in a raw document or draft"]
+    /// Expression-selector should be used in a raw document or draft.
+    #[must_use]
     pub fn expressions(kind: impl Into<CompactString>, expressions: Vec<CompactString>) -> Self {
         Self {
             kind: kind.into(),
@@ -229,7 +237,8 @@ impl RawSelector {
         }
     }
 
-    #[must_use = "custom selector should be used in a raw document or draft"]
+    /// Custom selector should be used in a raw document or draft.
+    #[must_use]
     pub fn new(
         kind: impl Into<CompactString>,
         all: bool,
@@ -255,7 +264,8 @@ pub struct RawCapabilities {
 }
 
 impl RawCapabilities {
-    #[must_use = "raw capabilities should be used in a raw document or draft"]
+    /// Raw capabilities should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(recognize: bool, mint: bool) -> Self {
         Self { recognize, mint }
     }
@@ -270,7 +280,8 @@ pub struct RawResourceScope {
 }
 
 impl RawResourceScope {
-    #[must_use = "resource scope should be used in a raw document or draft"]
+    /// Resource scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(types: BTreeMap<Utf16Key, RawResourceType>) -> Self {
         Self { types }
     }
@@ -295,7 +306,8 @@ pub struct RawResourceType {
 }
 
 impl RawResourceType {
-    #[must_use = "resource type scope should be used in a raw document or draft"]
+    /// Resource type scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(
         all: bool,
         allow: Option<Vec<RawSelector>>,
@@ -327,7 +339,8 @@ pub struct RawTypeCapabilities {
 }
 
 impl RawTypeCapabilities {
-    #[must_use = "raw type capabilities should be used in a raw document or draft"]
+    /// Raw type capabilities should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(recognize: Option<bool>, mint: Option<bool>) -> Self {
         Self { recognize, mint }
     }
@@ -344,7 +357,8 @@ pub struct RawTypeConstraints {
 }
 
 impl RawTypeConstraints {
-    #[must_use = "raw type constraints should be used in a raw document or draft"]
+    /// Raw type constraints should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(
         minting: RawMintingConstraints,
         audience_scope: Option<Vec<RawAudienceEntry>>,
@@ -366,7 +380,8 @@ pub struct RawMintingConstraints {
 }
 
 impl RawMintingConstraints {
-    #[must_use = "raw minting constraints should be used in a raw document or draft"]
+    /// Raw minting constraints should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(max_total: Option<u64>, max_per_user: Option<u64>) -> Self {
         Self {
             max_total,
@@ -388,7 +403,8 @@ pub struct RawOperationScope {
 }
 
 impl RawOperationScope {
-    #[must_use = "all-operations scope should be used in a raw document or draft"]
+    /// All-operations scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn all() -> Self {
         Self {
             all: true,
@@ -397,7 +413,8 @@ impl RawOperationScope {
         }
     }
 
-    #[must_use = "allow-operations scope should be used in a raw document or draft"]
+    /// Allow-operations scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn allow(operations: Vec<CompactString>) -> Self {
         Self {
             all: false,
@@ -406,7 +423,8 @@ impl RawOperationScope {
         }
     }
 
-    #[must_use = "custom operations scope should be used in a raw document or draft"]
+    /// Custom operations scope should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(
         all: bool,
         allow: Option<Vec<CompactString>>,
@@ -429,7 +447,8 @@ pub struct RawAudienceEntry {
 }
 
 impl RawAudienceEntry {
-    #[must_use = "raw audience entry should be used in a raw document or draft"]
+    /// Raw audience entry should be used in a raw document or draft.
+    #[must_use]
     pub fn new(
         authority_id: impl Into<CompactString>,
         scope: RawScope,
@@ -451,7 +470,8 @@ pub struct RawGlobalConstraints {
 }
 
 impl RawGlobalConstraints {
-    #[must_use = "raw global constraints should be used in a raw document or draft"]
+    /// Raw global constraints should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(time: Option<RawTimeWindow>) -> Self {
         Self { time }
     }
@@ -466,7 +486,8 @@ pub struct RawTimeWindow {
 }
 
 impl RawTimeWindow {
-    #[must_use = "raw time window should be used in a raw document or draft"]
+    /// Raw time window should be used in a raw document or draft.
+    #[must_use]
     pub const fn new(not_before: DateTime<Utc>, not_after: DateTime<Utc>) -> Self {
         Self {
             not_before,
@@ -484,7 +505,8 @@ pub struct RawRevocation {
 }
 
 impl RawRevocation {
-    #[must_use = "raw revocation policy should be used in a raw document or draft"]
+    /// Raw revocation policy should be used in a raw document or draft.
+    #[must_use]
     pub fn new(revocable: bool, revocation_endpoint: impl Into<CompactString>) -> Self {
         Self {
             revocable,

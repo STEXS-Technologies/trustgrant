@@ -24,7 +24,8 @@ use trustgrant_error::TrustGrantError;
 pub struct CanonicalOwnershipTransitionBytes(Vec<u8>);
 
 impl CanonicalOwnershipTransitionBytes {
-    #[must_use = "canonical bytes should be passed to signature verification"]
+    /// Canonical bytes should be passed to signature verification.
+    #[must_use]
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }

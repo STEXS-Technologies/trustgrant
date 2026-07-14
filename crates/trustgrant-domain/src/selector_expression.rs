@@ -105,17 +105,20 @@ impl SelectorExpression {
         })
     }
 
-    #[must_use = "selector expressions participate in evaluation matching"]
+    /// Selector expressions participate in evaluation matching.
+    #[must_use]
     pub const fn predicate(&self) -> SelectorPredicate {
         self.predicate
     }
 
-    #[must_use = "selector expression argument participates in evaluation matching"]
+    /// Selector expression argument participates in evaluation matching.
+    #[must_use]
     pub fn argument(&self) -> &str {
         &self.argument
     }
 
-    #[must_use = "selector expression match result determines scope evaluation"]
+    /// Selector expression match result determines scope evaluation.
+    #[must_use]
     pub fn matches(&self, candidate: &str) -> bool {
         match self.predicate {
             SelectorPredicate::Equals => candidate == self.argument(),

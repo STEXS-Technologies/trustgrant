@@ -54,7 +54,8 @@ struct SelectorValues {
 }
 
 impl SelectorContext {
-    #[must_use = "new selector contexts should be populated before evaluation"]
+    /// New selector contexts should be populated before evaluation.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -111,7 +112,8 @@ impl SelectorContext {
         Ok(())
     }
 
-    #[must_use = "evaluation needs to inspect values by selector kind"]
+    /// Evaluation needs to inspect values by selector kind.
+    #[must_use]
     pub fn values_for_kind(&self, kind: &SelectorKind) -> Option<&[String]> {
         if let Some(idx) = kind_index_for_selector_kind(kind)
             && let Some(Some(entry_idx)) = self.kind_index.get(idx)
@@ -126,7 +128,8 @@ impl SelectorContext {
             .map(|entry| entry.values.as_slice())
     }
 
-    #[must_use = "tests and adapters may need borrowed selector-kind access"]
+    /// Tests and adapters may need borrowed selector-kind access.
+    #[must_use]
     pub fn values_for_kind_str(&self, kind: &str) -> Option<&[String]> {
         self.entries
             .iter()
@@ -134,7 +137,8 @@ impl SelectorContext {
             .map(|entry| entry.values.as_slice())
     }
 
-    #[must_use = "evaluation may need to know whether any selector values were provided"]
+    /// Evaluation may need to know whether any selector values were provided.
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -186,7 +190,7 @@ pub struct ResourceRef {
 
 impl ResourceRef {
     /// Creates a new resource reference.
-    #[must_use = "resource references are required for evaluation"]
+    #[must_use]
     pub const fn new(origin_authority: AuthorityId, resource_id: String) -> Self {
         Self {
             origin_authority,
@@ -222,19 +226,19 @@ impl ResourceRef {
     }
 
     /// The authority that originated the resource.
-    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
 
     /// The resource's unique identifier within the origin authority's namespace.
-    #[must_use = "resource ID identifies the specific resource instance"]
+    #[must_use]
     pub fn resource_id(&self) -> &str {
         &self.resource_id
     }
 
     /// The resource type bound into this reference, when one was supplied.
-    #[must_use = "resource type is part of canonical resource identity"]
+    #[must_use]
     pub const fn resource_type(&self) -> Option<&ResourceTypeName> {
         self.resource_type.as_ref()
     }
@@ -244,13 +248,13 @@ impl ResourceRef {
     /// When set, the execution layer MUST verify that the current resource
     /// version matches this value before applying any mutation. This enables
     /// stale-state detection in concurrent environments.
-    #[must_use = "expected version is used for stale-state detection"]
+    #[must_use]
     pub const fn expected_version(&self) -> Option<u64> {
         self.expected_version
     }
 
     /// Sets the expected resource version for stale-state detection.
-    #[must_use = "builder should be consumed"]
+    #[must_use]
     pub const fn with_expected_version(mut self, version: u64) -> Self {
         self.expected_version = Some(version);
         self
@@ -270,7 +274,7 @@ pub struct TemplateRef {
 
 impl TemplateRef {
     /// Creates a new template reference for mint operations.
-    #[must_use = "template references are required for mint evaluation"]
+    #[must_use]
     pub const fn new(origin_authority: AuthorityId) -> Self {
         Self {
             origin_authority,
@@ -296,13 +300,13 @@ impl TemplateRef {
     }
 
     /// The authority that defines the mint template or resource class.
-    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
 
     /// The issuer-defined template identifier, when the reference is typed.
-    #[must_use = "template identifier binds a mint to its authorized class"]
+    #[must_use]
     pub fn template_id(&self) -> Option<&str> {
         self.template_id.as_deref()
     }
@@ -326,7 +330,7 @@ pub enum ResourceBinding {
 
 impl ResourceBinding {
     /// Returns the origin authority from whichever binding variant is active.
-    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         match self {
             Self::Existing(ref_) => ref_.origin_authority(),
@@ -335,7 +339,7 @@ impl ResourceBinding {
     }
 
     /// Whether this binding is a mint request.
-    #[must_use = "mint vs existing-resource semantics differ during evaluation"]
+    #[must_use]
     pub const fn is_mint(&self) -> bool {
         matches!(self, Self::Mint(_))
     }
@@ -352,7 +356,8 @@ pub struct MintContext {
 }
 
 impl MintContext {
-    #[must_use = "mint context should be provided for mint-constraint evaluation"]
+    /// Mint context should be provided for mint-constraint evaluation.
+    #[must_use]
     pub const fn new(current_total_mints: u64, current_mints_for_audience: u64) -> Self {
         Self {
             current_total_mints,
@@ -360,12 +365,14 @@ impl MintContext {
         }
     }
 
-    #[must_use = "total minted count is required for max_total checks"]
+    /// Total minted count is required for max_total checks.
+    #[must_use]
     pub const fn current_total_mints(&self) -> u64 {
         self.current_total_mints
     }
 
-    #[must_use = "audience minted count is required for max_per_user checks"]
+    /// Audience minted count is required for max_per_user checks.
+    #[must_use]
     pub const fn current_mints_for_audience(&self) -> u64 {
         self.current_mints_for_audience
     }
@@ -407,12 +414,14 @@ impl ResourceContext {
         self.selectors.insert(kind, value)
     }
 
-    #[must_use = "resource type is required for evaluation"]
+    /// Resource type is required for evaluation.
+    #[must_use]
     pub const fn resource_type(&self) -> &ResourceTypeName {
         &self.resource_type
     }
 
-    #[must_use = "resource selectors are required for evaluation"]
+    /// Resource selectors are required for evaluation.
+    #[must_use]
     pub const fn selectors(&self) -> &SelectorContext {
         &self.selectors
     }
@@ -540,7 +549,8 @@ impl EvaluationRequest {
         self.audience_principal_context.insert(kind, value)
     }
 
-    #[must_use = "mint evaluation may require explicit runtime mint counters"]
+    /// Mint evaluation may require explicit runtime mint counters.
+    #[must_use]
     pub const fn with_mint_context(mut self, mint_context: MintContext) -> Self {
         self.mint_context = Some(mint_context);
         self
@@ -555,20 +565,21 @@ impl EvaluationRequest {
     /// Use [`IntentId::generate`] for machine-generated IDs (infallible) or
     /// [`IntentId::new`] when the identifier must match an external tracking
     /// system.
-    #[must_use = "intent ID should be set for idempotent authorization"]
+    #[must_use]
     pub fn with_intent_id(mut self, intent_id: IntentId) -> Self {
         self.intent_id = Some(intent_id);
         self
     }
 
-    #[must_use = "requested operation is required for evaluation"]
+    /// Requested operation is required for evaluation.
+    #[must_use]
     pub const fn operation(&self) -> &RequestedOperation {
         &self.operation
     }
 
     /// The resource binding for this request, carrying the origin authority
     /// and distinguishing existing-resource requests from mint requests.
-    #[must_use = "resource binding is required for evaluation and spec §13 step 3"]
+    #[must_use]
     pub const fn resource_binding(&self) -> &ResourceBinding {
         &self.resource_binding
     }
@@ -576,7 +587,7 @@ impl EvaluationRequest {
     /// The intent ID for this request, if set.
     ///
     /// Binds the evaluation outcome to a specific authorization attempt.
-    #[must_use = "intent ID is required for idempotent authorization"]
+    #[must_use]
     pub const fn intent_id(&self) -> Option<&IntentId> {
         self.intent_id.as_ref()
     }
@@ -584,47 +595,55 @@ impl EvaluationRequest {
     /// The origin authority bound to this request (convenience accessor).
     ///
     /// Delegates to [`ResourceBinding::origin_authority`].
-    #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         self.resource_binding.origin_authority()
     }
 
-    #[must_use = "target authority is required for evaluation and audit"]
+    /// Target authority is required for evaluation and audit.
+    #[must_use]
     pub const fn target_authority(&self) -> &AuthorityId {
         &self.target_authority
     }
 
-    #[must_use = "target selectors are required for evaluation"]
+    /// Target selectors are required for evaluation.
+    #[must_use]
     pub const fn target_context(&self) -> &SelectorContext {
         &self.target_context
     }
 
-    #[must_use = "audience authority is required for evaluation"]
+    /// Audience authority is required for evaluation.
+    #[must_use]
     pub const fn audience_authority(&self) -> &AuthorityId {
         &self.audience_authority
     }
 
-    #[must_use = "audience selectors are required for evaluation"]
+    /// Audience selectors are required for evaluation.
+    #[must_use]
     pub const fn audience_context(&self) -> &SelectorContext {
         &self.audience_context
     }
 
-    #[must_use = "audience principal selectors are required for evaluation"]
+    /// Audience principal selectors are required for evaluation.
+    #[must_use]
     pub const fn audience_principal_context(&self) -> &SelectorContext {
         &self.audience_principal_context
     }
 
-    #[must_use = "resource context is required for evaluation"]
+    /// Resource context is required for evaluation.
+    #[must_use]
     pub const fn resource(&self) -> &ResourceContext {
         &self.resource
     }
 
-    #[must_use = "mint context is required for mint-constraint evaluation"]
+    /// Mint context is required for mint-constraint evaluation.
+    #[must_use]
     pub const fn mint_context(&self) -> Option<MintContext> {
         self.mint_context
     }
 
-    #[must_use = "evaluation time is required for time-window checks"]
+    /// Evaluation time is required for time-window checks.
+    #[must_use]
     pub const fn evaluated_at(&self) -> DateTime<Utc> {
         self.evaluated_at
     }
@@ -669,12 +688,13 @@ impl IntentId {
     /// Suitable for machine-generated IDs where an external tracking system
     /// is not involved. The generated ID is a UUIDv4 prefixed with `intent_`
     /// for recognizable logging.
-    #[must_use = "intent IDs should be consumed by the request builder"]
+    #[must_use]
     pub fn generate() -> Self {
         Self(format!("intent_{}", uuid::Uuid::new_v4()))
     }
 
-    #[must_use = "intent IDs are used for idempotency lookup"]
+    /// Intent IDs are used for idempotency lookup.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

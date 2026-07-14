@@ -26,7 +26,8 @@ pub struct OwnershipTransitionVerificationMetadata {
 }
 
 impl OwnershipTransitionVerificationMetadata {
-    #[must_use = "verification metadata should be attached to verified transitions"]
+    /// Verification metadata should be attached to verified transitions.
+    #[must_use]
     pub const fn new(
         verified_at: DateTime<Utc>,
         posture: VerificationPosture,
@@ -41,22 +42,26 @@ impl OwnershipTransitionVerificationMetadata {
         }
     }
 
-    #[must_use = "verified_at is required for audit and time-based checks"]
+    /// Verified_at is required for audit and time-based checks.
+    #[must_use]
     pub const fn verified_at(&self) -> DateTime<Utc> {
         self.verified_at
     }
 
-    #[must_use = "posture is required for audit and policy"]
+    /// Posture is required for audit and policy.
+    #[must_use]
     pub const fn posture(&self) -> VerificationPosture {
         self.posture
     }
 
-    #[must_use = "predecessor signer binding is required for audit"]
+    /// Predecessor signer binding is required for audit.
+    #[must_use]
     pub const fn predecessor_signer_binding(&self) -> &ResolvedSignerBinding {
         &self.predecessor_signer_binding
     }
 
-    #[must_use = "successor signer binding is required for audit"]
+    /// Successor signer binding is required for audit.
+    #[must_use]
     pub const fn successor_signer_binding(&self) -> &ResolvedSignerBinding {
         &self.successor_signer_binding
     }
@@ -77,7 +82,8 @@ pub struct VerifiedOwnershipTransition {
 }
 
 impl VerifiedOwnershipTransition {
-    #[must_use = "verified transitions should only be created after proof verification"]
+    /// Verified transitions should only be created after proof verification.
+    #[must_use]
     pub const fn new(
         document: ValidatedOwnershipTransitionDocument,
         metadata: OwnershipTransitionVerificationMetadata,
@@ -90,17 +96,20 @@ impl VerifiedOwnershipTransition {
         }
     }
 
-    #[must_use = "validated transition document is required for audit"]
+    /// Validated transition document is required for audit.
+    #[must_use]
     pub const fn document(&self) -> &ValidatedOwnershipTransitionDocument {
         &self.document
     }
 
-    #[must_use = "metadata is required for audit"]
+    /// Metadata is required for audit.
+    #[must_use]
     pub const fn metadata(&self) -> &OwnershipTransitionVerificationMetadata {
         &self.metadata
     }
 
-    #[must_use = "normalized record is required for chain verification"]
+    /// Normalized record is required for chain verification.
+    #[must_use]
     pub const fn record(&self) -> &OwnershipTransitionRecord {
         &self.record
     }
@@ -116,7 +125,8 @@ impl VerifiedOwnershipTransition {
 pub struct OwnershipTransitionVerifier;
 
 impl OwnershipTransitionVerifier {
-    #[must_use = "ownership transition verifier should be reused by adapters and pipelines"]
+    /// Ownership transition verifier should be reused by adapters and pipelines.
+    #[must_use]
     pub const fn new() -> Self {
         Self
     }

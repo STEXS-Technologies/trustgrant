@@ -57,7 +57,8 @@ pub enum RevocationSourceKind {
 }
 
 impl RevocationSourceKind {
-    #[must_use = "verification posture policy must distinguish live from non-live evidence"]
+    /// Verification posture policy must distinguish live from non-live evidence.
+    #[must_use]
     pub const fn is_non_live(self) -> bool {
         matches!(self, Self::Snapshot | Self::ProofBundle)
     }
@@ -98,32 +99,38 @@ impl RevocationRecord {
         })
     }
 
-    #[must_use = "revocation status is required for evaluation and audit"]
+    /// Revocation status is required for evaluation and audit.
+    #[must_use]
     pub const fn status(&self) -> RevocationStatus {
         self.status
     }
 
-    #[must_use = "revocation source kind is required for audit and policy"]
+    /// Revocation source kind is required for audit and policy.
+    #[must_use]
     pub const fn source_kind(&self) -> RevocationSourceKind {
         self.source_kind
     }
 
-    #[must_use = "proof finality is required for posture-aware verification"]
+    /// Proof finality is required for posture-aware verification.
+    #[must_use]
     pub const fn finality(&self) -> ProofFinality {
         self.finality
     }
 
-    #[must_use = "revocation checked_at is required for audit"]
+    /// Revocation checked_at is required for audit.
+    #[must_use]
     pub const fn checked_at(&self) -> DateTime<Utc> {
         self.checked_at
     }
 
-    #[must_use = "revocation freshness must be inspected by callers"]
+    /// Revocation freshness must be inspected by callers.
+    #[must_use]
     pub const fn fresh_until(&self) -> DateTime<Utc> {
         self.fresh_until
     }
 
-    #[must_use = "revocation freshness is required for safe cached verification"]
+    /// Revocation freshness is required for safe cached verification.
+    #[must_use]
     pub fn is_fresh_at(&self, timestamp: DateTime<Utc>) -> bool {
         timestamp <= self.fresh_until
     }
@@ -144,7 +151,8 @@ pub enum VerifiedRevocationState {
 }
 
 impl VerifiedRevocationState {
-    #[must_use = "verification must know whether revocation proof was required"]
+    /// Verification must know whether revocation proof was required.
+    #[must_use]
     pub const fn checked_record(self) -> Option<RevocationRecord> {
         match self {
             Self::NonRevocable => None,
@@ -152,7 +160,8 @@ impl VerifiedRevocationState {
         }
     }
 
-    #[must_use = "evaluation must know whether the checked grant was revoked"]
+    /// Evaluation must know whether the checked grant was revoked.
+    #[must_use]
     pub fn is_revoked(self) -> bool {
         match self {
             Self::NonRevocable => false,
