@@ -626,7 +626,7 @@ mod tests {
         resource
     }
 
-    fn existing_mutation(intent_id: &str, expected_version: u64) -> MutationRequest {
+    fn existing_mutation(intent_id: IntentId, expected_version: u64) -> MutationRequest {
         let request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
             ResourceBinding::Existing(
@@ -644,13 +644,12 @@ mod tests {
             timestamp(),
         )
         .unwrap_or_else(|error| panic!("request should be valid: {error}"))
-        .with_intent_id(intent_id)
-        .unwrap_or_else(|error| panic!("intent should be valid: {error}"));
+        .with_intent_id(intent_id);
         MutationRequest::try_from(request)
             .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
     }
 
-    fn mint_mutation(intent_id: &str) -> MutationRequest {
+    fn mint_mutation(intent_id: IntentId) -> MutationRequest {
         let mut request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
             ResourceBinding::Mint(
@@ -667,9 +666,7 @@ mod tests {
             .insert_audience_principal_selector("actor", "player-123")
             .unwrap_or_else(|error| panic!("principal should be valid: {error}"));
         MutationRequest::try_from(
-            request
-                .with_intent_id(intent_id)
-                .unwrap_or_else(|error| panic!("intent should be valid: {error}")),
+            request.with_intent_id(intent_id),
         )
         .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
     }
@@ -688,8 +685,7 @@ mod tests {
             timestamp(),
         )
         .unwrap_or_else(|error| panic!("request should be valid: {error}"))
-        .with_intent_id("mutation-1")
-        .unwrap_or_else(|error| panic!("intent should be valid: {error}"));
+        .with_intent_id(IntentId::new("mutation-1").unwrap());
 
         assert_eq!(
             MutationRequest::try_from(untyped),

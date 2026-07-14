@@ -546,20 +546,19 @@ impl EvaluationRequest {
         self
     }
 
-    /// Sets a validated intent ID for this request.
+    /// Sets an intent ID for this request.
     ///
     /// An intent ID uniquely identifies an authorization attempt. When set, the
     /// evaluation outcome is bound to this ID, enabling the execution layer to
     /// detect and reject duplicate or replayed authorization attempts.
     ///
-    /// # Errors
-    ///
-    /// Returns [`TrustGrantError`] if the identifier is empty or exceeds the
-    /// request-value size limit.
+    /// Use [`IntentId::generate`] for machine-generated IDs (infallible) or
+    /// [`IntentId::new`] when the identifier must match an external tracking
+    /// system.
     #[must_use = "intent ID should be set for idempotent authorization"]
-    pub fn with_intent_id(mut self, intent_id: impl Into<String>) -> Result<Self, TrustGrantError> {
-        self.intent_id = Some(IntentId::new(intent_id.into())?);
-        Ok(self)
+    pub fn with_intent_id(mut self, intent_id: IntentId) -> Self {
+        self.intent_id = Some(intent_id);
+        self
     }
 
     #[must_use = "requested operation is required for evaluation"]
@@ -647,17 +646,37 @@ impl EvaluationRequest {
 /// The ID is scoped by the execution adapter's idempotency store and must be
 /// paired with the full request binding. Reusing it for a different request is
 /// an intent conflict, not a successful retry.
+///
+/// Machine-generated IDs (via [`IntentId::generate`]) are infallible and
+/// suitable for most use cases. User-supplied IDs (via [`IntentId::new`]) are
+/// validated for length and content — use those when the intent ID must match
+/// an external tracking system.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IntentId(String);
 
 impl IntentId {
-    /// Creates one validated intent ID.
+    /// Creates one validated intent ID from a caller-supplied string.
     ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the identifier is empty or too large.
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         Ok(Self(normalize_context_value("intent_id", &value.into())?))
+    }
+
+    /// Generates an infallible, unique intent ID using the current timestamp.
+    ///
+    /// Suitable for machine-generated IDs where an external tracking system
+    /// is not involved. The generated ID is scoped to nanosecond precision
+    /// and prefixed with `intent_` for recognizable logging.
+    #[must_use = "intent IDs should be consumed by the request builder"]
+    pub fn generate() -> Self {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        Self(format!("intent_{nanos}"))
     }
 
     #[must_use = "intent IDs are used for idempotency lookup"]
@@ -942,8 +961,7 @@ mod tests {
             fixed_timestamp(2026, 4, 8, 12, 0, 0),
         )
         .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"))
-        .with_intent_id("txn-001")
-        .unwrap_or_else(|error| panic!("intent_id should be valid: {error}"));
+        .with_intent_id(IntentId::new("txn-001").unwrap_or_else(|error| panic!("intent_id should be valid: {error}")));
 
         assert_eq!(request.intent_id().map(IntentId::as_str), Some("txn-001"));
     }

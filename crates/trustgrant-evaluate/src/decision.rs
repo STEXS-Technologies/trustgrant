@@ -482,7 +482,7 @@ mod tests {
             ts,
         )
         .unwrap()
-        .with_intent_id("txn-001")
+        .with_intent_id(IntentId::new("txn-001").unwrap())
         .unwrap();
 
         let outcome = EvaluationOutcome::new(decision, request);

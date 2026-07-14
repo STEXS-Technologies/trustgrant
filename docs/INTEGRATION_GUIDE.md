@@ -337,7 +337,7 @@ let request = EvaluationRequest::new(
     resource,
     evaluation_time,
 )?
-.with_intent_id("txn-001")?;  // ← replay prevention
+.with_intent_id(IntentId::new("txn-001")?);  // ← replay prevention
 
 let outcome: EvaluationOutcome = EvaluationEngine::new()
     .evaluate(&verified_grant, &request);

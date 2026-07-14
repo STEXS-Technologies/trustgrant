@@ -995,6 +995,14 @@ The outcome is the **authorization record** that the execution layer persists, o
 a lossless authenticated digest, as an append-only audit event before committing any state
 mutation. An allow record must never be substituted for a different request.
 
+> **Note on enforcement:** This section defines integration requirements, not
+> protocol-enforceable rules. The TrustGrant engine evaluates grants purely in
+> memory and has no access to external state or storage. The atomic execution
+> boundary MUST be implemented by the integration layer that calls the engine.
+> The protocol provides the data structures (`intent_id`, `expected_version`,
+> `EvaluationOutcome`) and specifies the required semantics; enforcement is the
+> adapter's responsibility.
+
 ### 15.5 Required Transaction Boundary
 
 A compliant implementation MUST execute the following steps within a single serializable
