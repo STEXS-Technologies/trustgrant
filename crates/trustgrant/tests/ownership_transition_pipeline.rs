@@ -145,7 +145,7 @@ fn ownership_pipeline_bundle() -> TrustGrantProofBundle {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -251,7 +251,7 @@ fn ownership_transition_pipeline_rejects_without_transition_chain() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));

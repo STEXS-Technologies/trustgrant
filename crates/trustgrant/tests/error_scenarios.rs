@@ -102,7 +102,7 @@ fn verification_metadata(revocation_status: RevocationStatus) -> VerificationMet
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                fixed_timestamp(2026, 4, 9, 12, 0, 0),
             )
             .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
         ),

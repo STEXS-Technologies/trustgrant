@@ -423,7 +423,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
 
@@ -467,7 +467,7 @@ mod tests {
                 .unwrap_or_else(|error| panic!("proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
         assert!(bundle.insert_revocation_proof(proof.clone()).is_ok());
@@ -674,7 +674,7 @@ mod tests {
                 .unwrap_or_else(|error| panic!("proof should parse: {error}")),
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
-                RevocationFreshnessPolicy::new(120, 900)
+                RevocationFreshnessPolicy::new(86400, 86400)
                     .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
             );
             bundle
@@ -689,7 +689,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("overflow proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
 
@@ -713,7 +713,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("first revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
         let second = BundleRevocationProof::new(
@@ -723,7 +723,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("second revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
 
@@ -1302,7 +1302,7 @@ mod tests {
                     .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
-                RevocationFreshnessPolicy::new(120, 900)
+                RevocationFreshnessPolicy::new(86400, 86400)
                     .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
             ))
             .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));

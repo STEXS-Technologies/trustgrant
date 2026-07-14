@@ -281,7 +281,7 @@ fn delegated_bundle() -> Result<TrustGrantProofBundle, ProofSourceLookupColdPath
         parse_revocation_status_proof(DELEGATED_REVOCATION_JSON)?,
         RevocationSourceKind::Api,
         ProofFinality::Observed,
-        RevocationFreshnessPolicy::new(120, 900)?,
+        RevocationFreshnessPolicy::new(86400, 86400)?,
     ))?;
     Ok(bundle)
 }

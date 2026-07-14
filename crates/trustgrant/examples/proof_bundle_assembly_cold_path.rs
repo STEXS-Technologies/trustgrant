@@ -98,7 +98,7 @@ fn run() -> Result<u64, ProofBundleAssemblyColdPathError> {
     let transition = RawOwnershipTransitionDocument::parse_json_str(OWNERSHIP_TRANSITION_JSON)
         .map_err(|_error| TrustGrantError::InvalidOwnershipTransitionDocument)?;
     let trustgrant_id = "tg_123e4567-e89b-12d3-a456-426614174000".parse::<TrustGrantId>()?;
-    let freshness_policy = RevocationFreshnessPolicy::new(120, 900)?;
+    let freshness_policy = RevocationFreshnessPolicy::new(86400, 86400)?;
     let mut bundle_count = 0_u64;
 
     for _ in 0..iterations {

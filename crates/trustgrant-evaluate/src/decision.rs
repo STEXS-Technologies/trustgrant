@@ -47,6 +47,13 @@ pub enum EvaluationDenyReason {
     MintTotalLimitReached,
     /// The per-user mint count has reached the `max_per_user` limit.
     MintPerUserLimitReached,
+    /// The revocation proof data is stale — its freshness window has expired.
+    ///
+    /// The revocation record was checked at `checked_at` and is only valid
+    /// until `fresh_until`. The evaluation timestamp is after `fresh_until`,
+    /// so the engine cannot trust the revocation status. The caller must
+    /// refresh the revocation proof before retrying.
+    StaleRevocationData,
 }
 
 /// The result of evaluating one grant against one request.
@@ -188,6 +195,9 @@ impl std::fmt::Display for EvaluationDenyReason {
             EvaluationDenyReason::MintTotalLimitReached => write!(f, "mint total limit reached"),
             EvaluationDenyReason::MintPerUserLimitReached => {
                 write!(f, "mint per user limit reached")
+            }
+            EvaluationDenyReason::StaleRevocationData => {
+                write!(f, "stale revocation data")
             }
         }
     }
@@ -444,6 +454,10 @@ mod tests {
             (
                 EvaluationDenyReason::MintPerUserLimitReached,
                 "mint per user limit reached",
+            ),
+            (
+                EvaluationDenyReason::StaleRevocationData,
+                "stale revocation data",
             ),
         ];
         for (reason, expected) in &cases {

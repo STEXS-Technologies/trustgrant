@@ -940,6 +940,29 @@ define:
 - how one final source set is selected
 - when disagreement forces fail-closed rejection
 
+### 14.1 Revocation Freshness
+
+Every revocation record carries a `checked_at` timestamp and a `fresh_until` deadline.
+The freshness window is computed from the issuer's declared policy:
+- For active (non-revoked) status: `fresh_until = checked_at + non_revoked_ttl_seconds`
+- For revoked status: `fresh_until = checked_at + max_stale_seconds`
+
+The evaluation engine MUST deny any request whose revocation record is stale
+(`evaluated_at > fresh_until`), regardless of whether the recorded status is
+`Active` or `Revoked`. This ensures fail-closed semantics when revocation data
+cannot be refreshed.
+
+The integration layer determines the maximum acceptable revocation age through
+the `VerificationPosture`:
+- `Online` — fresh revocation data expected (e.g. 30-second window)
+- `Cached` — bounded staleness accepted (e.g. 5-minute window)
+- `Offline` — longer staleness possible via signed snapshots (e.g. 24-hour window)
+
+The grant issuer controls the policy parameters (`non_revoked_ttl_seconds`,
+`max_stale_seconds`) in the discovery document's `revocation_policy`. The
+verifier enforces that the chosen posture meets or exceeds the policy
+requirements.
+
 After revocation:
 
 - no new minting is allowed

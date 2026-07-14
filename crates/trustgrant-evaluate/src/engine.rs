@@ -66,13 +66,35 @@ impl EvaluationEngine {
         request: &EvaluationRequest,
         trustgrant_id: TrustGrantId,
     ) -> EvaluationDecision {
-        if grant.metadata().revocation().is_revoked() {
-            tracing::debug!(
-                trustgrant_id = %trustgrant_id,
-                operation = ?request.operation(),
-                reason = ?EvaluationDenyReason::Revoked,
-            );
-            return EvaluationDecision::deny(trustgrant_id, EvaluationDenyReason::Revoked);
+        // Spec §13 step 1: Check revocation status and freshness.
+        // The revocation record's freshness window is computed from the
+        // issuer's declared policy — if the data is stale, deny regardless
+        // of whether the status says Active or Revoked.
+        match grant.metadata().revocation() {
+            trustgrant_revocation::VerifiedRevocationState::Checked(record) => {
+                if !record.is_fresh_at(request.evaluated_at()) {
+                    tracing::debug!(
+                        trustgrant_id = %trustgrant_id,
+                        operation = ?request.operation(),
+                        reason = ?EvaluationDenyReason::StaleRevocationData,
+                        checked_at = %record.checked_at(),
+                        fresh_until = %record.fresh_until(),
+                    );
+                    return EvaluationDecision::deny(
+                        trustgrant_id,
+                        EvaluationDenyReason::StaleRevocationData,
+                    );
+                }
+                if record.status() == trustgrant_revocation::RevocationStatus::Revoked {
+                    tracing::debug!(
+                        trustgrant_id = %trustgrant_id,
+                        operation = ?request.operation(),
+                        reason = ?EvaluationDenyReason::Revoked,
+                    );
+                    return EvaluationDecision::deny(trustgrant_id, EvaluationDenyReason::Revoked);
+                }
+            }
+            trustgrant_revocation::VerifiedRevocationState::NonRevocable => {}
         }
 
         if let Some(time_window) = grant.document().global_time_window() {
@@ -550,7 +572,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -603,7 +625,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -718,7 +740,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -830,7 +852,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -932,7 +954,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -1118,6 +1140,45 @@ mod tests {
         assert_eq!(
             outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::Revoked)
+        );
+    }
+
+    #[test]
+    fn evaluation_denies_stale_revocation_data() {
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        let active_revocation = grant
+            .metadata()
+            .revocation()
+            .checked_record()
+            .unwrap_or_else(|| panic!("test grant should carry revocation record"));
+        // Construct a revocation record with a fresh_until in the past
+        // relative to the evaluation time (2026-04-07T13:00:00Z).
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        active_revocation.source_kind(),
+                        active_revocation.finality(),
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 12, 30, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::StaleRevocationData)
         );
     }
 
@@ -1484,7 +1545,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -1597,7 +1658,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -1708,7 +1769,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -1838,7 +1899,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -1960,7 +2021,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2072,7 +2133,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2231,7 +2292,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2375,7 +2436,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2526,7 +2587,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2683,7 +2744,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2803,7 +2864,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2913,7 +2974,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -3012,7 +3073,7 @@ mod tests {
                             RevocationSourceKind::Api,
                             ProofFinality::Observed,
                             fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                            fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                            fixed_timestamp(2026, 4, 9, 12, 0, 0),
                         )
                         .unwrap_or_else(|error| {
                             panic!("revocation record should be valid: {error}")
@@ -3101,7 +3162,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -3173,7 +3234,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -3358,7 +3419,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -3484,7 +3545,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),

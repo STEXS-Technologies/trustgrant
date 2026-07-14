@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Days, Utc};
 use trustgrant::{
     AuthorityId, CustomOperationName, EvaluationEngine, EvaluationRequest, MintContext,
     RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext, ResourceRef,
@@ -44,6 +44,13 @@ fn make_revocation_record(
     verified_at: DateTime<Utc>,
     override_val: Option<&str>,
 ) -> VerifiedRevocationState {
+    // Use a far-future fresh_until so the engine freshness check does not
+    // interfere with the specific vector scenario being tested. Vectors that
+    // test revocation specifically set their own override values.
+    let fresh_until = verified_at
+        .checked_add_days(chrono::Days::new(3650))
+        .unwrap_or(verified_at);
+
     match override_val {
         Some("revoked") => VerifiedRevocationState::Checked(
             RevocationRecord::new(
@@ -51,7 +58,7 @@ fn make_revocation_record(
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 verified_at,
-                verified_at,
+                fresh_until,
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),
@@ -62,7 +69,7 @@ fn make_revocation_record(
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 verified_at,
-                verified_at,
+                fresh_until,
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),

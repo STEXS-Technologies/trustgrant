@@ -622,7 +622,7 @@ fn delegated_proof_bundle() -> TrustGrantProofBundle {
             RevocationSourceKind::Api,
             ProofFinality::Observed,
             must(
-                RevocationFreshnessPolicy::new(120, 900),
+                RevocationFreshnessPolicy::new(86400, 86400),
                 "freshness policy should be valid",
             ),
         )),
@@ -670,7 +670,7 @@ fn ownership_proof_bundle() -> TrustGrantProofBundle {
             RevocationSourceKind::Api,
             ProofFinality::Observed,
             must(
-                RevocationFreshnessPolicy::new(120, 900),
+                RevocationFreshnessPolicy::new(86400, 86400),
                 "freshness policy should be valid",
             ),
         )),

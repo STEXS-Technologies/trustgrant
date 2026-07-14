@@ -405,7 +405,7 @@ fn verification_metadata(revocation_status: RevocationStatus) -> VerificationMet
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                fixed_timestamp(2026, 4, 9, 12, 0, 0),
             )
             .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
         ),
@@ -557,7 +557,7 @@ fn revocation_bundle() -> TrustGrantProofBundle {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ProofBundle,
             ProofFinality::TrustedSnapshot,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));

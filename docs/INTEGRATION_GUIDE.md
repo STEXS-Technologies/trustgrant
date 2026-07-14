@@ -355,7 +355,7 @@ This is the key architectural payoff:
 - no raw JSON parsing on the hot path
 - no signature verification on the hot path
 - no discovery lookups on the hot path
-- no revocation fetches on the hot path
+- no revocation fetches on the hot path (the engine checks freshness of cached data)
 
 The verifier does the expensive work once.
 The evaluator consumes normalized state many times.

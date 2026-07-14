@@ -794,7 +794,7 @@ mod tests {
             },
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            match RevocationFreshnessPolicy::new(120, 900) {
+            match RevocationFreshnessPolicy::new(86400, 86400) {
                 Ok(policy) => policy,
                 Err(error) => panic!("freshness policy should be valid: {error}"),
             },

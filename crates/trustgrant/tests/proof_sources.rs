@@ -52,7 +52,7 @@ fn source_driven_verification_resolves_delegated_principal_from_parsed_discovery
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -100,7 +100,7 @@ fn source_driven_verification_accepts_verified_transition_chain() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -168,7 +168,7 @@ fn offline_verification_accepts_trusted_snapshot_revocation_from_bundle() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ProofBundle,
             ProofFinality::TrustedSnapshot,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -207,7 +207,7 @@ fn offline_verification_rejects_live_api_revocation_evidence() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -249,7 +249,7 @@ fn cached_verification_rejects_live_api_revocation_evidence() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -291,7 +291,7 @@ fn cached_verification_rejects_live_chain_state_revocation_evidence() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ChainState,
             ProofFinality::Finalized,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -333,7 +333,7 @@ fn cached_verification_accepts_trusted_snapshot_revocation_from_bundle() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ProofBundle,
             ProofFinality::TrustedSnapshot,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -396,7 +396,7 @@ fn source_driven_verification_rejects_delegated_signer_when_authority_does_not_s
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -435,7 +435,7 @@ fn source_driven_verification_and_evaluation_allow_matching_request() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));

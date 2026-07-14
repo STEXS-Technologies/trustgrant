@@ -115,7 +115,7 @@ fn offline_bundle(revocation_json: &str) -> TrustGrantProofBundle {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ProofBundle,
             ProofFinality::TrustedSnapshot,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -174,7 +174,7 @@ fn offline_verification_rejects_live_api_revocation() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -252,7 +252,7 @@ fn offline_verification_rejects_chain_state_revocation() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ChainState,
             ProofFinality::Finalized,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
