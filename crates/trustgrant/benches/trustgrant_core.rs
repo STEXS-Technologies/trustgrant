@@ -352,12 +352,10 @@ fn trustgrant_benchmarks(criterion: &mut Criterion) {
         let engine = EvaluationEngine::new();
 
         bench.iter(|| {
-            black_box(
-                engine.evaluate(
-                    black_box(&verified_for_evaluation),
-                    black_box(&evaluation_request),
-                )
-            )
+            black_box(engine.evaluate(
+                black_box(&verified_for_evaluation),
+                black_box(&evaluation_request),
+            ))
         });
     });
     evaluation_group.finish();
@@ -704,7 +702,7 @@ fn recognize_request() -> EvaluationRequest {
                     AuthorityId::new("https://issuer.example.com"),
                     "origin authority should be valid",
                 ),
-                "resource-42".to_string(),
+                "resource-42".to_owned(),
             )),
             must(
                 AuthorityId::new("https://target.example.com"),

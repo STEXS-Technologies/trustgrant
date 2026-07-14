@@ -138,6 +138,35 @@ impl SelectorContext {
     pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    pub(crate) fn stable_key(&self) -> String {
+        let mut entries: Vec<(&str, Vec<&str>)> = self
+            .entries
+            .iter()
+            .map(|entry| {
+                let mut values: Vec<&str> = entry.values.iter().map(String::as_str).collect();
+                values.sort_unstable();
+                (entry.kind.as_str(), values)
+            })
+            .collect();
+        entries.sort_unstable_by(|left, right| left.0.cmp(right.0));
+
+        entries
+            .into_iter()
+            .fold(String::new(), |mut key, (kind, values)| {
+                key.push_str(&kind.len().to_string());
+                key.push(':');
+                key.push_str(kind);
+                values.into_iter().for_each(|value| {
+                    key.push('|');
+                    key.push_str(&value.len().to_string());
+                    key.push(':');
+                    key.push_str(value);
+                });
+                key.push(';');
+                key
+            })
+    }
 }
 
 /// An immutable reference to an existing resource.
@@ -150,6 +179,7 @@ impl SelectorContext {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResourceRef {
     origin_authority: AuthorityId,
+    resource_type: Option<ResourceTypeName>,
     resource_id: String,
     expected_version: Option<u64>,
 }
@@ -160,9 +190,35 @@ impl ResourceRef {
     pub const fn new(origin_authority: AuthorityId, resource_id: String) -> Self {
         Self {
             origin_authority,
+            resource_type: None,
             resource_id,
             expected_version: None,
         }
+    }
+
+    /// Creates a canonical resource reference for an execution request.
+    ///
+    /// The resource type is part of canonical identity. State-changing
+    /// requests must use this constructor (or otherwise supply the same
+    /// type binding) so an identifier cannot be confused across types.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TrustGrantError`] if the resource type or identifier is invalid.
+    pub fn new_typed(
+        origin_authority: AuthorityId,
+        resource_type: impl Into<String>,
+        resource_id: impl Into<String>,
+    ) -> Result<Self, TrustGrantError> {
+        let resource_type = ResourceTypeName::new(resource_type.into())?;
+        let resource_id = normalize_context_value("resource_ref.resource_id", &resource_id.into())?;
+
+        Ok(Self {
+            origin_authority,
+            resource_type: Some(resource_type),
+            resource_id,
+            expected_version: None,
+        })
     }
 
     /// The authority that originated the resource.
@@ -175,6 +231,12 @@ impl ResourceRef {
     #[must_use = "resource ID identifies the specific resource instance"]
     pub fn resource_id(&self) -> &str {
         &self.resource_id
+    }
+
+    /// The resource type bound into this reference, when one was supplied.
+    #[must_use = "resource type is part of canonical resource identity"]
+    pub const fn resource_type(&self) -> Option<&ResourceTypeName> {
+        self.resource_type.as_ref()
     }
 
     /// The expected version of the resource, if known.
@@ -203,19 +265,46 @@ impl ResourceRef {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TemplateRef {
     origin_authority: AuthorityId,
+    template_id: Option<String>,
 }
 
 impl TemplateRef {
     /// Creates a new template reference for mint operations.
     #[must_use = "template references are required for mint evaluation"]
     pub const fn new(origin_authority: AuthorityId) -> Self {
-        Self { origin_authority }
+        Self {
+            origin_authority,
+            template_id: None,
+        }
+    }
+
+    /// Creates a mint-template reference bound to one issuer-defined template.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TrustGrantError`] if the template identifier is invalid.
+    pub fn new_typed(
+        origin_authority: AuthorityId,
+        template_id: impl Into<String>,
+    ) -> Result<Self, TrustGrantError> {
+        let template_id = normalize_context_value("template_ref.template_id", &template_id.into())?;
+
+        Ok(Self {
+            origin_authority,
+            template_id: Some(template_id),
+        })
     }
 
     /// The authority that defines the mint template or resource class.
     #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
+    }
+
+    /// The issuer-defined template identifier, when the reference is typed.
+    #[must_use = "template identifier binds a mint to its authorized class"]
+    pub fn template_id(&self) -> Option<&str> {
+        self.template_id.as_deref()
     }
 }
 
@@ -333,7 +422,7 @@ impl ResourceContext {
 pub struct EvaluationRequest {
     operation: RequestedOperation,
     resource_binding: ResourceBinding,
-    intent_id: Option<String>,
+    intent_id: Option<IntentId>,
     target_authority: AuthorityId,
     target_context: SelectorContext,
     audience_authority: AuthorityId,
@@ -457,15 +546,20 @@ impl EvaluationRequest {
         self
     }
 
-    /// Sets an intent ID for this request.
+    /// Sets a validated intent ID for this request.
     ///
     /// An intent ID uniquely identifies an authorization attempt. When set, the
     /// evaluation outcome is bound to this ID, enabling the execution layer to
     /// detect and reject duplicate or replayed authorization attempts.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TrustGrantError`] if the identifier is empty or exceeds the
+    /// request-value size limit.
     #[must_use = "intent ID should be set for idempotent authorization"]
-    pub fn with_intent_id(mut self, intent_id: impl Into<String>) -> Self {
-        self.intent_id = Some(intent_id.into());
-        self
+    pub fn with_intent_id(mut self, intent_id: impl Into<String>) -> Result<Self, TrustGrantError> {
+        self.intent_id = Some(IntentId::new(intent_id.into())?);
+        Ok(self)
     }
 
     #[must_use = "requested operation is required for evaluation"]
@@ -484,8 +578,8 @@ impl EvaluationRequest {
     ///
     /// Binds the evaluation outcome to a specific authorization attempt.
     #[must_use = "intent ID is required for idempotent authorization"]
-    pub fn intent_id(&self) -> Option<&str> {
-        self.intent_id.as_deref()
+    pub const fn intent_id(&self) -> Option<&IntentId> {
+        self.intent_id.as_ref()
     }
 
     /// The origin authority bound to this request (convenience accessor).
@@ -535,6 +629,47 @@ impl EvaluationRequest {
     pub const fn evaluated_at(&self) -> DateTime<Utc> {
         self.evaluated_at
     }
+
+    pub(crate) fn same_mutation_intent(&self, other: &Self) -> bool {
+        self.operation == other.operation
+            && self.resource_binding == other.resource_binding
+            && self.target_authority == other.target_authority
+            && self.target_context == other.target_context
+            && self.audience_authority == other.audience_authority
+            && self.audience_context == other.audience_context
+            && self.audience_principal_context == other.audience_principal_context
+            && self.resource == other.resource
+    }
+}
+
+/// A validated, bounded identifier for one state-changing execution intent.
+///
+/// The ID is scoped by the execution adapter's idempotency store and must be
+/// paired with the full request binding. Reusing it for a different request is
+/// an intent conflict, not a successful retry.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct IntentId(String);
+
+impl IntentId {
+    /// Creates one validated intent ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TrustGrantError`] when the identifier is empty or too large.
+    pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
+        Ok(Self(normalize_context_value("intent_id", &value.into())?))
+    }
+
+    #[must_use = "intent IDs are used for idempotency lookup"]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<str> for IntentId {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
 }
 
 /// Maps a built-in [`SelectorKind`] to its fixed index within
@@ -564,8 +699,8 @@ mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::{
-        EvaluationRequest, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
-        ResourceRef, SelectorContext,
+        EvaluationRequest, IntentId, RequestedCapability, RequestedOperation, ResourceBinding,
+        ResourceContext, ResourceRef, SelectorContext,
     };
     use trustgrant_domain::AuthorityId;
     use trustgrant_error::TrustGrantError;
@@ -640,7 +775,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
         let request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             AuthorityId::new("https://target.example.com")
                 .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
             AuthorityId::new("https://audience.example.com")
@@ -702,7 +837,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
         let mut request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             AuthorityId::new("https://target.example.com")
                 .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
             AuthorityId::new("https://audience.example.com")
@@ -765,7 +900,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
         let mut request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             AuthorityId::new("https://target.example.com")
                 .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
             AuthorityId::new("https://audience.example.com")
@@ -788,6 +923,59 @@ mod tests {
                 .map(String::as_str),
             Some("player-42")
         );
+    }
+
+    #[test]
+    fn intent_id_round_trips_through_request() {
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin should be valid: {error}"));
+        let resource = ResourceContext::new("item")
+            .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "rsc-1".to_owned())),
+            AuthorityId::new("https://target.example.com")
+                .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+            AuthorityId::new("https://audience.example.com")
+                .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+            resource,
+            fixed_timestamp(2026, 4, 8, 12, 0, 0),
+        )
+        .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"))
+        .with_intent_id("txn-001")
+        .unwrap_or_else(|error| panic!("intent_id should be valid: {error}"));
+
+        assert_eq!(request.intent_id().map(IntentId::as_str), Some("txn-001"));
+    }
+
+    #[test]
+    fn intent_id_rejects_empty() {
+        let result = IntentId::new("");
+        assert_eq!(
+            result,
+            Err(TrustGrantError::EmptyStringField("intent_id"))
+        );
+    }
+
+    #[test]
+    fn resource_ref_expected_version_round_trips() {
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin should be valid: {error}"));
+        let ref_ = ResourceRef::new(origin.clone(), "rsc-1".to_owned())
+            .with_expected_version(7);
+
+        assert_eq!(ref_.expected_version(), Some(7));
+        assert_eq!(ref_.origin_authority(), &origin);
+        assert_eq!(ref_.resource_id(), "rsc-1");
+    }
+
+    #[test]
+    fn resource_ref_expected_version_defaults_to_none() {
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin should be valid: {error}"));
+        let ref_ = ResourceRef::new(origin, "rsc-1".to_owned());
+
+        assert_eq!(ref_.expected_version(), None);
     }
 
     fn fixed_timestamp(

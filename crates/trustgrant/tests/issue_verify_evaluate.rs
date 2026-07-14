@@ -18,11 +18,11 @@ use trustgrant::domain::Utf16Key;
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, CustomOperationName, EvaluationDenyReason, EvaluationEngine,
     EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext,
-    ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantDraft,
-    TrustGrantDraftAuthorities, TrustGrantError, VerificationMetadata, VerificationPipeline,
-    VerificationPosture, VerifiedRevocationState,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    SignatureProfile, SignatureVerificationRequest, SignatureVerifier, TemplateRef,
+    TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError, VerificationMetadata,
+    VerificationPipeline, VerificationPosture, VerifiedRevocationState,
 };
 
 // ---------------------------------------------------------------------------
@@ -536,7 +536,10 @@ fn issue_verify_evaluate_recognize_revoked_denied() {
     let outcome = engine.evaluate(verified_grant, &recognize_request());
 
     assert!(!outcome.decision().is_allowed());
-    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::Revoked)
+    );
 }
 
 #[test]

@@ -61,6 +61,18 @@ pub enum TrustGrantError {
     DuplicateKeyId,
     #[error("duplicate operation name is not allowed")]
     DuplicateOperationName,
+    #[error("a state-changing execution request requires an intent ID")]
+    MissingMutationIntentId,
+    #[error("a state-changing existing-resource request requires an expected resource version")]
+    MissingExpectedResourceVersion,
+    #[error("resource reference is missing its canonical resource type")]
+    MissingResourceTypeBinding,
+    #[error("mint template reference is missing its template identifier")]
+    MissingTemplateId,
+    #[error("resource binding is incompatible with the requested operation")]
+    InvalidMutationResourceBinding,
+    #[error("resource reference type does not match the request resource type")]
+    ResourceTypeBindingMismatch,
     #[error("custom operation name must not reuse reserved built-in capability or operation names")]
     ReservedOperationName,
     #[error("trustgrant document JSON is invalid")]

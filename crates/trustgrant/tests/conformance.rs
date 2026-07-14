@@ -4,10 +4,9 @@ use chrono::{DateTime, Utc};
 use serde_json::json;
 
 use trustgrant::{
-    AuthorityId, CustomOperationName, EvaluationDenyReason, EvaluationEngine,
-    EvaluationRequest, MintContext, RequestedCapability, RequestedOperation, ResourceBinding,
-    ResourceContext, ResourceRef, TemplateRef, VerifiedRevocationState,
-    evaluate::EvaluationOutcome,
+    AuthorityId, CustomOperationName, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
+    MintContext, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
+    ResourceRef, TemplateRef, VerifiedRevocationState,
     discovery::{
         AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
     },
@@ -19,6 +18,7 @@ use trustgrant::{
         CustomOperationName as CustomOpName, OwnershipProofKind, OwnershipVerificationRecord,
         SelectorExpression, Utf16Key,
     },
+    evaluate::EvaluationOutcome,
     revocation::{ProofFinality, RevocationRecord, RevocationSourceKind, RevocationStatus},
     verify::{VerificationMetadata, VerificationPosture, VerifiedTrustGrant},
 };
@@ -694,7 +694,8 @@ fn conformance_s6_1_v0_compat_mint_implies_create_allowed() {
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
         ResourceBinding::Mint(TemplateRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
         AuthorityId::new("https://audience.example.com")
@@ -796,7 +797,8 @@ fn conformance_s6_1_explicit_operations_allow_primary_deny_subtractive() {
     let request2 = EvaluationRequest::new(
         RequestedOperation::Custom(op2),
         ResourceBinding::Existing(ResourceRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
             "item".to_owned(),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
@@ -807,7 +809,10 @@ fn conformance_s6_1_explicit_operations_allow_primary_deny_subtractive() {
     )
     .unwrap_or_else(|e| panic!("request: {e}"));
     let outcome2 = evaluate_json(&json, &request2);
-    assert!(outcome2.decision().is_allowed(), "custom:op2 should be allowed");
+    assert!(
+        outcome2.decision().is_allowed(),
+        "custom:op2 should be allowed"
+    );
 
     // Denied op should be rejected despite being in allow list
     let op1 = CustomOperationName::new("custom:op1").unwrap_or_else(|e| panic!("custom op1: {e}"));
@@ -819,7 +824,8 @@ fn conformance_s6_1_explicit_operations_allow_primary_deny_subtractive() {
     let request1 = EvaluationRequest::new(
         RequestedOperation::Custom(op1),
         ResourceBinding::Existing(ResourceRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
             "item".to_owned(),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
@@ -1308,7 +1314,10 @@ fn conformance_s10_allow_is_primary_and_explicit() {
             "weapons",
         ),
     );
-    assert!(outcome.decision().is_allowed(), "matching allow should produce Allow");
+    assert!(
+        outcome.decision().is_allowed(),
+        "matching allow should produce Allow"
+    );
 
     // Request not matching allow → denied
     let outcome_not_allowed = evaluate_json(
@@ -1394,7 +1403,8 @@ fn conformance_s10_default_is_fail_closed() {
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
         ResourceBinding::Existing(ResourceRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
             "nonexistent".to_owned(),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
@@ -1446,7 +1456,8 @@ fn conformance_s11_per_type_capability_overrides_global() {
     let request_mint = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
         ResourceBinding::Mint(TemplateRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
         AuthorityId::new("https://audience.example.com")
@@ -1490,7 +1501,8 @@ fn conformance_s11_per_type_capability_overrides_global() {
     let request_mint2 = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
         ResourceBinding::Mint(TemplateRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
         AuthorityId::new("https://audience.example.com")
@@ -1534,7 +1546,8 @@ fn conformance_s11_per_type_capability_overrides_global() {
     let request_mint3 = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
         ResourceBinding::Mint(TemplateRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
         AuthorityId::new("https://audience.example.com")
@@ -1599,7 +1612,8 @@ fn conformance_s12_minting_constraints_are_per_type() {
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
         ResourceBinding::Mint(TemplateRef::new(
-            AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
         )),
         AuthorityId::new("https://target.example.com").unwrap_or_else(|e| panic!("target: {e}")),
         AuthorityId::new("https://audience.example.com")

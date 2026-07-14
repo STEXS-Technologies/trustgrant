@@ -1025,7 +1025,10 @@ fn multiple_audience_entries_both_allowed() {
         let request =
             recognize_request_for_audience("item", "general", "https://audience-a.example.com");
         let outcome = engine.evaluate(&grant, &request);
-        assert!(outcome.decision().is_allowed(), "audience A should be allowed");
+        assert!(
+            outcome.decision().is_allowed(),
+            "audience A should be allowed"
+        );
     }
 
     // Request with audience B → allowed
@@ -1033,7 +1036,10 @@ fn multiple_audience_entries_both_allowed() {
         let request =
             recognize_request_for_audience("item", "general", "https://audience-b.example.com");
         let outcome = engine.evaluate(&grant, &request);
-        assert!(outcome.decision().is_allowed(), "audience B should be allowed");
+        assert!(
+            outcome.decision().is_allowed(),
+            "audience B should be allowed"
+        );
     }
 
     // Request with audience C → AudienceNotAllowed

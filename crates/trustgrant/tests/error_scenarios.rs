@@ -275,7 +275,10 @@ fn expired_grant_evaluation_denied() {
     let request = recognize_request_at("player-123", fixed_timestamp(2026, 4, 9, 12, 0, 0));
     let outcome = engine.evaluate(&grant, &request);
 
-    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Expired));
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::Expired)
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -308,7 +311,10 @@ fn revoked_grant_evaluation_denied() {
     let engine = EvaluationEngine::new();
     let outcome = engine.evaluate(&grant, &recognize_request("player-123"));
 
-    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::Revoked)
+    );
 }
 
 // ---------------------------------------------------------------------------

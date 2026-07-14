@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use trustgrant_domain::{AuthorityId, TrustGrantId};
 
-use crate::request::ResourceBinding;
+use crate::request::{EvaluationRequest, IntentId, ResourceBinding};
 
 /// Reasons why an evaluation request was denied.
 ///
@@ -94,9 +94,8 @@ impl EvaluationDecision {
 
 /// The outcome of evaluating one grant against one request.
 ///
-/// Wraps an [`EvaluationDecision`] with the execution context that produced it:
-/// the intent ID (if any), the resource binding used, and the evaluation
-/// timestamp. This is the record that the execution layer MUST use to ensure
+/// Wraps an [`EvaluationDecision`] with the complete request context that
+/// produced it. This is the record that the execution layer MUST use to ensure
 /// atomic, idempotent authorization.
 ///
 /// The execution layer must:
@@ -110,28 +109,13 @@ impl EvaluationDecision {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvaluationOutcome {
     decision: EvaluationDecision,
-    intent_id: Option<String>,
-    resource_binding: ResourceBinding,
-    origin_authority: AuthorityId,
-    evaluated_at: DateTime<Utc>,
+    request: EvaluationRequest,
 }
 
 impl EvaluationOutcome {
     #[must_use = "evaluation outcomes should be inspected by callers"]
-    pub(crate) fn new(
-        decision: EvaluationDecision,
-        intent_id: Option<String>,
-        resource_binding: ResourceBinding,
-        evaluated_at: DateTime<Utc>,
-    ) -> Self {
-        let origin_authority = resource_binding.origin_authority().clone();
-        Self {
-            decision,
-            intent_id,
-            resource_binding,
-            origin_authority,
-            evaluated_at,
-        }
+    pub(crate) const fn new(decision: EvaluationDecision, request: EvaluationRequest) -> Self {
+        Self { decision, request }
     }
 
     /// The evaluation decision (allow or deny).
@@ -142,26 +126,36 @@ impl EvaluationOutcome {
 
     /// The intent ID that was bound to this evaluation, if any.
     #[must_use = "intent ID enables replay detection"]
-    pub fn intent_id(&self) -> Option<&str> {
-        self.intent_id.as_deref()
+    pub const fn intent_id(&self) -> Option<&IntentId> {
+        self.request.intent_id()
     }
 
     /// The resource binding used during evaluation.
     #[must_use = "resource binding identifies what was authorized"]
     pub const fn resource_binding(&self) -> &ResourceBinding {
-        &self.resource_binding
+        self.request.resource_binding()
     }
 
     /// The origin authority from the resource binding.
     #[must_use = "origin authority is required for spec §13 step 3 enforcement"]
     pub const fn origin_authority(&self) -> &AuthorityId {
-        &self.origin_authority
+        self.request.origin_authority()
     }
 
     /// When the evaluation was performed.
     #[must_use = "evaluation timestamp is required for audit"]
     pub const fn evaluated_at(&self) -> DateTime<Utc> {
-        self.evaluated_at
+        self.request.evaluated_at()
+    }
+
+    /// The complete request that was evaluated.
+    ///
+    /// Execution adapters must persist this binding, or an authenticated digest
+    /// of it, alongside the decision so an allow cannot be replayed for a
+    /// different resource, operation, subject, or audience.
+    #[must_use = "the evaluated request is required for atomic execution and audit"]
+    pub const fn request(&self) -> &EvaluationRequest {
+        &self.request
     }
 }
 
@@ -201,8 +195,9 @@ impl std::fmt::Display for EvaluationDenyReason {
 
 #[cfg(test)]
 mod tests {
-    use trustgrant_domain::TrustGrantId;
     use crate::decision::{EvaluationDecision, EvaluationDenyReason};
+    use crate::EvaluationOutcome;
+    use trustgrant_domain::TrustGrantId;
 
     #[test]
     fn allow_creates_allowed_decision() {
@@ -458,6 +453,124 @@ mod tests {
         assert_eq!(
             EvaluationDenyReason::OriginAuthorityMismatch.to_string(),
             "origin authority does not match the grant",
+        );
+    }
+
+    #[test]
+    fn evaluation_outcome_holds_decision_and_context() {
+        use chrono::{TimeZone, Utc};
+        use crate::request::IntentId;
+
+        let trustgrant_id = TrustGrantId::generate();
+        let decision = EvaluationDecision::allow(trustgrant_id);
+
+        let binding = crate::request::ResourceBinding::Existing(
+            crate::request::ResourceRef::new(
+                trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
+                "rsc-1".to_owned(),
+            ),
+        );
+
+        let ts = Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0).single().unwrap();
+
+        let request = crate::request::EvaluationRequest::new(
+            crate::request::RequestedOperation::Capability(crate::request::RequestedCapability::Recognize),
+            binding,
+            trustgrant_domain::AuthorityId::new("https://target.example.com").unwrap(),
+            trustgrant_domain::AuthorityId::new("https://audience.example.com").unwrap(),
+            crate::request::ResourceContext::new("item").unwrap(),
+            ts,
+        )
+        .unwrap()
+        .with_intent_id("txn-001")
+        .unwrap();
+
+        let outcome = EvaluationOutcome::new(decision, request);
+
+        // Decision is accessible through outcome
+        assert!(outcome.decision().is_allowed());
+        assert_eq!(outcome.decision().trustgrant_id(), trustgrant_id);
+
+        // Context fields round-trip
+        assert_eq!(
+            outcome.intent_id().map(IntentId::as_str),
+            Some("txn-001")
+        );
+        assert_eq!(
+            outcome.origin_authority().as_str(),
+            "https://issuer.example.com"
+        );
+        assert_eq!(outcome.evaluated_at(), ts);
+    }
+
+    #[test]
+    fn evaluation_outcome_without_intent_id() {
+        use chrono::{TimeZone, Utc};
+
+        let trustgrant_id = TrustGrantId::generate();
+        let decision = EvaluationDecision::deny(trustgrant_id, EvaluationDenyReason::Revoked);
+
+        let ts = Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0).single().unwrap();
+        let request = crate::request::EvaluationRequest::new(
+            crate::request::RequestedOperation::Capability(crate::request::RequestedCapability::Recognize),
+            crate::request::ResourceBinding::Existing(
+                crate::request::ResourceRef::new(
+                    trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
+                    "rsc-2".to_owned(),
+                ),
+            ),
+            trustgrant_domain::AuthorityId::new("https://target.example.com").unwrap(),
+            trustgrant_domain::AuthorityId::new("https://audience.example.com").unwrap(),
+            crate::request::ResourceContext::new("item").unwrap(),
+            ts,
+        )
+        .unwrap();
+
+        let outcome = EvaluationOutcome::new(decision, request);
+
+        // Without intent_id
+        assert!(outcome.intent_id().is_none());
+        assert!(!outcome.decision().is_allowed());
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Revoked)
+        );
+    }
+
+    #[test]
+    fn evaluation_outcome_resource_binding_mint() {
+        use chrono::{TimeZone, Utc};
+
+        let trustgrant_id = TrustGrantId::generate();
+        let decision = EvaluationDecision::allow(trustgrant_id);
+
+        let ts = Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0).single().unwrap();
+        let binding = crate::request::ResourceBinding::Mint(
+            crate::request::TemplateRef::new(
+                trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
+            ),
+        );
+        let request = crate::request::EvaluationRequest::new(
+            crate::request::RequestedOperation::Capability(crate::request::RequestedCapability::Recognize),
+            binding,
+            trustgrant_domain::AuthorityId::new("https://target.example.com").unwrap(),
+            trustgrant_domain::AuthorityId::new("https://audience.example.com").unwrap(),
+            crate::request::ResourceContext::new("item").unwrap(),
+            ts,
+        )
+        .unwrap();
+
+        let outcome = EvaluationOutcome::new(decision, request.clone());
+
+        assert!(outcome.decision().is_allowed());
+        assert!(outcome.resource_binding().is_mint());
+        assert_eq!(
+            outcome.origin_authority().as_str(),
+            "https://issuer.example.com"
+        );
+        assert_eq!(
+            outcome.resource_binding().origin_authority().as_str(),
+            "https://issuer.example.com"
         );
     }
 }

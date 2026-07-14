@@ -145,7 +145,7 @@ fn recognize_request() -> Result<EvaluationRequest, EvaluateHotPathError> {
         RequestedOperation::Capability(RequestedCapability::Recognize),
         ResourceBinding::Existing(ResourceRef::new(
             AuthorityId::new("https://issuer.example.com")?,
-            "resource-42".to_string(),
+            "resource-42".to_owned(),
         )),
         AuthorityId::new("https://target.example.com")?,
         AuthorityId::new("https://audience.example.com")?,

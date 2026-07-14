@@ -45,9 +45,11 @@ pub use domain::{
 };
 pub use error::TrustGrantError;
 pub use evaluate::{
-    EvaluationDecision, EvaluationDenyReason, EvaluationEngine, EvaluationOutcome,
-    EvaluationRequest, MintContext, RequestedCapability, RequestedOperation, ResourceBinding,
-    ResourceContext, ResourceRef, SelectorContext, TemplateRef,
+    AtomicExecutionResult, AtomicInventoryExecutor, EvaluationDecision, EvaluationDenyReason,
+    EvaluationEngine, EvaluationOutcome, EvaluationRequest, InMemoryAtomicInventoryExecutor,
+    InMemoryExecutionError, InMemoryExecutionTransaction, IntentId, MintContext,
+    MutationAuthorization, MutationRequest, RequestedCapability, RequestedOperation,
+    ResourceBinding, ResourceContext, ResourceRef, SelectorContext, TemplateRef,
 };
 pub use issue::{TrustGrantDraft, TrustGrantDraftAuthorities};
 pub use ownership::{

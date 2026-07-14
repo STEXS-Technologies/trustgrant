@@ -271,7 +271,10 @@ fn parse_validate_verify_and_evaluate_denies_revoked_grant() {
         &recognize_request("player-123"),
     );
 
-    assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::Revoked)
+    );
 }
 
 #[test]

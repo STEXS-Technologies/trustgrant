@@ -8,11 +8,11 @@ use chrono::{TimeZone, Utc};
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
     MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext,
-    ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantError,
-    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
-    VerifiedTrustGrant, VerifiedTrustGrantRecord,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    SignatureProfile, SignatureVerificationRequest, SignatureVerifier, TemplateRef,
+    TrustGrantError, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    VerifiedRevocationState, VerifiedTrustGrant, VerifiedTrustGrantRecord,
 };
 
 // ---------------------------------------------------------------------------

@@ -4,12 +4,12 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use trustgrant::{
-    AuthorityId, CustomOperationName, EvaluationEngine, EvaluationRequest,
-    evaluate::EvaluationOutcome,
-    MintContext, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
-    ResourceRef, TemplateRef, TrustGrantError, VerifiedRevocationState,
+    AuthorityId, CustomOperationName, EvaluationEngine, EvaluationRequest, MintContext,
+    RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext, ResourceRef,
+    TemplateRef, TrustGrantError, VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile},
     domain::OwnershipVerificationRecord,
+    evaluate::EvaluationOutcome,
     ports::{SignatureVerificationRequest, SignatureVerifier, VerificationPosture},
     revocation::{ProofFinality, RevocationRecord, RevocationSourceKind, RevocationStatus},
     verify::{VerificationMetadata, VerificationPipeline},
@@ -142,18 +142,20 @@ fn run_evaluation(
         .get("origin_authority")
         .and_then(|v| v.as_str())
         .unwrap_or("https://issuer.example.com");
-    let origin = AuthorityId::new(origin_str)
-        .unwrap_or_else(|e| panic!("invalid origin authority: {e}"));
+    let origin =
+        AuthorityId::new(origin_str).unwrap_or_else(|e| panic!("invalid origin authority: {e}"));
 
     // Build appropriate resource binding based on operation
     let resource_binding = match &operation {
         RequestedOperation::Capability(RequestedCapability::Mint) => {
             ResourceBinding::Mint(TemplateRef::new(origin))
         }
-        _ => ResourceBinding::Existing(ResourceRef::new(
-            origin,
-            req["resource_type"].as_str().unwrap().to_owned(),
-        )),
+        RequestedOperation::Capability(_) | RequestedOperation::Custom(_) => {
+            ResourceBinding::Existing(ResourceRef::new(
+                origin,
+                req["resource_type"].as_str().unwrap().to_owned(),
+            ))
+        }
     };
 
     let mut request = EvaluationRequest::new(

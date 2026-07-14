@@ -18,15 +18,13 @@ use trustgrant::document::raw::{
 use trustgrant::domain::Utf16Key;
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, CanonicalizationProfile, DelegatedPrincipalRef,
-    EvaluationDenyReason, EvaluationEngine, EvaluationRequest, MintContext,
-    evaluate::EvaluationOutcome,
-    OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
-    RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
-    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantDraft,
-    TrustGrantDraftAuthorities, TrustGrantError, ValidatedTrustGrantDocument,
-    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
-    VerifiedTrustGrant,
+    EvaluationDenyReason, EvaluationEngine, EvaluationRequest, MintContext, OwnershipProofKind,
+    OwnershipVerificationRecord, ProofFinality, RequestedCapability, RequestedOperation,
+    ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef, RevocationRecord,
+    RevocationSourceKind, RevocationStatus, SignatureProfile, SignatureVerificationRequest,
+    SignatureVerifier, TemplateRef, TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError,
+    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    VerifiedRevocationState, VerifiedTrustGrant, evaluate::EvaluationOutcome,
 };
 
 // ---------------------------------------------------------------------------

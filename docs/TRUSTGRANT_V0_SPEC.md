@@ -961,47 +961,55 @@ boundary that must be satisfied before any state mutation is applied.
 
 ### 15.2 Intent ID
 
-The evaluation request MAY carry an `intent_id` — a caller-supplied unique identifier for the
-authorization attempt. When present, the evaluation outcome is bound to this ID. The execution
-layer MUST:
+Every state-changing request MUST carry an `intent_id` — a validated, bounded identifier for one
+authorization attempt. Read-only recognition requests may omit it. The execution layer MUST scope
+the ID to its idempotency store and bind it to the complete request (grant revision, operation,
+resource, target, audience, principal, and selectors). Reusing an ID for different bound request
+data is an `IntentConflict`, not a successful retry.
+
+For a state-changing request, the execution layer MUST:
 
 - Verify that `intent_id` has not been previously processed (replay prevention)
 - Persist the outcome keyed by `intent_id` before applying any mutation
 - Return the original outcome for duplicate `intent_id` values (idempotency)
 
-Without an `intent_id`, the evaluation outcome is ephemeral and the execution layer cannot
-guarantee exactly-once authorization semantics.
+An evaluation outcome without an `intent_id` is ephemeral and MUST NOT be used to mutate state.
 
 ### 15.3 Resource Version
 
-For existing-resource requests, the `ResourceRef` MAY carry an `expected_version`. When set,
-the execution layer MUST verify that the current resource version matches this value before
-applying any mutation. This enables stale-state detection in concurrent environments.
+For an existing-resource mutation, `ResourceRef` MUST bind the canonical
+`(origin_authority, resource_type, resource_id)` tuple and MUST carry an `expected_version`.
+The execution layer MUST verify that the current resource version matches before applying a
+mutation. A mint mutation MUST instead carry a typed `TemplateRef` with an issuer-defined
+template identifier. This prevents state transitions from being authorized against an untyped
+resource ID or an arbitrary mint class.
 
 ### 15.4 Evaluation Outcome
 
 The evaluation returns an `EvaluationOutcome` that bundles:
 - The `EvaluationDecision` (allow/deny + reason)
-- The `intent_id` from the request (if any)
-- The `ResourceBinding` used during evaluation
-- The evaluation timestamp
+- The complete evaluated request, including operation, resource binding, target, audience,
+  principal context, selectors, `intent_id`, and evaluation timestamp
 
-The outcome is the **authorization record** that the execution layer persists as an
-append-only audit event before applying any state mutation.
+The outcome is the **authorization record** that the execution layer persists, or represents by
+a lossless authenticated digest, as an append-only audit event before committing any state
+mutation. An allow record must never be substituted for a different request.
 
 ### 15.5 Required Transaction Boundary
 
 A compliant implementation MUST execute the following steps within a single serializable
 transaction or equivalent compare-and-swap operation:
 
-1. Read the current resource state (ownership, balance, version, revocation status)
-2. Evaluate the grant against the request
+1. Read the current resource state (ownership, balance, version, mint counters, and fresh
+   revocation status)
+2. Evaluate the grant against the fully bound request
 3. On allow:
-   a. Verify `intent_id` has not been processed (replay check)
+   a. Verify `intent_id` has not been processed and that it is not bound to different request
+      data (replay/conflict check)
    b. Verify `expected_version` matches current state (stale-state check)
    c. Apply the mutation (mint, transfer, burn, update)
-   d. Increment the resource version
-   e. Persist the `EvaluationOutcome` as an audit event
+   d. Increment the resource version or authoritative mint counters
+   e. Persist the `EvaluationOutcome` as an audit event and record the processed intent
 4. On deny: persist the `EvaluationOutcome` as an audit event (optional, recommended)
 
 Steps 3a–3e MUST be atomic: if any step fails, all preceding steps in the boundary MUST
@@ -1011,9 +1019,17 @@ be rolled back.
 
 | Condition | Behavior |
 |-----------|----------|
-| Duplicate `intent_id` | Return the original outcome; do not re-execute |
+| Duplicate `intent_id` with identical bound request | Return the original outcome; do not re-execute |
+| Duplicate `intent_id` with different bound request | Reject as `IntentConflict`; do not execute |
 | Version mismatch | Reject with a stale-state error; do not apply mutation |
 | Transaction abort | Roll back all changes; caller MAY retry with same `intent_id` |
+
+### 15.7 Adapter Contract
+
+The Rust core exposes `AtomicInventoryExecutor` as the integration contract for this boundary and
+an `InMemoryAtomicInventoryExecutor` for tests. The in-memory executor is not a production ledger.
+Production adapters MUST use their database transaction, ledger transaction, or equivalent
+compare-and-swap primitive to provide the isolation described above.
 
 ## Review & Maintenance
 

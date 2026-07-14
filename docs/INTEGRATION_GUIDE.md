@@ -327,16 +327,17 @@ let verified_grant = record.try_into_verified_grant()?;
 let resource = ResourceContext::new("item")?;
 let request = EvaluationRequest::new(
     RequestedOperation::Capability(RequestedCapability::Recognize),
-    ResourceBinding::Existing(ResourceRef::new(
+    ResourceBinding::Existing(ResourceRef::new_typed(
         origin_authority,
+        "item",
         "resource-42".to_owned(),
-    ).with_expected_version(7)),  // ← stale-state detection
+    )?.with_expected_version(7)),  // ← stale-state detection
     target_authority,
     audience_authority,
     resource,
     evaluation_time,
 )?
-.with_intent_id("txn-001");  // ← replay prevention
+.with_intent_id("txn-001")?;  // ← replay prevention
 
 let outcome: EvaluationOutcome = EvaluationEngine::new()
     .evaluate(&verified_grant, &request);
@@ -369,8 +370,10 @@ Every adopter must still provide:
 - one policy for online / cached / offline posture
 - one storage strategy for verified records
 - an atomic execution boundary (spec §15) — replay detection via `intent_id`,
-  stale-state detection via `expected_version`, and an append-only audit log
-  of `EvaluationOutcome` records
+  typed resource/template bindings, stale-state detection via `expected_version`,
+  authoritative mint counters, and an append-only audit log of full
+  `EvaluationOutcome` records. State-changing requests must be converted to
+  `MutationRequest` and executed through an `AtomicInventoryExecutor` implementation.
 
 If source-driven verification is used, the adopter must also provide:
 - one authority discovery source

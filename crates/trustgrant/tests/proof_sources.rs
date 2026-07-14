@@ -6,8 +6,9 @@ use trustgrant::{
     RawOwnershipTransitionDocument, RequestedCapability, RequestedOperation, ResourceBinding,
     ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind,
     SignatureVerificationRequest, SignatureVerifier, TrustGrantError, TrustGrantProofBundle,
-    VerificationContext, VerificationPipeline, VerificationPosture, parse_authority_discovery_document,
-    parse_delegated_principal_key_document, parse_revocation_status_proof,
+    VerificationContext, VerificationPipeline, VerificationPosture,
+    parse_authority_discovery_document, parse_delegated_principal_key_document,
+    parse_revocation_status_proof,
 };
 
 #[derive(Debug, Default)]
@@ -450,8 +451,7 @@ fn source_driven_verification_and_evaluation_allow_matching_request() {
             ),
         )
         .unwrap_or_else(|error| panic!("source-driven verification should succeed: {error}"));
-    let outcome =
-        EvaluationEngine::new().evaluate(artifacts.verified_grant(), &matching_request());
+    let outcome = EvaluationEngine::new().evaluate(artifacts.verified_grant(), &matching_request());
 
     assert!(outcome.decision().is_allowed());
 }

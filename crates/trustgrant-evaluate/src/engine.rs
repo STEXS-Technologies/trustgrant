@@ -57,12 +57,7 @@ impl EvaluationEngine {
 
         let decision = self.evaluate_inner(grant, request, trustgrant_id);
 
-        EvaluationOutcome::new(
-            decision,
-            request.intent_id().map(String::from),
-            request.resource_binding().clone(),
-            request.evaluated_at(),
-        )
+        EvaluationOutcome::new(decision, request.clone())
     }
 
     fn evaluate_inner(
@@ -494,13 +489,13 @@ mod tests {
         AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
     };
     use trustgrant_document::ValidatedTrustGrantDocument;
-    use trustgrant_domain::AuthorityId;
     use trustgrant_document::raw::{
         RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
         RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation,
         RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument,
         RawTypeCapabilities, RawTypeConstraints,
     };
+    use trustgrant_domain::AuthorityId;
     use trustgrant_domain::{
         CustomOperationName, OwnershipProofKind, OwnershipVerificationRecord, Utf16Key,
     };
@@ -993,7 +988,7 @@ mod tests {
         let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1063,7 +1058,7 @@ mod tests {
         let origin = origin();
         match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1120,7 +1115,10 @@ mod tests {
 
         let outcome = engine.evaluate(&grant, &recognize_request());
 
-        assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Revoked));
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Revoked)
+        );
     }
 
     #[test]
@@ -1139,8 +1137,7 @@ mod tests {
             Err(error) => panic!("request rebuild should succeed: {error}"),
         };
 
-        if let Err(error) = request.insert_audience_principal_selector("actor", "other-player")
-        {
+        if let Err(error) = request.insert_audience_principal_selector("actor", "other-player") {
             panic!("audience principal selector should be valid: {error}");
         }
 
@@ -1287,7 +1284,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1304,7 +1301,10 @@ mod tests {
         };
 
         let outcome = engine.evaluate(&grant, &request);
-        assert_eq!(outcome.decision().deny_reason(), Some(EvaluationDenyReason::Expired));
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Expired)
+        );
     }
 
     #[test]
@@ -1322,7 +1322,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1360,7 +1360,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "weapon".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "weapon".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2108,7 +2108,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2254,7 +2254,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2276,8 +2276,8 @@ mod tests {
     }
 
     #[test]
-    fn evaluation_denies_custom_operation_when_operations_scope_restrictive_even_with_capabilities(
-    ) {
+    fn evaluation_denies_custom_operation_when_operations_scope_restrictive_even_with_capabilities()
+    {
         // Custom operations are gated by the operations scope alone.
         // Even with capabilities enabled, a restrictive operations scope denies.
         let engine = EvaluationEngine::new();
@@ -2398,7 +2398,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2548,7 +2548,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2826,7 +2826,7 @@ mod tests {
         let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -3193,7 +3193,7 @@ mod tests {
         let origin = origin();
         match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, resource_type.to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, resource_type.to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -3528,7 +3528,7 @@ mod tests {
         let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
-            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_string())),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
