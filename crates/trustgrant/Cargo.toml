@@ -23,7 +23,7 @@ chrono.workspace = true
 criterion = { version = "0.5.1", default-features = false, features = ["cargo_bench_support"] }
 proptest = "1.4"
 serde_json.workspace = true
-thiserror = { version = "2.0.18", default-features = false }
+thiserror.workspace = true
 url.workspace = true
 ed25519-dalek = { version = "2", features = ["pem"] }
 hex = "0.4"

@@ -15,7 +15,7 @@ trustgrant-ports = { path = "../trustgrant-ports" }
 trustgrant-revocation = { path = "../trustgrant-revocation" }
 trustgrant-verify = { path = "../trustgrant-verify" }
 chrono.workspace = true
-tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing.workspace = true
 uuid.workspace = true
 
 [lints]

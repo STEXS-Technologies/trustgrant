@@ -16,11 +16,11 @@ trustgrant-ports = { path = "../trustgrant-ports" }
 trustgrant-revocation = { path = "../trustgrant-revocation" }
 chrono.workspace = true
 compact_str = "0.9"
-itoa = { version = "1.0.15", default-features = false }
+itoa.workspace = true
 serde.workspace = true
-serde_jcs = { version = "0.2.0", default-features = false }
+serde_jcs.workspace = true
 serde_json.workspace = true
-tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing.workspace = true
 uuid = { workspace = true, features = ["serde", "js"] }
 
 [lints]
