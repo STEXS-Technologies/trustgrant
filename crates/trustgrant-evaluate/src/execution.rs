@@ -100,8 +100,8 @@ impl MutationRequest {
 
     /// The authenticated actor performing this operation.
     ///
-    /// Defaults to the resource binding's `origin_authority`. Callers should
-    /// set a more specific identity via [`with_actor`].
+    /// Must be set explicitly via [`with_actor`] before execution.
+    /// When `None`, the executor should reject the mutation.
     #[must_use]
     pub const fn actor(&self) -> &Option<AuthorityId> {
         &self.actor
@@ -116,9 +116,8 @@ impl MutationRequest {
 
     /// When this operation envelope expires.
     ///
-    /// Defaults to `evaluated_at` from the evaluation request. The executor
-    /// MUST reject mutations with an expired envelope even if the grant is
-    /// still within its validity window.
+    /// Must be set explicitly via [`with_envelope_expiry`] before execution.
+    /// When `None`, the executor should reject the mutation.
     #[must_use]
     pub const fn envelope_expires_at(&self) -> Option<DateTime<Utc>> {
         self.envelope_expires_at
