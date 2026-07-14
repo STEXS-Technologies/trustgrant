@@ -91,6 +91,25 @@ pub struct AuthorityDiscoveryDocument {
 impl AuthorityDiscoveryDocument {
     /// Resolves one root-authority signer binding from discovery material.
     ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use trustgrant_discovery::parse_authority_discovery_document;
+    /// # let doc = parse_authority_discovery_document(r#"{
+    /// #   "authority_id":"https://issuer.example.com",
+    /// #   "keys":[{"key_id":"root-key-1","algorithm":"ed25519","public_key":"base64-key","not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}],
+    /// #   "signature_profile":{"format":"jcs+ed25519","canonicalization":"RFC8785"},
+    /// #   "issued_at":"2026-04-07T12:00:00Z"
+    /// # }"#).unwrap();
+    /// use trustgrant_domain::{AuthorityId, KeyId};
+    ///
+    /// let authority = AuthorityId::new("https://issuer.example.com").unwrap();
+    /// let key_id = KeyId::new("root-key-1").unwrap();
+    /// let binding = doc.resolve_root_signer_binding(&authority, &key_id)
+    ///     .expect("root signer binding resolves");
+    /// assert_eq!(binding.issuer_authority(), &authority);
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when authority mismatch occurs or the
@@ -377,6 +396,23 @@ impl TryFrom<RawDelegatedPrincipalKeyDocument> for DelegatedPrincipalKeyDocument
 
 /// Parses and normalizes one authority discovery document.
 ///
+/// # Examples
+///
+/// ```rust
+/// use trustgrant_discovery::parse_authority_discovery_document;
+///
+/// let json = r#"{
+///   "authority_id":"https://issuer.example.com",
+///   "keys":[{"key_id":"root-key-1","algorithm":"ed25519","public_key":"base64-key","not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}],
+///   "signature_profile":{"format":"jcs+ed25519","canonicalization":"RFC8785"},
+///   "issued_at":"2026-04-07T12:00:00Z"
+/// }"#;
+///
+/// let doc = parse_authority_discovery_document(json)
+///     .expect("valid discovery document");
+/// assert_eq!(doc.authority_id().as_str(), "https://issuer.example.com");
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`TrustGrantError`] when the JSON or normalized discovery state is
@@ -388,6 +424,22 @@ pub fn parse_authority_discovery_document(
 }
 
 /// Parses and normalizes one delegated-principal key document.
+///
+/// # Examples
+///
+/// ```rust
+/// use trustgrant_discovery::parse_delegated_principal_key_document;
+///
+/// let json = r#"{
+///   "authority_id":"https://issuer.example.com",
+///   "principal":{"kind":"service","id":"issuer-worker"},
+///   "keys":[{"key_id":"delegated-key","algorithm":"ed25519","public_key":"base64-key","not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z","revoked":false}]
+/// }"#;
+///
+/// let doc = parse_delegated_principal_key_document(json)
+///     .expect("valid delegated principal document");
+/// assert_eq!(doc.principal().id().as_str(), "issuer-worker");
+/// ```
 ///
 /// # Errors
 ///

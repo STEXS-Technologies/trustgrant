@@ -9,6 +9,10 @@ use trustgrant_error::limits::{
     MAX_SIGNATURE_PROFILE_FORMAT_BYTES, ensure_string_limit,
 };
 
+/// A validated signature algorithm name (e.g. `ed25519`, `ecdsa-p256`).
+///
+/// Algorithm names are non-empty token strings with no whitespace or
+/// control characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AlgorithmName(String);
 
@@ -43,6 +47,10 @@ impl Borrow<str> for AlgorithmName {
     }
 }
 
+/// Validated raw public-key material (e.g. a base64-encoded key).
+///
+/// Unlike token types, control characters are accepted because key material
+/// may be encoded in formats that include non-printable bytes.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PublicKeyMaterial(String);
 
@@ -77,6 +85,10 @@ impl Borrow<str> for PublicKeyMaterial {
     }
 }
 
+/// A validated signature-profile format name (e.g. `jcs+ed25519`).
+///
+/// Format names are non-empty token strings with no whitespace or control
+/// characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SignatureFormat(String);
 
@@ -116,6 +128,10 @@ impl Borrow<str> for SignatureFormat {
     }
 }
 
+/// A validated canonicalization-profile name (e.g. `RFC8785`).
+///
+/// Canonicalization names are non-empty token strings with no whitespace or
+/// control characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CanonicalizationName(String);
 
@@ -189,6 +205,10 @@ impl SignatureProfile {
     }
 }
 
+/// A validated signing-key record from an authority discovery document.
+///
+/// Contains the key identifier, algorithm, public-key material, and the
+/// time window during which the key is valid.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthorityKeyRecord {
     key_id: KeyId,
@@ -256,6 +276,8 @@ impl AuthorityKeyRecord {
     }
 }
 
+/// A reference to a delegated principal (kind + id) within an authority's
+/// delegation system.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DelegatedPrincipalRef {
     kind: PrincipalKind,
@@ -287,6 +309,11 @@ impl DelegatedPrincipalRef {
     }
 }
 
+/// The resolved signer binding after authority discovery.
+///
+/// Collapses the issuer authority, key record, signature profile, and
+/// optional delegated-principal reference into a single verification
+/// input.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedSignerBinding {
     issuer_authority: AuthorityId,

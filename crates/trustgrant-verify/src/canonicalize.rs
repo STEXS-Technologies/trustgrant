@@ -14,6 +14,12 @@ use trustgrant_document::raw::{
 use trustgrant_domain::{CanonicalizationProfile, Utf16Key};
 use trustgrant_error::TrustGrantError;
 
+/// Deterministic canonical bytes of a TrustGrant document suitable for
+/// signature verification.
+///
+/// Produced by [`canonicalize_trustgrant`] and consumed by signature verifier
+/// adapters. The canonical form omits the `signature` field itself and uses
+/// a fixed RFC 8785–equivalent key order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalTrustGrantBytes(Vec<u8>);
 

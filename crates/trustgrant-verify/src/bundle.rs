@@ -21,6 +21,11 @@ use trustgrant_revocation::{
     RevocationStatusProof,
 };
 
+/// A revocation proof bundled directly into a [`TrustGrantProofBundle`].
+///
+/// Combines the raw revocation status proof with its source kind, finality
+/// level, and freshness policy so the verification pipeline can resolve it
+/// without external lookups.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BundleRevocationProof {
     proof: RevocationStatusProof,
@@ -65,6 +70,12 @@ impl BundleRevocationProof {
     }
 }
 
+/// An offline proof bundle that carries all verification material for one or
+/// more grants.
+///
+/// Bundles discovery documents, delegated-principal key documents,
+/// revocation proofs, and ownership-transition chains into a single
+/// self-contained source that implements all three proof-source traits.
 #[derive(Debug, Default, Clone)]
 pub struct TrustGrantProofBundle {
     discovery_documents: BTreeMap<AuthorityId, AuthorityDiscoveryDocument>,
@@ -77,6 +88,17 @@ pub struct TrustGrantProofBundle {
 }
 
 impl TrustGrantProofBundle {
+    /// Creates a new empty proof bundle.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_verify::TrustGrantProofBundle;
+    ///
+    /// let bundle = TrustGrantProofBundle::new();
+    /// // Populate with fluent builders:
+    /// // let bundle = bundle.with_discovery_document(doc)?;
+    /// ```
     #[must_use = "empty proof bundles may be populated incrementally"]
     pub fn new() -> Self {
         Self::default()

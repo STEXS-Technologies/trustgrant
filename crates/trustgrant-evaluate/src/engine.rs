@@ -8,6 +8,13 @@ use trustgrant_document::{
 };
 use trustgrant_verify::{NormalizedTrustGrantDocument, VerifiedTrustGrant};
 
+/// The core authorization engine that evaluates a verified grant against an
+/// evaluation request.
+///
+/// The engine is stateless and implements the TrustGrant evaluation spec
+/// (§13). It checks revocation status, time windows, origin authority,
+/// target scope, resource scope, capabilities, operations, audience, and
+/// minting constraints.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct EvaluationEngine;
 
@@ -17,6 +24,23 @@ impl EvaluationEngine {
         Self
     }
 
+    /// Evaluates one verified grant against one request.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_evaluate::{
+    ///     EvaluationEngine, EvaluationRequest, RequestedCapability,
+    ///     RequestedOperation, ResourceContext,
+    /// };
+    /// use trustgrant_domain::AuthorityId;
+    /// # // Minimum skeleton — full evaluation requires a verified grant fixture.
+    /// # // See integration tests for complete examples.
+    /// ```
+    ///
+    /// The caller is responsible for providing a [`VerifiedTrustGrant`] obtained
+    /// through the verification pipeline and a properly populated
+    /// [`EvaluationRequest`].
     #[must_use = "evaluation result is required to authorize or deny work"]
     pub fn evaluate(
         self,

@@ -1,28 +1,55 @@
 use trustgrant_domain::TrustGrantId;
 
+/// Reasons why an evaluation request was denied.
+///
+/// Each variant corresponds to a specific check in the evaluation spec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EvaluationDenyReason {
+    /// The grant has been revoked.
     Revoked,
+    /// The grant's time window has not yet started (`evaluated_at < not_before`).
     NotYetValid,
+    /// The grant's time window has expired (`evaluated_at > not_after`).
     Expired,
+    /// The target scope has an explicit deny selector that matched.
     TargetDenied,
+    /// The target scope does not have an allow selector that matched.
     TargetNotAllowed,
+    /// The requested resource type is not present in the grant's resource scope.
     ResourceTypeNotGranted,
+    /// The resource scope has an explicit deny selector that matched.
     ResourceDenied,
+    /// The resource scope does not have an allow selector that matched.
     ResourceNotAllowed,
+    /// The audience scope has an explicit deny selector that matched.
     AudienceDenied,
+    /// The audience scope does not have an allow selector that matched.
     AudienceNotAllowed,
+    /// The audience principal scope has an explicit deny selector that matched.
     AudiencePrincipalDenied,
+    /// The audience principal scope does not have an allow selector that matched.
     AudiencePrincipalNotAllowed,
+    /// The requested capability is disabled at the grant or resource-type level.
     CapabilityDisabled,
+    /// The requested operation is denied by the operation scope.
     OperationDenied,
+    /// The request's origin authority does not match the grant's origin authority.
     OriginAuthorityMismatch,
+    /// Mint-constraint evaluation requires a `MintContext` but none was provided.
     MissingMintContext,
+    /// Per-user mint limits require an audience principal context but none was
+    /// provided.
     MissingAudiencePrincipalContext,
+    /// The total mint count has reached the `max_total` limit.
     MintTotalLimitReached,
+    /// The per-user mint count has reached the `max_per_user` limit.
     MintPerUserLimitReached,
 }
 
+/// The result of evaluating one grant against one request.
+///
+/// An `EvaluationDecision` carries the evaluated grant's ID and an optional
+/// deny reason. When `deny_reason` is `None`, the evaluation passed (allow).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EvaluationDecision {
     trustgrant_id: TrustGrantId,

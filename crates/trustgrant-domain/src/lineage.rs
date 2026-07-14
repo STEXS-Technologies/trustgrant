@@ -4,6 +4,10 @@ use trustgrant_error::TrustGrantError;
 
 use super::ids::{GrantSeriesId, TrustGrantId};
 
+/// A non-zero revision number within a grant series.
+///
+/// Revisions start at 1 and increment with each new version of a grant
+/// within the same series.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GrantRevision(NonZeroU64);
 
@@ -26,13 +30,25 @@ impl GrantRevision {
     }
 }
 
+/// Determines how a new grant revision relates to previous revisions of the
+/// same series.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SupersessionPolicy {
+    /// The new revision coexists with all previous revisions; all are valid.
     Coexist,
+    /// The new revision supersedes the immediately previous revision.
     SupersedePrevious,
+    /// The new revision is valid but prior revisions remain valid until
+    /// explicitly revoked.
     ExplicitRevocationRequired,
 }
 
+/// Identifies one grant within a series and tracks its supersession
+/// relationship.
+///
+/// Combines the concrete trustgrant ID, series ID, revision number,
+/// optional superseded predecessor, and the supersession policy that
+/// governs the relationship.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrantLineage {
     trustgrant_id: TrustGrantId,

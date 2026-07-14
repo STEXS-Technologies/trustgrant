@@ -23,6 +23,11 @@ use trustgrant_error::TrustGrantError;
 use trustgrant_ports::VerificationPosture;
 use trustgrant_revocation::VerifiedRevocationState;
 
+/// The normalized (validated + deserialized) trust grant document used by
+/// the evaluation engine.
+///
+/// Produced from a [`ValidatedTrustGrantDocument`] after verification.
+/// Contains all grant fields in a form optimized for fast evaluation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormalizedTrustGrantDocument {
     lineage: GrantLineage,
@@ -228,6 +233,11 @@ impl From<ValidatedTrustGrantDocument> for NormalizedTrustGrantDocument {
     }
 }
 
+/// Metadata collected during the verification of a TrustGrant document.
+///
+/// Includes the verification timestamp, posture (online/offline/cached),
+/// resolved signer binding, ownership verification record, and revocation
+/// state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerificationMetadata {
     verified_at: DateTime<Utc>,
@@ -281,6 +291,10 @@ impl VerificationMetadata {
     }
 }
 
+/// A fully verified TrustGrant ready for evaluation.
+///
+/// Combines the normalized grant document with the verification metadata
+/// (signer binding, ownership, revocation) produced by the pipeline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedTrustGrant {
     document: NormalizedTrustGrantDocument,

@@ -8,6 +8,10 @@ use trustgrant_error::limits::{
     MAX_RESOURCE_TYPE_NAME_BYTES, MAX_SELECTOR_KIND_BYTES, ensure_string_limit,
 };
 
+/// A validated operation name used in grant capability scopes.
+///
+/// Operation names are non-empty token strings (no whitespace or control
+/// characters) subject to a maximum byte limit.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OperationName(String);
 
@@ -42,6 +46,10 @@ impl Borrow<str> for OperationName {
     }
 }
 
+/// A validated custom (application-defined) operation name.
+///
+/// Custom operation names reserve the built-in capability names
+/// (`recognize`, `mint`, `create`) and reject them at construction.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CustomOperationName(OperationName);
 
@@ -85,6 +93,10 @@ impl Borrow<str> for CustomOperationName {
     }
 }
 
+/// A validated resource type name.
+///
+/// Resource type names are non-empty token strings (no whitespace or control
+/// characters) that identify the kind of resource a grant applies to.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResourceTypeName(String);
 
@@ -120,6 +132,11 @@ impl Borrow<str> for ResourceTypeName {
     }
 }
 
+/// A validated key identifier used to select a specific signing key.
+///
+/// Key identifiers are non-empty token strings (no whitespace or control
+/// characters) that reference a key record in an authority discovery
+/// document.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct KeyId(String);
 
@@ -154,6 +171,12 @@ impl Borrow<str> for KeyId {
     }
 }
 
+/// A validated selector kind that classifies selector values into built-in
+/// categories or user-defined groups.
+///
+/// Built-in kinds (`authority`, `namespace`, `actor`) are recognized
+/// case-insensitively and provide fast O(1) lookup indices. User-defined
+/// kinds are treated as opaque strings with case-sensitive equality.
 #[derive(Debug, Clone)]
 pub struct SelectorKind {
     classification: SelectorKindClassification,
@@ -170,6 +193,16 @@ enum SelectorKindClassification {
 
 impl SelectorKind {
     /// Creates a validated selector kind.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_domain::SelectorKind;
+    ///
+    /// let authority = SelectorKind::new("authority")
+    ///     .expect("built-in authority kind");
+    /// assert_eq!(authority.kind_index(), Some(0));
+    /// ```
     ///
     /// # Errors
     ///
@@ -281,6 +314,11 @@ impl SelectorKindClassification {
     }
 }
 
+/// A validated principal kind that classifies the type of issuer principal
+/// (e.g. `service`, `user`, `bot`).
+///
+/// Principal kinds are non-empty token strings with no whitespace or
+/// control characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PrincipalKind(String);
 
@@ -316,6 +354,11 @@ impl Borrow<str> for PrincipalKind {
     }
 }
 
+/// A validated principal identifier that uniquely identifies an issuer
+/// principal within its kind.
+///
+/// Principal identifiers are non-empty token strings with no whitespace or
+/// control characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PrincipalId(String);
 

@@ -95,8 +95,11 @@ impl Borrow<str> for Utf16Key {
     }
 }
 
+/// Identifies the JSON canonicalization algorithm used for deterministic
+/// signing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalizationProfile {
+    /// RFC 8785 JSON Canonicalization Scheme (JCS).
     Rfc8785,
 }
 

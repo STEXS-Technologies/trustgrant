@@ -3,11 +3,23 @@ use std::fmt;
 use trustgrant_error::TrustGrantError;
 use trustgrant_error::limits::{MAX_SELECTOR_EXPRESSION_BYTES, ensure_string_limit};
 
+/// Supported comparison predicates for selector expressions.
+///
+/// # Variants
+///
+/// * `Equals` — exact string match.
+/// * `StartsWith` — prefix match.
+/// * `EndsWith` — suffix match.
+/// * `Contains` — substring match.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SelectorPredicate {
+    /// Exact string match.
     Equals,
+    /// Prefix match — the candidate must start with the argument.
     StartsWith,
+    /// Suffix match — the candidate must end with the argument.
     EndsWith,
+    /// Substring match — the candidate must contain the argument.
     Contains,
 }
 
@@ -38,6 +50,11 @@ impl fmt::Display for SelectorPredicate {
     }
 }
 
+/// A parsed selector expression that combines a predicate with a quoted
+/// argument.
+///
+/// Selector expressions are used in grant scopes to match resource
+/// identifiers at evaluation time (e.g. `startsWith("vip_")`).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SelectorExpression {
     predicate: SelectorPredicate,
@@ -46,6 +63,17 @@ pub struct SelectorExpression {
 
 impl SelectorExpression {
     /// Parses one v0 selector expression.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_domain::SelectorExpression;
+    ///
+    /// let expr = SelectorExpression::parse(r#"startsWith("vip_")"#)
+    ///     .expect("valid expression");
+    /// assert!(expr.matches("vip_gold"));
+    /// assert!(!expr.matches("gold_vip"));
+    /// ```
     ///
     /// # Errors
     ///

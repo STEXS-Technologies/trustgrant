@@ -8,6 +8,11 @@ use trustgrant_domain::Utf16Key;
 use trustgrant_error::TrustGrantError;
 use trustgrant_error::limits::{MAX_TRUSTGRANT_JSON_BYTES, ensure_json_size};
 
+/// The raw, unvalidated wire representation of a TrustGrant document.
+///
+/// Fields map directly to JSON keys. Use [`RawTrustGrantDocument::parse_json_str`]
+/// or [`RawTrustGrantDocument::parse_json_bytes`] to deserialize, then convert to
+/// [`ValidatedTrustGrantDocument`] via `TryFrom`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawTrustGrantDocument {
@@ -48,6 +53,33 @@ impl RawTrustGrantDocument {
 
     /// Parses a raw TrustGrant document from a JSON string.
     ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_document::raw::RawTrustGrantDocument;
+    ///
+    /// let json = r#"{
+    ///   "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+    ///   "version":0,
+    ///   "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001",
+    ///   "revision":1,
+    ///   "supersession_policy":"coexist",
+    ///   "issuer_authority":"https://issuer.example.com",
+    ///   "origin_authority":"https://issuer.example.com",
+    ///   "active_owning_authority":"https://issuer.example.com",
+    ///   "key_id":"root-key-1",
+    ///   "target_scope":{"all":true,"allow":null,"deny":null},
+    ///   "capabilities":{"recognize":true,"mint":false},
+    ///   "resource_scope":{"types":{}},
+    ///   "issued_at":"2026-04-07T12:00:00Z",
+    ///   "signature":"base64-signature"
+    /// }"#;
+    ///
+    /// let doc = RawTrustGrantDocument::parse_json_str(json)
+    ///     .expect("valid TrustGrant JSON");
+    /// assert_eq!(doc.trustgrant_id.as_str(), "tg_123e4567-e89b-12d3-a456-426614174000");
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the input exceeds the protocol size
@@ -69,10 +101,15 @@ impl RawTrustGrantDocument {
     }
 }
 
+/// Wire supersession policy for a TrustGrant document.
+///
+/// Maps directly from the JSON `supersession_policy` field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RawSupersessionPolicy {
+    /// New revision coexists with prior revisions.
     Coexist,
+    /// New revision supersedes the immediately previous revision.
     SupersedePrevious,
 }
 
@@ -86,10 +123,13 @@ impl RawSupersessionPolicy {
     }
 }
 
+/// Wire representation of an issuer principal reference.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawPrincipal {
+    /// Principal kind (e.g. `service`, `user`).
     pub kind: CompactString,
+    /// Principal identifier within its kind.
     pub id: CompactString,
 }
 
@@ -103,11 +143,15 @@ impl RawPrincipal {
     }
 }
 
+/// Wire representation of a scope block (`target_scope`, audience scopes).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawScope {
+    /// When `true`, the scope matches all values unconditionally.
     pub all: bool,
+    /// Selectors that explicitly allow matching values.
     pub allow: Option<Vec<RawSelector>>,
+    /// Selectors that explicitly deny matching values.
     pub deny: Option<Vec<RawSelector>>,
 }
 
@@ -140,12 +184,17 @@ impl RawScope {
     }
 }
 
+/// Wire representation of one selector in a scope.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawSelector {
+    /// Selector kind (e.g. `authority`, `namespace`, `actor`).
     pub kind: CompactString,
+    /// When `true`, the selector matches all values unconditionally.
     pub all: bool,
+    /// Explicit value strings to match.
     pub values: Option<Vec<CompactString>>,
+    /// Selector expressions (e.g. `startsWith("vip_")`).
     pub expressions: Option<Vec<CompactString>>,
 }
 
@@ -196,9 +245,12 @@ impl RawSelector {
     }
 }
 
+/// Wire representation of top-level built-in capabilities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawCapabilities {
+    /// Whether the `recognize` capability is enabled.
     pub recognize: bool,
+    /// Whether the `mint` capability is enabled.
     pub mint: bool,
 }
 
@@ -209,9 +261,11 @@ impl RawCapabilities {
     }
 }
 
+/// Wire representation of the resource scope map.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawResourceScope {
+    /// Map from resource type name to its scope definition.
     pub types: BTreeMap<Utf16Key, RawResourceType>,
 }
 
@@ -222,14 +276,21 @@ impl RawResourceScope {
     }
 }
 
+/// Wire representation of one resource type scope.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawResourceType {
+    /// When `true`, the type matches all resources unconditionally.
     pub all: bool,
+    /// Selectors that explicitly allow resources of this type.
     pub allow: Option<Vec<RawSelector>>,
+    /// Selectors that explicitly deny resources of this type.
     pub deny: Option<Vec<RawSelector>>,
+    /// Per-type capability overrides.
     pub capabilities: RawTypeCapabilities,
+    /// Constraints for this resource type.
     pub constraints: RawTypeConstraints,
+    /// Operation scope (allow/deny lists of operation names).
     pub operations: Option<RawOperationScope>,
 }
 
@@ -254,9 +315,14 @@ impl RawResourceType {
     }
 }
 
+/// Wire representation of per-type capability overrides.
+///
+/// `None` means "inherit from the top-level capabilities block".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawTypeCapabilities {
+    /// Per-type `recognize` override (`None` = inherit).
     pub recognize: Option<bool>,
+    /// Per-type `mint` override (`None` = inherit).
     pub mint: Option<bool>,
 }
 
@@ -267,10 +333,13 @@ impl RawTypeCapabilities {
     }
 }
 
+/// Wire representation of per-type constraints.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawTypeConstraints {
+    /// Minting limits for this resource type.
     pub minting: RawMintingConstraints,
+    /// Audience scope entries specific to this resource type.
     pub audience_scope: Option<Vec<RawAudienceEntry>>,
 }
 
@@ -287,9 +356,12 @@ impl RawTypeConstraints {
     }
 }
 
+/// Wire representation of minting constraints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawMintingConstraints {
+    /// Maximum total number of mint operations allowed.
     pub max_total: Option<u64>,
+    /// Maximum number of mint operations per unique audience principal.
     pub max_per_user: Option<u64>,
 }
 
@@ -303,11 +375,15 @@ impl RawMintingConstraints {
     }
 }
 
+/// Wire representation of an operation scope (allow/deny lists).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawOperationScope {
+    /// When `true`, all operations are allowed unconditionally.
     pub all: bool,
+    /// Explicitly allowed operation names.
     pub allow: Option<Vec<CompactString>>,
+    /// Explicitly denied operation names.
     pub deny: Option<Vec<CompactString>>,
 }
 
@@ -340,11 +416,15 @@ impl RawOperationScope {
     }
 }
 
+/// Wire representation of one audience entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawAudienceEntry {
+    /// Target audience authority identifier.
     pub authority_id: CompactString,
+    /// Scope that the audience authority must match.
     pub scope: RawScope,
+    /// Optional principal scope narrowing the audience.
     pub principal_scope: Option<RawScope>,
 }
 
@@ -363,6 +443,7 @@ impl RawAudienceEntry {
     }
 }
 
+/// Wire representation of global grant constraints.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawGlobalConstraints {
@@ -376,6 +457,7 @@ impl RawGlobalConstraints {
     }
 }
 
+/// Wire representation of a time window with `not_before` and `not_after`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawTimeWindow {
@@ -393,6 +475,7 @@ impl RawTimeWindow {
     }
 }
 
+/// Wire representation of a revocation policy.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawRevocation {

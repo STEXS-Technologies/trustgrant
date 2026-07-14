@@ -8,6 +8,11 @@ use crate::{
 };
 use trustgrant_error::TrustGrantError;
 
+/// Describes the lineage of one ownership transition within a transition
+/// series.
+///
+/// Records the transition identifier, series, revision number, and optional
+/// predecessor to enable deterministic chain stitching.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipTransitionLineage {
     transition_id: TransitionId,
@@ -73,6 +78,10 @@ impl OwnershipTransitionLineage {
     }
 }
 
+/// One explicit selector within an ownership resource scope.
+///
+/// Each selector pairs a [`SelectorKind`] with a list of values and
+/// participates in ownership-scope matching.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OwnershipSelector {
     kind: SelectorKind,
@@ -121,6 +130,10 @@ impl OwnershipSelector {
     }
 }
 
+/// The resource-scope portion of an ownership transition.
+///
+/// Contains a set of selectors that describe which resources are covered by
+/// an ownership transition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipResourceScope {
     selectors: Vec<OwnershipSelector>,
@@ -155,6 +168,11 @@ impl OwnershipResourceScope {
     }
 }
 
+/// A time window bounding when an ownership transition is valid.
+///
+/// The window is defined by a `not_before` and `not_after` pair; the
+/// transition is only valid if the evaluation timestamp falls within
+/// `[not_before, not_after]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OwnershipTimeWindow {
     not_before: DateTime<Utc>,
@@ -197,6 +215,8 @@ impl OwnershipTimeWindow {
     }
 }
 
+/// The three parties involved in an ownership transition: origin,
+/// predecessor, and successor authorities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipTransitionParties {
     origin_authority: AuthorityId,
@@ -242,6 +262,10 @@ impl OwnershipTransitionParties {
     }
 }
 
+/// A complete, validated ownership transition record.
+///
+/// Combines lineage, parties, resource scope, optional time window, and
+/// effective-at timestamp into one self-contained transition proof.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipTransitionRecord {
     lineage: OwnershipTransitionLineage,
@@ -325,13 +349,21 @@ impl OwnershipTransitionRecord {
     }
 }
 
+/// Classifies how ownership was proven for a verified grant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OwnershipProofKind {
+    /// The grant issuer is the static, non-transitioned owner.
     StaticOwner,
+    /// Ownership was established through a chain of transition proofs.
     TransitionChain,
 }
 
+/// Records the outcome of an ownership verification check.
+///
+/// Captures the resolved origin authority, active owning authority, when
+/// the check was performed, what kind of proof was used, and the
+/// transition-chain tip (if applicable).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipVerificationRecord {
     origin_authority: AuthorityId,

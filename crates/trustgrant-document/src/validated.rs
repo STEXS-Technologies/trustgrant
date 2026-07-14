@@ -22,6 +22,12 @@ use trustgrant_error::limits::{
     ensure_string_limit,
 };
 
+/// A fully validated TrustGrant document ready for evaluation.
+///
+/// Produced by converting a [`RawTrustGrantDocument`] through
+/// `TryFrom<RawTrustGrantDocument>`. All string and collection limits have
+/// been checked, identifiers have been normalized, and scope shapes have
+/// been verified.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTrustGrantDocument {
     lineage: GrantLineage,
@@ -106,6 +112,40 @@ impl ValidatedTrustGrantDocument {
     }
 }
 
+/// Converts a raw (unvalidated) TrustGrant document into a validated one.
+///
+/// # Examples
+///
+/// ```rust
+/// use trustgrant_document::ValidatedTrustGrantDocument;
+/// use trustgrant_document::raw::RawTrustGrantDocument;
+///
+/// let json = r#"{
+///   "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+///   "version":0,
+///   "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001",
+///   "revision":1,
+///   "supersession_policy":"coexist",
+///   "issuer_authority":"https://issuer.example.com",
+///   "origin_authority":"https://issuer.example.com",
+///   "active_owning_authority":"https://issuer.example.com",
+///   "key_id":"root-key-1",
+///   "target_scope":{"all":true,"allow":null,"deny":null},
+///   "capabilities":{"recognize":true,"mint":false},
+///   "resource_scope":{"types":{}},
+///   "issued_at":"2026-04-07T12:00:00Z",
+///   "signature":"base64-signature"
+/// }"#;
+///
+/// let raw = RawTrustGrantDocument::parse_json_str(json).expect("valid JSON");
+/// let validated = ValidatedTrustGrantDocument::try_from(raw)
+///     .expect("document validation");
+///
+/// assert_eq!(
+///     validated.lineage().trustgrant_id().to_string(),
+///     "tg_123e4567-e89b-12d3-a456-426614174000"
+/// );
+/// ```
 impl TryFrom<RawTrustGrantDocument> for ValidatedTrustGrantDocument {
     type Error = TrustGrantError;
 
@@ -182,6 +222,7 @@ impl TryFrom<RawTrustGrantDocument> for ValidatedTrustGrantDocument {
     }
 }
 
+/// A validated issuer principal with normalized kind and identifier.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedPrincipal {
     kind: PrincipalKind,
@@ -216,6 +257,7 @@ impl TryFrom<RawPrincipal> for ValidatedPrincipal {
     }
 }
 
+/// Validated top-level built-in capabilities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedCapabilities {
     recognize: bool,
@@ -243,6 +285,7 @@ impl ValidatedCapabilities {
     }
 }
 
+/// A validated selector with normalized kind, values, and expressions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ValidatedSelector {
     kind: SelectorKind,
@@ -302,6 +345,7 @@ impl ValidatedSelector {
     }
 }
 
+/// A validated scope block with allow/deny selector lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedScope {
     all: bool,
@@ -344,6 +388,7 @@ impl ValidatedScope {
     }
 }
 
+/// A validated operation scope with allow/deny operation lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedOperationScope {
     all: bool,
@@ -397,6 +442,8 @@ impl ValidatedOperationScope {
     }
 }
 
+/// A validated audience entry with authority, scope, and optional principal
+/// scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedAudienceEntry {
     authority_id: AuthorityId,
@@ -434,6 +481,8 @@ impl ValidatedAudienceEntry {
     }
 }
 
+/// A validated resource type scope with capabilities, constraints, and
+/// optional operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedResourceType {
     all: bool,
@@ -508,6 +557,7 @@ impl ValidatedResourceType {
     }
 }
 
+/// Validated per-type capability overrides.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTypeCapabilities {
     recognize: Option<bool>,
@@ -531,6 +581,7 @@ impl ValidatedTypeCapabilities {
     }
 }
 
+/// Validated per-type constraints (minting limits + audience scope).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTypeConstraints {
     minting: ValidatedMintingConstraints,
@@ -560,6 +611,7 @@ impl ValidatedTypeConstraints {
     }
 }
 
+/// Validated minting constraints with optional limits.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedMintingConstraints {
     max_total: Option<u64>,
@@ -586,6 +638,7 @@ impl ValidatedMintingConstraints {
     }
 }
 
+/// A validated time window ensuring `not_before <= not_after`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTimeWindow {
     not_before: DateTime<Utc>,
@@ -624,6 +677,7 @@ impl ValidatedTimeWindow {
     }
 }
 
+/// Validated revocation policy with normalized endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedRevocation {
     revocable: bool,

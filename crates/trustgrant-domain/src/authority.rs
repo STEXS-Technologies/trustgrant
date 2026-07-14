@@ -4,14 +4,31 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use trustgrant_error::TrustGrantError;
 use trustgrant_error::limits::{MAX_AUTHORITY_ID_BYTES, ensure_string_limit};
 
+/// Identifies the URI scheme of an authority identifier.
+///
+/// # Variants
+///
+/// * `Https` — `https://` scheme (web-based authority).
+/// * `Did` — `did:` scheme (decentralized identifier).
+/// * `Chain` — `chain:` scheme (blockchain/ledger authority).
+/// * `Other` — Any other explicitly-declared scheme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AuthorityScheme {
+    /// `https://` scheme (web-based authority).
     Https,
+    /// `did:` scheme (decentralized identifier).
     Did,
+    /// `chain:` scheme (blockchain/ledger authority).
     Chain,
+    /// Any other explicitly-declared scheme.
     Other,
 }
 
+/// A validated authority identifier with an explicit URI scheme.
+///
+/// Authority identifiers carry a mandatory scheme prefix (e.g. `https://`,
+/// `did:`, `chain:`) and are normalized to lowercase for equality
+/// comparisons.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AuthorityId {
     value: String,
@@ -21,6 +38,16 @@ pub struct AuthorityId {
 
 impl AuthorityId {
     /// Creates a validated authority identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_domain::AuthorityId;
+    ///
+    /// let id = AuthorityId::new("https://issuer.example.com")
+    ///     .expect("valid HTTPS authority");
+    /// assert_eq!(id.scheme_name(), "https");
+    /// ```
     ///
     /// # Errors
     ///
@@ -104,6 +131,11 @@ impl Borrow<str> for AuthorityId {
     }
 }
 
+/// Tracks ownership state across grant transitions.
+///
+/// Carries the original (origin) authority and the current active owning
+/// authority so that the evaluation engine can enforce owner-level checks
+/// after ownership transitions.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipAuthorityState {
     origin_authority: AuthorityId,

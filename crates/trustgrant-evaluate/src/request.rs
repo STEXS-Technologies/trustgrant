@@ -7,18 +7,31 @@ use trustgrant_error::limits::{
     ensure_collection_limit, ensure_string_limit,
 };
 
+/// A built-in capability that can be requested during evaluation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequestedCapability {
+    /// The `recognize` capability — identify and validate resources.
     Recognize,
+    /// The `mint` capability — create new grant instances.
     Mint,
 }
 
+/// The operation being requested during evaluation.
+///
+/// Can be a built-in capability or a custom application-defined operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestedOperation {
+    /// A built-in capability operation (`Recognize` or `Mint`).
     Capability(RequestedCapability),
+    /// An application-defined custom operation.
     Custom(CustomOperationName),
 }
 
+/// A collection of selector values indexed by selector kind.
+///
+/// Provides O(1) lookup for built-in selector kinds (authority, namespace,
+/// actor) and linear fallback for user-defined kinds. Used to represent
+/// target, audience, and audience-principal contexts during evaluation.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SelectorContext {
     entries: Vec<SelectorValues>,
@@ -127,6 +140,10 @@ impl SelectorContext {
     }
 }
 
+/// Runtime mint counters used to enforce minting constraints.
+///
+/// Provides the current total mint count and per-audience mint count to the
+/// evaluation engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MintContext {
     current_total_mints: u64,
@@ -153,6 +170,10 @@ impl MintContext {
     }
 }
 
+/// Describes the resource being acted upon during evaluation.
+///
+/// Carries the resource type name and a set of selector values that
+/// identify the specific resource instance.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResourceContext {
     resource_type: ResourceTypeName,
@@ -212,6 +233,27 @@ pub struct EvaluationRequest {
 
 impl EvaluationRequest {
     /// Creates one evaluation request with canonical authority selector entries.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_evaluate::{
+    ///     EvaluationRequest, RequestedCapability, RequestedOperation,
+    ///     ResourceContext,
+    /// };
+    /// use trustgrant_domain::AuthorityId;
+    /// use chrono::Utc;
+    ///
+    /// let resource = ResourceContext::new("item")
+    ///     .expect("valid resource type");
+    /// let request = EvaluationRequest::new(
+    ///     RequestedOperation::Capability(RequestedCapability::Recognize),
+    ///     AuthorityId::new("https://target.example.com").unwrap(),
+    ///     AuthorityId::new("https://audience.example.com").unwrap(),
+    ///     resource,
+    ///     Utc::now(),
+    /// ).expect("valid evaluation request");
+    /// ```
     ///
     /// # Errors
     ///

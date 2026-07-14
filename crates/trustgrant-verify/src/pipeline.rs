@@ -16,6 +16,11 @@ use super::signature::{SignatureVerificationRequest, SignatureVerifier};
 use super::{VerificationMetadata, VerifiedTrustGrant};
 use trustgrant_domain::CanonicalizationProfile;
 
+/// The output of a successful verification pipeline.
+///
+/// Contains both the [`VerifiedTrustGrant`] (validated document +
+/// verification metadata) and the canonical signable bytes that were used
+/// for signature verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerificationArtifacts {
     verified_grant: VerifiedTrustGrant,
@@ -34,6 +39,12 @@ impl VerificationArtifacts {
     }
 }
 
+/// End-to-end verification pipeline for TrustGrant documents.
+///
+/// The pipeline orchestrates parsing, validation, canonicalization,
+/// signer-binding resolution, revocation checks, ownership verification,
+/// and signature verification in a single pass. Use the stateless
+/// `VerificationPipeline::new()` entrypoints for each grant.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct VerificationPipeline;
 
@@ -45,6 +56,18 @@ impl VerificationPipeline {
 
     /// Parses, validates, canonicalizes, verifies, and normalizes one
     /// TrustGrant into verified runtime state.
+    ///
+    /// Use this when you already have resolved [`VerificationMetadata`]
+    /// (signer binding, ownership, revocation state) from external sources
+    /// and want a single-call verify.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_verify::VerificationPipeline;
+    /// # // Full example requires a SignatureVerifier and VerificationMetadata.
+    /// # // See integration tests for end-to-end usage.
+    /// ```
     ///
     /// # Errors
     ///
@@ -65,6 +88,9 @@ impl VerificationPipeline {
     /// Parses, validates, canonicalizes, verifies, and normalizes one
     /// TrustGrant from JSON bytes.
     ///
+    /// Use this when the source is already in bytes (e.g. from a file or
+    /// network buffer) and you have pre-resolved [`VerificationMetadata`].
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, canonicalization,
@@ -83,6 +109,9 @@ impl VerificationPipeline {
 
     /// Parses, validates, resolves proof inputs, verifies, and normalizes one
     /// TrustGrant into verified runtime state.
+    ///
+    /// Use this when you have adapter-facing [`VerificationSources`] to resolve
+    /// signer binding, ownership, and revocation proofs on the fly.
     ///
     /// # Errors
     ///
@@ -104,6 +133,9 @@ impl VerificationPipeline {
     /// Parses, validates, resolves proof inputs, verifies, and normalizes one
     /// TrustGrant from JSON bytes using adapter-facing proof sources.
     ///
+    /// Use this when the source is in bytes and you have adapter-facing
+    /// [`VerificationSources`] for proof resolution.
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, proof resolution,
@@ -124,6 +156,17 @@ impl VerificationPipeline {
     /// Verifies one JSON TrustGrant using one shared proof bundle as the
     /// discovery, revocation, and ownership proof source.
     ///
+    /// Use this when all proof material has been assembled into a
+    /// [`TrustGrantProofBundle`] (e.g. for offline or cached verification).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_verify::VerificationPipeline;
+    /// # // Full example requires a SignatureVerifier, TrustGrantProofBundle,
+    /// # // and VerificationContext. See integration tests.
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, proof resolution,
@@ -142,6 +185,9 @@ impl VerificationPipeline {
     /// Verifies one JSON-byte TrustGrant using one shared proof bundle as the
     /// discovery, revocation, and ownership proof source.
     ///
+    /// Use this when source is bytes and proof material is in a
+    /// [`TrustGrantProofBundle`].
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, proof resolution,
@@ -158,6 +204,9 @@ impl VerificationPipeline {
     }
 
     /// Verifies one already-parsed raw TrustGrant document.
+    ///
+    /// Use this when you already have a [`RawTrustGrantDocument`] and
+    /// pre-resolved [`VerificationMetadata`], avoiding a JSON re-parse.
     ///
     /// # Errors
     ///
@@ -176,6 +225,9 @@ impl VerificationPipeline {
 
     /// Verifies one already-parsed raw TrustGrant document using adapter-facing
     /// proof sources.
+    ///
+    /// Use this when you have a pre-parsed [`RawTrustGrantDocument`] and
+    /// adapter-facing [`VerificationSources`], avoiding a JSON re-parse.
     ///
     /// # Errors
     ///
