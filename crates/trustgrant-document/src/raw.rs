@@ -5,7 +5,6 @@ use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use trustgrant_domain::Utf16Key;
 
-
 use trustgrant_error::TrustGrantError;
 use trustgrant_error::limits::{MAX_TRUSTGRANT_JSON_BYTES, ensure_json_size};
 

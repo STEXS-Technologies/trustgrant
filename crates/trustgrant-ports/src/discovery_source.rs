@@ -91,10 +91,10 @@ pub trait DiscoverySource {
 mod tests {
     #![allow(clippy::panic)]
     use super::*;
-    use trustgrant_domain::AuthorityId;
-    use trustgrant_error::TrustGrantError;
     use crate::VerificationContext;
     use chrono::{TimeZone, Utc};
+    use trustgrant_domain::AuthorityId;
+    use trustgrant_error::TrustGrantError;
 
     struct MockDiscovery;
 
@@ -119,7 +119,8 @@ mod tests {
 
     fn ctx() -> VerificationContext {
         VerificationContext::new(
-            Utc.with_ymd_and_hms(2026, 4, 7, 12, 0, 0).single()
+            Utc.with_ymd_and_hms(2026, 4, 7, 12, 0, 0)
+                .single()
                 .unwrap_or_else(chrono::Utc::now),
             crate::VerificationPosture::Online,
         )
@@ -145,8 +146,7 @@ mod tests {
             .unwrap_or_else(|e| panic!("AuthorityId: {e}"));
         let principal = DelegatedPrincipalRef::new("service", "issuer-worker")
             .unwrap_or_else(|e| panic!("DelegatedPrincipalRef: {e}"));
-        let result =
-            source.fetch_delegated_principal(&authority, &principal, ctx());
+        let result = source.fetch_delegated_principal(&authority, &principal, ctx());
         assert_eq!(
             result,
             Err(TrustGrantError::MissingDelegatedPrincipalDocument)

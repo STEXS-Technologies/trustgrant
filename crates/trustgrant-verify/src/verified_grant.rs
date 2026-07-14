@@ -196,10 +196,7 @@ impl NormalizedTrustGrantDocument {
                 )))
             }),
             revocation: self.revocation.map(|revocation| {
-                RawRevocation::new(
-                    revocation.revocable(),
-                    revocation.revocation_endpoint(),
-                )
+                RawRevocation::new(revocation.revocable(), revocation.revocation_endpoint())
             }),
             issued_at: self.issued_at,
             // Rehydrate consistency checks reuse the raw->validated conversion

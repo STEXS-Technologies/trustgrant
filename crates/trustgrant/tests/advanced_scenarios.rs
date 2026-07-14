@@ -2,18 +2,18 @@
 
 use chrono::{TimeZone, Utc};
 
+use trustgrant::limits;
 use trustgrant::{
-    AuthorityId, AuthorityKeyRecord, BundleRevocationProof, CustomOperationName, EvaluationDenyReason,
-    EvaluationEngine, EvaluationRequest, OwnershipProofKind, OwnershipVerificationRecord,
-    ProofFinality, RawTrustGrantDocument, RequestedCapability, RequestedOperation,
-    ResolvedSignerBinding, ResourceContext, RevocationFreshnessPolicy, RevocationRecord,
-    RevocationSourceKind, RevocationStatus, SelectorContext, SignatureProfile,
+    AuthorityId, AuthorityKeyRecord, BundleRevocationProof, CustomOperationName,
+    EvaluationDenyReason, EvaluationEngine, EvaluationRequest, OwnershipProofKind,
+    OwnershipVerificationRecord, ProofFinality, RawTrustGrantDocument, RequestedCapability,
+    RequestedOperation, ResolvedSignerBinding, ResourceContext, RevocationFreshnessPolicy,
+    RevocationRecord, RevocationSourceKind, RevocationStatus, SelectorContext, SignatureProfile,
     SignatureVerificationRequest, SignatureVerifier, SupersessionPolicy, TrustGrantError,
     TrustGrantProofBundle, VerificationContext, VerificationMetadata, VerificationPipeline,
     VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
     parse_authority_discovery_document, parse_revocation_status_proof,
 };
-use trustgrant::limits;
 
 // ---------------------------------------------------------------------------
 // FakeSignatureVerifier (same pattern as evaluation.rs)
@@ -749,11 +749,10 @@ fn origin_authority_mismatch_denies_evaluation() {
 
     // Request with matching origin_authority should succeed.
     {
-        let request = simple_recognize_request("item", "weapons")
-            .with_origin_authority(
-                AuthorityId::new("https://issuer.example.com")
-                    .unwrap_or_else(|error| panic!("authority should be valid: {error}")),
-            );
+        let request = simple_recognize_request("item", "weapons").with_origin_authority(
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|error| panic!("authority should be valid: {error}")),
+        );
         let decision = engine.evaluate(&grant, &request);
         assert!(
             decision.is_allowed(),
@@ -763,11 +762,10 @@ fn origin_authority_mismatch_denies_evaluation() {
 
     // Request with mismatched origin_authority should be denied.
     {
-        let request = simple_recognize_request("item", "weapons")
-            .with_origin_authority(
-                AuthorityId::new("https://other.example.com")
-                    .unwrap_or_else(|error| panic!("authority should be valid: {error}")),
-            );
+        let request = simple_recognize_request("item", "weapons").with_origin_authority(
+            AuthorityId::new("https://other.example.com")
+                .unwrap_or_else(|error| panic!("authority should be valid: {error}")),
+        );
         let decision = engine.evaluate(&grant, &request);
         assert_eq!(
             decision.deny_reason(),
@@ -980,21 +978,24 @@ fn multiple_audience_entries_both_allowed() {
 
     // Request with audience A → allowed
     {
-        let request = recognize_request_for_audience("item", "general", "https://audience-a.example.com");
+        let request =
+            recognize_request_for_audience("item", "general", "https://audience-a.example.com");
         let decision = engine.evaluate(&grant, &request);
         assert!(decision.is_allowed(), "audience A should be allowed");
     }
 
     // Request with audience B → allowed
     {
-        let request = recognize_request_for_audience("item", "general", "https://audience-b.example.com");
+        let request =
+            recognize_request_for_audience("item", "general", "https://audience-b.example.com");
         let decision = engine.evaluate(&grant, &request);
         assert!(decision.is_allowed(), "audience B should be allowed");
     }
 
     // Request with audience C → AudienceNotAllowed
     {
-        let request = recognize_request_for_audience("item", "general", "https://audience-c.example.com");
+        let request =
+            recognize_request_for_audience("item", "general", "https://audience-c.example.com");
         let decision = engine.evaluate(&grant, &request);
         assert_eq!(
             decision.deny_reason(),
@@ -1107,8 +1108,14 @@ fn grant_json_at_exact_size(target: usize) -> String {
     // Compact JSON prefix ending at the issuer_principal.id string value.
     let prefix = r#"{"trustgrant_id":"tg_sz","version":0,"grant_series_id":"tgs_sz","revision":1,"supersedes":null,"supersession_policy":"coexist","issuer_authority":"https://issuer.example.com","origin_authority":"https://issuer.example.com","active_owning_authority":"https://issuer.example.com","key_id":"root-key-1","target_scope":{"all":true,"allow":null,"deny":null},"capabilities":{"recognize":true,"mint":false},"default_audience_scope":null,"resource_scope":{"types":{}},"global_constraints":null,"revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},"issued_at":"2026-04-07T12:00:00Z","signature":"base64-signature","issuer_principal":{"kind":"service","id":""#;
     let suffix = r#""}}"#;
-    let padding_needed = target.saturating_sub(prefix.len() + suffix.len());
-    format!("{prefix}{padding}{suffix}", prefix = prefix, padding = "x".repeat(padding_needed), suffix = suffix)
+    let total = prefix.len().wrapping_add(suffix.len());
+    let padding_needed = target.saturating_sub(total);
+    format!(
+        "{prefix}{padding}{suffix}",
+        prefix = prefix,
+        padding = "x".repeat(padding_needed),
+        suffix = suffix
+    )
 }
 
 #[test]
@@ -1119,20 +1126,29 @@ fn large_document_at_size_boundary() {
 
     // Build a document that is exactly at the limit.
     let exact = grant_json_at_exact_size(max_bytes);
-    assert_eq!(exact.len(), max_bytes, "exact-size document should match limit");
-    let result = RawTrustGrantDocument::parse_json_bytes(exact.as_bytes());
+    assert_eq!(
+        exact.len(),
+        max_bytes,
+        "exact-size document should match limit"
+    );
+    let exact_result = RawTrustGrantDocument::parse_json_bytes(exact.as_bytes());
     assert!(
-        result.is_ok(),
+        exact_result.is_ok(),
         "document at exact size limit should parse: {:?}",
-        result.err(),
+        exact_result.err(),
     );
 
     // One byte over the limit should fail.
-    let too_big = grant_json_at_exact_size(max_bytes + 1);
-    assert_eq!(too_big.len(), max_bytes + 1, "oversize document should be one byte over");
-    let result = RawTrustGrantDocument::parse_json_bytes(too_big.as_bytes());
+    let one_more = max_bytes.wrapping_add(1);
+    let too_big = grant_json_at_exact_size(one_more);
+    assert_eq!(
+        too_big.len(),
+        one_more,
+        "oversize document should be one byte over"
+    );
+    let big_result = RawTrustGrantDocument::parse_json_bytes(too_big.as_bytes());
     assert!(
-        result.is_err(),
+        big_result.is_err(),
         "document one byte over limit should be rejected",
     );
 }
@@ -1163,7 +1179,7 @@ fn duplicate_selectors_in_evaluation_request() {
     );
     assert_eq!(
         values.first(),
-        Some(&"weapons".to_string()),
+        Some(&"weapons".to_owned()),
         "deduplicated value should be preserved",
     );
 }

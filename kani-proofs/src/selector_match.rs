@@ -11,7 +11,9 @@ fn selector_matches(selector_all: bool, values: &[&str], context_values: &[&str]
     if values.is_empty() || context_values.is_empty() {
         return false;
     }
-    values.iter().any(|value| context_values.iter().any(|candidate| candidate == value))
+    values
+        .iter()
+        .any(|value| context_values.iter().any(|candidate| candidate == value))
 }
 
 /// Proof: all=true always matches regardless of values.
@@ -20,7 +22,10 @@ fn selector_matches(selector_all: bool, values: &[&str], context_values: &[&str]
 fn verify_all_true_always_matches() {
     let v1 = kani::any::<u8>();
     let v2 = kani::any::<u8>();
-    let values = [String::from_iter([v1 as char]), String::from_iter([v2 as char])];
+    let values = [
+        String::from_iter([v1 as char]),
+        String::from_iter([v2 as char]),
+    ];
     let context = [String::from_iter([kani::any::<u8>() as char])];
     let v: Vec<&str> = values.iter().map(|s| s.as_str()).collect();
     let c: Vec<&str> = context.iter().map(|s| s.as_str()).collect();

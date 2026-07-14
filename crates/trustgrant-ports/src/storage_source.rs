@@ -117,11 +117,7 @@ mod tests {
     }
 
     impl StorageSource for InMemoryStorage {
-        fn store(
-            &self,
-            grant_id: &StoredGrantId,
-            grant_json: &str,
-        ) -> Result<(), TrustGrantError> {
+        fn store(&self, grant_id: &StoredGrantId, grant_json: &str) -> Result<(), TrustGrantError> {
             // Using interior mutability via RefCell would be more realistic,
             // but for a simple mock we just check the operation is callable.
             let _ = grant_id;
@@ -130,19 +126,20 @@ mod tests {
         }
 
         fn load(&self, grant_id: &StoredGrantId) -> Result<String, TrustGrantError> {
-            self.grants
-                .get(&grant_id.0)
-                .cloned()
-                .ok_or(TrustGrantError::InvalidPersistedVerifiedGrantRecord(
-                    "grant not found",
-                ))
+            self.grants.get(&grant_id.0).cloned().ok_or(
+                TrustGrantError::InvalidPersistedVerifiedGrantRecord("grant not found"),
+            )
         }
 
         fn list_by_authority(
             &self,
             _: &AuthorityId,
         ) -> Result<Vec<StoredGrantId>, TrustGrantError> {
-            Ok(self.grants.keys().map(|k| StoredGrantId(k.clone())).collect())
+            Ok(self
+                .grants
+                .keys()
+                .map(|k| StoredGrantId(k.clone()))
+                .collect())
         }
     }
 
@@ -173,6 +170,10 @@ mod tests {
         let storage = InMemoryStorage::new();
         let result = storage.list_by_authority(&test_authority());
         assert!(result.is_ok());
-        assert!(result.unwrap_or_else(|error| panic!("expected Ok: {error}")).is_empty());
+        assert!(
+            result
+                .unwrap_or_else(|error| panic!("expected Ok: {error}"))
+                .is_empty()
+        );
     }
 }

@@ -1,14 +1,20 @@
-use std::hint::black_box;
+use crate::{
+    EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation, ResourceContext,
+};
 use chrono::{TimeZone, Utc};
-use crate::{EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation, ResourceContext};
+use std::hint::black_box;
+use trustgrant_discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile};
 use trustgrant_document::ValidatedTrustGrantDocument;
 use trustgrant_domain::{AuthorityId, OwnershipProofKind, OwnershipVerificationRecord};
-use trustgrant_revocation::{ProofFinality, RevocationRecord, RevocationSourceKind, RevocationStatus, VerifiedRevocationState};
+use trustgrant_revocation::{
+    ProofFinality, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    VerifiedRevocationState,
+};
 use trustgrant_verify::{VerificationMetadata, VerificationPosture, VerifiedTrustGrant};
-use trustgrant_discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile};
 
 fn ts() -> chrono::DateTime<Utc> {
-    Utc.with_ymd_and_hms(2026, 4, 7, 12, 0, 0).single()
+    Utc.with_ymd_and_hms(2026, 4, 7, 12, 0, 0)
+        .single()
         .unwrap_or(Utc::now())
 }
 
@@ -45,18 +51,31 @@ fn build_verified_grant() -> VerifiedTrustGrant {
     }"#;
     let raw = trustgrant_document::RawTrustGrantDocument::parse_json_str(json).unwrap();
     let validated = ValidatedTrustGrantDocument::try_from(raw).unwrap();
-    VerifiedTrustGrant::new(validated, VerificationMetadata::new(
-        ts(), VerificationPosture::Online, signer_binding(),
-        OwnershipVerificationRecord::new(
-            AuthorityId::new("https://issuer.example.com").unwrap(),
-            AuthorityId::new("https://issuer.example.com").unwrap(), ts(),
-            OwnershipProofKind::StaticOwner, None,
+    VerifiedTrustGrant::new(
+        validated,
+        VerificationMetadata::new(
+            ts(),
+            VerificationPosture::Online,
+            signer_binding(),
+            OwnershipVerificationRecord::new(
+                AuthorityId::new("https://issuer.example.com").unwrap(),
+                AuthorityId::new("https://issuer.example.com").unwrap(),
+                ts(),
+                OwnershipProofKind::StaticOwner,
+                None,
+            ),
+            VerifiedRevocationState::Checked(
+                RevocationRecord::new(
+                    RevocationStatus::Active,
+                    RevocationSourceKind::Api,
+                    ProofFinality::Observed,
+                    ts(),
+                    ts(),
+                )
+                .unwrap(),
+            ),
         ),
-        VerifiedRevocationState::Checked(
-            RevocationRecord::new(RevocationStatus::Active, RevocationSourceKind::Api,
-                ProofFinality::Observed, ts(), ts()).unwrap(),
-        ),
-    ))
+    )
 }
 
 #[kani::proof]
@@ -70,8 +89,10 @@ fn verify_evaluate_basic() {
         RequestedOperation::Capability(RequestedCapability::Recognize),
         AuthorityId::new("https://target.example.com").unwrap(),
         AuthorityId::new("https://audience.example.com").unwrap(),
-        resource, ts(),
-    ).unwrap();
+        resource,
+        ts(),
+    )
+    .unwrap();
     let decision = engine.evaluate(&grant, &request);
     black_box(decision);
 }

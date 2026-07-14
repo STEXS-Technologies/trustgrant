@@ -65,10 +65,7 @@ mod tests {
     struct MockRevocation;
 
     impl RevocationSource for MockRevocation {
-        fn check_revocation(
-            &self,
-            _: &TrustGrantId,
-        ) -> Result<RevocationRecord, TrustGrantError> {
+        fn check_revocation(&self, _: &TrustGrantId) -> Result<RevocationRecord, TrustGrantError> {
             Err(TrustGrantError::MissingRevocationProof)
         }
     }

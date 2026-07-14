@@ -5,7 +5,7 @@ All notable changes to the TrustGrant protocol will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] — Unreleased
+## [0.1.0] — 2026-07-13
 
 ### Added
 
@@ -30,7 +30,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mint constraints (max total, max per user)
 - Compact string storage for optimized heap allocation (`compact-str`)
 - UTF-16 code-unit ordering for canonical map keys (`Utf16Key`)
-- 380+ unit and integration tests with 96.6% coverage
-- 0 clippy warnings, 0 unsound patterns
+- 29 interop test vectors covering all 19 evaluation outcomes
+- 37 conformance test vectors covering spec validation rules (§2.5–§12)
+- 54 Rust conformance tests (spec sections)
+- 14 formal property-based tests (deny subtractive, allow explicit, fail-closed, etc.)
+- 2 Kani proof harnesses verifying selector matching core algorithm
+- End-to-end test with real ed25519 signatures (full pipeline: draft → canonicalize → sign → verify → evaluate)
+- 12 integration tests covering P1/P2/P3 gaps (capabilities, origin authority, edge cases, boundaries)
+- Real signature verification e2e test
+- Malformed vector test for runner defensive paths
+- WASM build target (`wasm32-unknown-unknown`)
 - Profiling infrastructure (frame pointers, profiling profile, flamegraph Makefile targets)
-- CI pipeline (GitHub Actions: check, clippy, fmt, test, bench, audit, fuzz, smoke)
+- CI pipeline (check, clippy, fmt, test, bench, interop, audit, fuzz, smoke, coverage)
+
+### Changed
+
+- **Spec fix**: canonical example target scope kind `"authority_id"` → `"authority"` (Section 4)
+- **Infrastructure-agnostic endpoints**: `revocation_endpoint` from `Url` to `CompactString` across all types, removing the `url` dependency from document and verify crates
+- **Discovery endpoints**: `status_endpoint`, `principal_key_endpoint` from `Url` to `CompactString`
+- **Performance**: direct datetime buffer write (−55% canonicalize), Utf16Key newtype (−55% canonicalize), compact_str for raw documents (−33% parse)
+- **Origin authority constraint**: spec §13 step 3 now enforced in evaluation engine
+- **Docs simplified**: README now concise with quick example, all P-number jargon removed
+- **Port traits documented**: `DiscoverySource`, `RevocationSource`, `StorageSource` added to architecture docs
+
+### Fixed
+
+- Spec canonical example: `"authority_id"` → `"authority"` in target scope selector
+- EvaluationDenyReason Display impl: all 20 variants now tested
+- Pre-existing clippy violations: 69 violations fixed across workspace
+- Epoch timestamp test: multi-line JSON parsing quirk fixed
+- All doc-tests: `rust,ignore` blocks made compilable or replaced with text
+
+### Removed
+
+- `url` dependency from `trustgrant-document`, `trustgrant-discovery`, `trustgrant-verify`
+- Go interop harness (vectors remain, scaffolding gone — no Go TrustGrant library)
+- Empty `[dev-dependencies]` section from `trustgrant-evaluate`
+
+### Documentation
+
+- `ERROR_BOUNDARIES.md` — classification of fatal vs recoverable errors
+- `TRACING_GUIDE.md` — spans, events, and subscriber setup
+- `IMPLEMENTATION_GUIDE.md` (interop) — cross-impl implementation order
+- `AUDIT.md` — deep audit report (local-only)
+- 16 docs total covering all spec sections, architecture, integration, interop

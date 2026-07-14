@@ -26,7 +26,8 @@ impl EvaluationEngine {
         let _span = tracing::info_span!("evaluate",
             trustgrant_id = %grant.lineage().trustgrant_id(),
             operation = ?request.operation(),
-        ).entered();
+        )
+        .entered();
         let trustgrant_id = grant.lineage().trustgrant_id();
 
         if grant.metadata().revocation().is_revoked() {

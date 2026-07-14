@@ -669,9 +669,7 @@ mod tests {
         );
         assert_eq!(
             first.revocation().map(|r| r.revocation_endpoint()),
-            second
-                .revocation()
-                .map(|r| r.revocation_endpoint()),
+            second.revocation().map(|r| r.revocation_endpoint()),
             "revocation_endpoint should survive round-trip"
         );
     }

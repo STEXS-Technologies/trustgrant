@@ -38,6 +38,7 @@ rust_2024_prelude_collisions = "warn"
 rust_2024_incompatible_pat = "warn"
 rust_2024_guarded_string_incompatible_syntax = "warn"
 deprecated_safe_2024 = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
 [workspace.lints.clippy]
 unwrap_used = "deny"

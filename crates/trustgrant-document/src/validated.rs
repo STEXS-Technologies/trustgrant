@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, HashSet};
 use chrono::{DateTime, Utc};
 use compact_str::CompactString;
 
-
 use crate::raw::{
     RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
     RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
@@ -633,7 +632,7 @@ pub struct ValidatedRevocation {
 
 impl ValidatedRevocation {
     #[must_use = "persisted revocation policy must stay valid by construction"]
-    pub fn new(revocable: bool, revocation_endpoint: CompactString) -> Self {
+    pub const fn new(revocable: bool, revocation_endpoint: CompactString) -> Self {
         Self {
             revocable,
             revocation_endpoint,

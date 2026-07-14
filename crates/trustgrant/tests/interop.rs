@@ -5,14 +5,13 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use trustgrant::{
     AuthorityId, CustomOperationName, EvaluationDecision, EvaluationEngine, EvaluationRequest,
-    MintContext, RequestedCapability, RequestedOperation, ResourceContext,
+    MintContext, RequestedCapability, RequestedOperation, ResourceContext, TrustGrantError,
     VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile},
     domain::OwnershipVerificationRecord,
     ports::{SignatureVerificationRequest, SignatureVerifier, VerificationPosture},
     revocation::{ProofFinality, RevocationRecord, RevocationSourceKind, RevocationStatus},
     verify::{VerificationMetadata, VerificationPipeline},
-    TrustGrantError,
 };
 
 // ---------------------------------------------------------------------------
@@ -124,9 +123,8 @@ fn run_evaluation(
         ),
     };
 
-    let mut resource =
-        ResourceContext::new(req["resource_type"].as_str().unwrap())
-            .unwrap_or_else(|e| panic!("invalid resource: {e}"));
+    let mut resource = ResourceContext::new(req["resource_type"].as_str().unwrap())
+        .unwrap_or_else(|e| panic!("invalid resource: {e}"));
 
     if let Some(selectors) = req["resource_selectors"].as_object() {
         for (kind, values) in selectors {
@@ -152,8 +150,7 @@ fn run_evaluation(
     // Spec §13 step 3: optional origin authority enforcement
     if let Some(origin) = req.get("origin_authority").and_then(|v| v.as_str()) {
         request = request.with_origin_authority(
-            AuthorityId::new(origin)
-                .unwrap_or_else(|e| panic!("invalid origin authority: {e}")),
+            AuthorityId::new(origin).unwrap_or_else(|e| panic!("invalid origin authority: {e}")),
         );
     }
 
@@ -161,16 +158,14 @@ fn run_evaluation(
     if let Some(setup) = eval.get("setup").and_then(|v| v.as_str()) {
         match setup {
             "add_audience_principal" => {
-                if let Some(principal_selectors) =
-                    req.get("audience_principal_selectors").and_then(|v| v.as_object())
+                if let Some(principal_selectors) = req
+                    .get("audience_principal_selectors")
+                    .and_then(|v| v.as_object())
                 {
                     for (kind, values) in principal_selectors {
                         for value in values.as_array().unwrap() {
                             request
-                                .insert_audience_principal_selector(
-                                    kind,
-                                    value.as_str().unwrap(),
-                                )
+                                .insert_audience_principal_selector(kind, value.as_str().unwrap())
                                 .unwrap_or_else(|e| {
                                     panic!("invalid audience principal selector: {e}")
                                 });
@@ -218,9 +213,7 @@ fn run_vector(path: &Path) -> Result<(), String> {
     let pipeline = VerificationPipeline::new();
     let verifier = InteropSignatureVerifier;
     let verified_at = timestamp("2026-06-15T12:00:00Z");
-    let revocation_override = vector
-        .get("revocation_override")
-        .and_then(|v| v.as_str());
+    let revocation_override = vector.get("revocation_override").and_then(|v| v.as_str());
     let revocation = make_revocation_record(verified_at, revocation_override);
     let metadata = make_metadata(verified_at, revocation);
 

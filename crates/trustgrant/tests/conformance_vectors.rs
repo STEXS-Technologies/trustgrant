@@ -3,7 +3,7 @@
     clippy::collapsible_if,
     clippy::wildcard_enum_match_arm,
     clippy::indexing_slicing,
-    clippy::unwrap_used,
+    clippy::unwrap_used
 )]
 #![allow(dead_code)]
 
@@ -11,10 +11,8 @@ use std::path::Path;
 
 use serde_json::Value;
 use trustgrant::{
-    EvaluationDenyReason, SelectorExpression,
-    document::raw::RawTrustGrantDocument,
-    document::ValidatedTrustGrantDocument,
-    domain::SelectorKind,
+    EvaluationDenyReason, SelectorExpression, document::ValidatedTrustGrantDocument,
+    document::raw::RawTrustGrantDocument, domain::SelectorKind,
 };
 
 // ---------------------------------------------------------------------------
@@ -106,8 +104,16 @@ struct SelectorKindVector {
 enum Assertion {
     ValidationAccepted,
     ValidationRejected,
-    Expression { predicate: String, match_cases: Vec<String>, no_match_cases: Vec<String> },
-    SelectorKindsEqual { a: String, b: String, expect_equal: bool },
+    Expression {
+        predicate: String,
+        match_cases: Vec<String>,
+        no_match_cases: Vec<String>,
+    },
+    SelectorKindsEqual {
+        a: String,
+        b: String,
+        expect_equal: bool,
+    },
     EvaluationDenied(EvaluationDenyReason),
     EvaluationAllowed,
     ParseError,
@@ -119,8 +125,22 @@ fn parse_vector(value: &Value) -> Result<ConformanceVector, String> {
     let overrides = value.get("overrides").cloned();
     let expression = value.get("expression").map(|e| ExpressionVector {
         predicate: e["predicate"].as_str().unwrap_or("").to_owned(),
-        match_cases: e["match"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect()).unwrap_or_default(),
-        no_match_cases: e["no_match"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect()).unwrap_or_default(),
+        match_cases: e["match"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        no_match_cases: e["no_match"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default(),
     });
     let selector_kind = value.get("selector_kind").map(|s| SelectorKindVector {
         a: s["a"].as_str().unwrap_or("").to_owned(),
@@ -175,7 +195,9 @@ fn parse_deny_reason(s: &str) -> Result<EvaluationDenyReason, String> {
         "OperationDenied" => Ok(EvaluationDenyReason::OperationDenied),
         "CapabilityDisabled" => Ok(EvaluationDenyReason::CapabilityDisabled),
         "MissingMintContext" => Ok(EvaluationDenyReason::MissingMintContext),
-        "MissingAudiencePrincipalContext" => Ok(EvaluationDenyReason::MissingAudiencePrincipalContext),
+        "MissingAudiencePrincipalContext" => {
+            Ok(EvaluationDenyReason::MissingAudiencePrincipalContext)
+        }
         "MintTotalLimitReached" => Ok(EvaluationDenyReason::MintTotalLimitReached),
         "MintPerUserLimitReached" => Ok(EvaluationDenyReason::MintPerUserLimitReached),
         "AudienceDenied" => Ok(EvaluationDenyReason::AudienceDenied),
@@ -188,7 +210,8 @@ fn parse_deny_reason(s: &str) -> Result<EvaluationDenyReason, String> {
 
 fn run_vector(path: &Path) -> Result<(), String> {
     let content = std::fs::read_to_string(path).map_err(|e| format!("read {path:?}: {e}"))?;
-    let value: Value = serde_json::from_str(&content).map_err(|e| format!("parse {path:?}: {e}"))?;
+    let value: Value =
+        serde_json::from_str(&content).map_err(|e| format!("parse {path:?}: {e}"))?;
     let vector = parse_vector(&value)?;
 
     let basename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("?");
@@ -219,12 +242,18 @@ fn run_vector(path: &Path) -> Result<(), String> {
         };
         for case in &expr.match_cases {
             if !parsed.matches(case) {
-                return Err(format!("{basename}: expected '{case}' to match '{}'", expr.predicate));
+                return Err(format!(
+                    "{basename}: expected '{case}' to match '{}'",
+                    expr.predicate
+                ));
             }
         }
         for case in &expr.no_match_cases {
             if parsed.matches(case) {
-                return Err(format!("{basename}: expected '{case}' to NOT match '{}'", expr.predicate));
+                return Err(format!(
+                    "{basename}: expected '{case}' to NOT match '{}'",
+                    expr.predicate
+                ));
             }
         }
         return Ok(());
@@ -232,8 +261,10 @@ fn run_vector(path: &Path) -> Result<(), String> {
 
     // Handle selector kind tests
     if let Some(sk) = &vector.selector_kind {
-        let kind_a = SelectorKind::new(&sk.a).map_err(|e| format!("{basename}: kind_a '{}': {e}", sk.a))?;
-        let kind_b = SelectorKind::new(&sk.b).map_err(|e| format!("{basename}: kind_b '{}': {e}", sk.b))?;
+        let kind_a =
+            SelectorKind::new(&sk.a).map_err(|e| format!("{basename}: kind_a '{}': {e}", sk.a))?;
+        let kind_b =
+            SelectorKind::new(&sk.b).map_err(|e| format!("{basename}: kind_b '{}': {e}", sk.b))?;
         let are_equal = kind_a == kind_b;
         if are_equal != sk.expect_equal {
             return Err(format!(
@@ -254,7 +285,8 @@ fn run_vector(path: &Path) -> Result<(), String> {
         base
     };
 
-    let json_str = serde_json::to_string(&doc_json).map_err(|e| format!("{basename}: serialize: {e}"))?;
+    let json_str =
+        serde_json::to_string(&doc_json).map_err(|e| format!("{basename}: serialize: {e}"))?;
 
     let raw = match RawTrustGrantDocument::parse_json_str(&json_str) {
         Ok(r) => r,
@@ -268,12 +300,16 @@ fn run_vector(path: &Path) -> Result<(), String> {
 
     match &vector.assert {
         Assertion::ParseError => {
-            return Err(format!("{basename}: expected parse error but parsing succeeded"));
+            return Err(format!(
+                "{basename}: expected parse error but parsing succeeded"
+            ));
         }
         Assertion::ValidationRejected => {
             let result = ValidatedTrustGrantDocument::try_from(raw);
             if result.is_ok() {
-                return Err(format!("{basename}: expected validation rejection but it succeeded"));
+                return Err(format!(
+                    "{basename}: expected validation rejection but it succeeded"
+                ));
             }
         }
         Assertion::ValidationAccepted => {
@@ -423,10 +459,7 @@ fn conformance_vector_rejects_malformed_file() {
             result.is_err(),
             "unknown validation value should be rejected"
         );
-        eprintln!(
-            "  [ok] unknown validation → {:?}",
-            result.err().unwrap()
-        );
+        eprintln!("  [ok] unknown validation → {:?}", result.err().unwrap());
     }
 
     // Test 5: unknown evaluation value in "assert"
@@ -444,10 +477,7 @@ fn conformance_vector_rejects_malformed_file() {
             result.is_err(),
             "unknown evaluation value should be rejected"
         );
-        eprintln!(
-            "  [ok] unknown evaluation → {:?}",
-            result.err().unwrap()
-        );
+        eprintln!("  [ok] unknown evaluation → {:?}", result.err().unwrap());
     }
 
     // Clean up

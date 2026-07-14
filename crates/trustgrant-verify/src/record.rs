@@ -4,7 +4,6 @@ use std::collections::HashSet;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-
 use trustgrant_discovery::{
     AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
 };
@@ -197,8 +196,7 @@ impl NormalizedTrustGrantDocumentRecord {
                 revocation: self
                     .revocation
                     .as_ref()
-                    .map(RevocationPolicyRecord::try_to_validated_revocation)
-                    .transpose()?,
+                    .map(RevocationPolicyRecord::try_to_validated_revocation),
                 issued_at: self.issued_at,
                 issuer_principal: self
                     .issuer_principal
@@ -625,11 +623,8 @@ struct RevocationPolicyRecord {
 }
 
 impl RevocationPolicyRecord {
-    fn try_to_validated_revocation(&self) -> Result<ValidatedRevocation, TrustGrantError> {
-        Ok(ValidatedRevocation::new(
-            self.revocable,
-            self.revocation_endpoint.clone().into(),
-        ))
+    fn try_to_validated_revocation(&self) -> ValidatedRevocation {
+        ValidatedRevocation::new(self.revocable, self.revocation_endpoint.clone().into())
     }
 }
 
@@ -637,7 +632,7 @@ impl From<&ValidatedRevocation> for RevocationPolicyRecord {
     fn from(value: &ValidatedRevocation) -> Self {
         Self {
             revocable: value.revocable(),
-            revocation_endpoint: value.revocation_endpoint().to_string(),
+            revocation_endpoint: value.revocation_endpoint().to_owned(),
         }
     }
 }

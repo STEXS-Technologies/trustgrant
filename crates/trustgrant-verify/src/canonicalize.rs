@@ -5,7 +5,6 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use compact_str::CompactString;
 use itoa::Buffer as ItoaBuffer;
 
-
 use trustgrant_document::raw::{
     RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
     RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
@@ -597,7 +596,6 @@ mod tests {
 
     use chrono::{DateTime, Utc};
     use serde_json::Value;
-
 
     use super::{CanonicalizationProfile, canonicalize_trustgrant};
     use trustgrant_document::raw::{

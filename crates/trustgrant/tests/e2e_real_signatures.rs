@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::map_err_ignore)]
 
 //! End-to-end test with real ed25519 signatures.
 //!
@@ -12,17 +12,16 @@ use chrono::{DateTime, TimeZone, Utc};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use trustgrant::{
     AuthorityId, EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation,
-    ResourceContext, TrustGrantDraft, TrustGrantDraftAuthorities, VerifiedRevocationState,
+    ResourceContext, TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError,
+    VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile},
-    domain::{CanonicalizationProfile, OwnershipProofKind, OwnershipVerificationRecord, Utf16Key},
     document::raw::{
         RawCapabilities, RawMintingConstraints, RawResourceScope, RawResourceType, RawScope,
         RawSelector, RawTypeCapabilities, RawTypeConstraints,
     },
+    domain::{CanonicalizationProfile, OwnershipProofKind, OwnershipVerificationRecord, Utf16Key},
     ports::{SignatureVerificationRequest, SignatureVerifier, VerificationPosture},
-
     verify::{VerificationMetadata, VerificationPipeline},
-    TrustGrantError,
 };
 
 // ---------------------------------------------------------------------------
@@ -68,15 +67,18 @@ fn e2e_real_signing_and_verification() {
     // 2. Discovery material
     let pk_hex = hex::encode(verifying_key.as_bytes());
     let key_record = AuthorityKeyRecord::new(
-        key_id, "ed25519", &pk_hex,
-        ts(2026, 1, 1, 0, 0, 0), ts(2027, 1, 1, 0, 0, 0),
-    ).unwrap_or_else(|e| panic!("key record: {e}"));
+        key_id,
+        "ed25519",
+        &pk_hex,
+        ts(2026, 1, 1, 0, 0, 0),
+        ts(2027, 1, 1, 0, 0, 0),
+    )
+    .unwrap_or_else(|e| panic!("key record: {e}"));
 
     let signer_binding = ResolvedSignerBinding::new(
         issuer.clone(),
         key_record,
-        SignatureProfile::new("jcs+ed25519", "RFC8785")
-            .unwrap_or_else(|e| panic!("profile: {e}")),
+        SignatureProfile::new("jcs+ed25519", "RFC8785").unwrap_or_else(|e| panic!("profile: {e}")),
         None,
     );
 
@@ -96,7 +98,10 @@ fn e2e_real_signing_and_verification() {
             Utf16Key::new("item"),
             RawResourceType::new(
                 false,
-                Some(vec![RawSelector::values("namespace", vec!["weapons".into()])]),
+                Some(vec![RawSelector::values(
+                    "namespace",
+                    vec!["weapons".into()],
+                )]),
                 None,
                 RawTypeCapabilities::new(Some(true), None),
                 RawTypeConstraints::new(RawMintingConstraints::new(None, None), None),
@@ -104,38 +109,47 @@ fn e2e_real_signing_and_verification() {
             ),
         )])),
         ts(2026, 6, 15, 12, 0, 0),
-    ).unwrap_or_else(|e| panic!("draft: {e}"));
+    )
+    .unwrap_or_else(|e| panic!("draft: {e}"));
 
     // 4. Signable → canonicalize → sign
-    let signable = draft.signable_document()
+    let signable = draft
+        .signable_document()
         .unwrap_or_else(|e| panic!("signable: {e}"));
 
-    let canonical_bytes = trustgrant::canonicalize_trustgrant(&signable, CanonicalizationProfile::Rfc8785)
-        .unwrap_or_else(|e| panic!("canonicalize: {e}"));
+    let canonical_bytes =
+        trustgrant::canonicalize_trustgrant(&signable, CanonicalizationProfile::Rfc8785)
+            .unwrap_or_else(|e| panic!("canonicalize: {e}"));
 
     let signature = signing_key.sign(canonical_bytes.as_slice());
-    let signed_doc = draft.into_signed_document(hex::encode(signature.to_bytes()))
+    let signed_doc = draft
+        .into_signed_document(hex::encode(signature.to_bytes()))
         .unwrap_or_else(|e| panic!("into_signed: {e}"));
 
-    let signed_json = signed_doc.to_json_string()
+    let signed_json = signed_doc
+        .to_json_string()
         .unwrap_or_else(|e| panic!("serialize: {e}"));
 
     // 5. Verify with real verifier
-    let artifacts = VerificationPipeline::new().verify_json_str(
-        &signed_json,
-        &verifier,
-        VerificationMetadata::new(
-            ts(2026, 6, 15, 12, 0, 0),
-            VerificationPosture::Online,
-            signer_binding.clone(),
-            OwnershipVerificationRecord::new(
-                issuer.clone(), issuer,
+    let artifacts = VerificationPipeline::new()
+        .verify_json_str(
+            &signed_json,
+            &verifier,
+            VerificationMetadata::new(
                 ts(2026, 6, 15, 12, 0, 0),
-                OwnershipProofKind::StaticOwner, None,
+                VerificationPosture::Online,
+                signer_binding.clone(),
+                OwnershipVerificationRecord::new(
+                    issuer.clone(),
+                    issuer,
+                    ts(2026, 6, 15, 12, 0, 0),
+                    OwnershipProofKind::StaticOwner,
+                    None,
+                ),
+                VerifiedRevocationState::NonRevocable,
             ),
-            VerifiedRevocationState::NonRevocable,
-        ),
-    ).unwrap_or_else(|e| panic!("verification: {e}"));
+        )
+        .unwrap_or_else(|e| panic!("verification: {e}"));
 
     // 6. Check canonical bytes
     let canonical_str = std::str::from_utf8(artifacts.canonical_bytes().as_slice())
@@ -145,9 +159,9 @@ fn e2e_real_signing_and_verification() {
 
     // 7. Evaluate
     let verified = artifacts.verified_grant();
-    let mut resource = ResourceContext::new("item")
-        .unwrap_or_else(|e| panic!("resource: {e}"));
-    resource.insert_selector("namespace", "weapons")
+    let mut resource = ResourceContext::new("item").unwrap_or_else(|e| panic!("resource: {e}"));
+    resource
+        .insert_selector("namespace", "weapons")
         .unwrap_or_else(|e| panic!("selector: {e}"));
 
     let request = EvaluationRequest::new(
@@ -158,7 +172,8 @@ fn e2e_real_signing_and_verification() {
             .unwrap_or_else(|e| panic!("audience: {e}")),
         resource,
         ts(2026, 6, 15, 12, 0, 0),
-    ).unwrap_or_else(|e| panic!("request: {e}"));
+    )
+    .unwrap_or_else(|e| panic!("request: {e}"));
 
     let decision = EvaluationEngine::new().evaluate(black_box(verified), black_box(&request));
     assert!(decision.is_allowed(), "should allow: {decision:?}");
@@ -176,7 +191,8 @@ fn e2e_real_signing_and_verification() {
                 AuthorityId::new("https://issuer.test.example.com").unwrap(),
                 AuthorityId::new("https://issuer.test.example.com").unwrap(),
                 ts(2026, 6, 15, 12, 0, 0),
-                OwnershipProofKind::StaticOwner, None,
+                OwnershipProofKind::StaticOwner,
+                None,
             ),
             VerifiedRevocationState::NonRevocable,
         ),
