@@ -8,6 +8,10 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/STEXS-Technologies/trustgrant"
 description = "A selector-based, certificate-driven protocol for decentralized delegation of authority over resources and operations across independent systems."
+homepage = "https://github.com/STEXS-Technologies/trustgrant"
+documentation = "https://docs.rs/trustgrant"
+keywords = ["authorization", "delegation", "cryptography", "authority", "grants"]
+categories = ["authentication", "cryptography", "rust-patterns"]
 
 [profile.release]
 opt-level = 3

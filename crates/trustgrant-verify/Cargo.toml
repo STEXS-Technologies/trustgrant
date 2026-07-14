@@ -2,7 +2,9 @@
 name = "trustgrant-verify"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Cold-path verification pipeline for the TrustGrant protocol"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 trustgrant-discovery = { path = "../trustgrant-discovery" }

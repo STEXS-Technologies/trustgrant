@@ -2,7 +2,9 @@
 name = "trustgrant-ports"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Backend-agnostic port traits for the TrustGrant protocol (storage, discovery, revocation sources)"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }

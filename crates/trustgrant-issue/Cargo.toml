@@ -2,7 +2,9 @@
 name = "trustgrant-issue"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Draft and signable TrustGrant document construction"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 trustgrant-document = { path = "../trustgrant-document" }

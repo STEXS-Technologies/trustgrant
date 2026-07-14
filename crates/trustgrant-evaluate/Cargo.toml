@@ -2,7 +2,9 @@
 name = "trustgrant-evaluate"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Hot-path evaluation engine for TrustGrant grants"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 trustgrant-discovery = { path = "../trustgrant-discovery" }

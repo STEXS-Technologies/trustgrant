@@ -2,7 +2,9 @@
 name = "trustgrant-discovery"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Authority discovery document parsing and signer binding resolution"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }

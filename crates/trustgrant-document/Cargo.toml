@@ -2,7 +2,9 @@
 name = "trustgrant-document"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "TrustGrant document parsing, validation, normalization, and JSON schema types"
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }
