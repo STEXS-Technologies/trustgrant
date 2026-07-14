@@ -73,17 +73,14 @@ impl TryFrom<EvaluationRequest> for MutationRequest {
             }
         }
 
-        // Actor defaults to the resource binding's origin authority —
-        // callers should set a more specific identity via [`with_actor`].
-        let actor = Some(request.origin_authority().clone());
-        // Envelope expiry defaults to the evaluation time.
-        let envelope_expires_at = Some(request.evaluated_at());
-
+        // Actor and envelope expiry are intentionally None —
+        // callers MUST set them explicitly via [`with_actor`] and
+        // [`with_envelope_expiry`] before execution.
         Ok(Self {
             request,
             intent_id,
-            actor,
-            envelope_expires_at,
+            actor: None,
+            envelope_expires_at: None,
         })
     }
 }
@@ -521,7 +518,11 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
         let value = apply(&mut transaction, &authorization)?;
 
         if request.is_mint() {
-            let quantity = evaluation_request.mint_context()
+            // The mint context should always have been injected by the
+            // executor before reaching this point. If it's missing, that's
+            // a programming error — default to 1 as a safe fallback.
+            let quantity = evaluation_request
+                .mint_context()
                 .map(|ctx| ctx.requested_quantity())
                 .unwrap_or(1);
             let total = transaction

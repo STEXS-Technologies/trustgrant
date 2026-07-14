@@ -363,9 +363,11 @@ pub struct MintContext {
 }
 
 impl MintContext {
-    /// Creates mint context with a single-item default quantity.
+    /// Creates mint context.
     ///
-    /// Use [`with_quantity`](Self::with_quantity) for batch mint operations.
+    /// Call [`with_quantity`](Self::with_quantity) to set the quantity
+    /// before passing to the executor. The quantity defaults to 1 when
+    /// not explicitly set.
     #[must_use]
     pub const fn new(current_total_mints: u64, current_mints_for_audience: u64) -> Self {
         Self {
@@ -377,10 +379,13 @@ impl MintContext {
 
     /// Sets the requested quantity for this mint operation.
     ///
-    /// Zero is rejected — use 1 for single-item minting.
+    /// # Panics
+    ///
+    /// Panics if `quantity` is 0. Use 1 for single-item minting.
     #[must_use]
     pub const fn with_quantity(mut self, quantity: u64) -> Self {
-        self.requested_quantity = if quantity == 0 { 1 } else { quantity };
+        assert!(quantity > 0, "mint quantity must be at least 1");
+        self.requested_quantity = quantity;
         self
     }
 
