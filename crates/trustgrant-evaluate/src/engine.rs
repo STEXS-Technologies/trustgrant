@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use super::decision::{EvaluationDecision, EvaluationDenyReason, EvaluationOutcome};
 use super::request::{EvaluationRequest, RequestedCapability, RequestedOperation, SelectorContext};
-use trustgrant_document::raw::InteroperabilityProfile;
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedResourceType, ValidatedScope, ValidatedSelector,
@@ -264,7 +263,6 @@ fn evaluate_resource_type(
     if let Err(reason) = is_operation_allowed(
         resource_type,
         request.operation(),
-        grant_document.interoperability_profile(),
     ) {
         return ResourceEvaluation::Denied(reason);
     }
@@ -404,7 +402,6 @@ fn is_capability_enabled(
 fn is_operation_allowed(
     resource_type: &ValidatedResourceType,
     operation: &RequestedOperation,
-    interoperability_profile: Option<&InteroperabilityProfile>,
 ) -> Result<(), EvaluationDenyReason> {
     let Some(operation_scope) = resource_type.operations() else {
         // operations=null → implicit recognize allowed for v0 compat.
@@ -434,18 +431,9 @@ fn is_operation_allowed(
         return Err(EvaluationDenyReason::OperationDenied);
     }
 
-    if operation_scope.all() {
-        // When operations.all = true and the requested operation is custom,
-        // the grant must have an interoperability profile to authorize it.
-        // Without a profile, the grant cannot declare intent for custom
-        // operations.
-        if matches!(operation, RequestedOperation::Custom(_))
-            && interoperability_profile.is_none()
-        {
-            return Err(EvaluationDenyReason::OperationNotInProfile);
-        }
-        return Ok(());
-    }
+    // operations.all is not supported — every operation must be listed
+    // explicitly in the allow list. If not in allow or deny, the fallback
+    // below returns OperationDenied.
 
     if operation_scope
         .allow()
@@ -2656,8 +2644,8 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: true,
-                            allow: None,
+                            all: false,
+                            allow: Some(vec!["transfer".into()]),
                             deny: None,
                         }),
                     },
