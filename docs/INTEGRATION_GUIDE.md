@@ -317,7 +317,7 @@ Example:
 ```rust
 use trustgrant::{
     EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation,
-    ResourceContext, VerifiedTrustGrantRecord,
+    ResourceBinding, ResourceContext, ResourceRef, VerifiedTrustGrantRecord,
 };
 
 let record: VerifiedTrustGrantRecord = load_verified_record()?;
@@ -326,12 +326,15 @@ let verified_grant = record.try_into_verified_grant()?;
 let resource = ResourceContext::new("item")?;
 let request = EvaluationRequest::new(
     RequestedOperation::Capability(RequestedCapability::Recognize),
+    ResourceBinding::Existing(ResourceRef::new(
+        origin_authority,
+        "resource-42".to_owned(),
+    )),
     target_authority,
     audience_authority,
     resource,
     evaluation_time,
-)?
-.with_origin_authority(origin_authority);
+)?;
 
 let decision = EvaluationEngine::new().evaluate(&verified_grant, &request);
 ```
