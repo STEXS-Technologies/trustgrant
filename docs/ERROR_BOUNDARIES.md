@@ -30,7 +30,7 @@ with the same inputs will never succeed.
 | `DuplicateSelector` | A duplicate selector is present in the document. | The same field selector appears twice in the `selectors` array. |
 | `DuplicateKeyId` | A duplicate key ID is present in the discovery material. | The same `key_id` appears in multiple keys within an authority discovery document. |
 | `DuplicateOperationName` | A duplicate operation name is present. | The same custom operation name appears more than once in the document. |
-| `ReservedOperationName` | A custom operation name reuses a reserved built-in name. | A custom operation is named `read` or `write`, which conflicts with built-in operations. |
+| `ReservedOperationName` | A custom operation name reuses a reserved built-in name. | A custom operation is named `recognize`, `mint`, or `create`, which conflicts with built-in operations. |
 | `InvalidJsonDocument` | The trust grant document JSON is invalid. | The document cannot be parsed as valid JSON or is structurally incorrect. |
 | `CanonicalizationFailure` | Canonicalization of the document failed. | The document contains constructs that cannot be canonicalized (e.g., unsupported number formats). |
 | `InvalidDiscoveryDocument` | The authority discovery document JSON is invalid. | A fetched or provided discovery document fails JSON validation. |

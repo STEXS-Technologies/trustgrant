@@ -461,9 +461,9 @@ Rules:
 
 Target selector kinds may include:
 
-- `authority_id`
-- `org_group`
-- `org_tag`
+- `authority`
+- `namespace`
+- `player_id`
 - `other`
 
 Issuer-defined selector kinds may also express namespace-like or deployment-local

@@ -52,6 +52,10 @@ This crate-local doc set stays focused on:
 - [TrustGrant Implementation Architecture](IMPLEMENTATION_ARCHITECTURE.md)
 - [TrustGrant Performance Baseline](PERFORMANCE_BASELINE.md)
 - [TrustGrant Canonicalization Specialization](CANONICALIZATION_SPECIALIZATION.md)
+- [TrustGrant Error Boundaries](ERROR_BOUNDARIES.md)
+- [TrustGrant Tracing Guide](TRACING_GUIDE.md)
+- [Cross-Implementation Guide](IMPLEMENTATION_GUIDE.md)
+- [Interop Overview](interop.md)
 - [TrustGrant v0 Schema](TRUSTGRANT_V0_SCHEMA_FINAL_WITH_KEY_ID.json)
 - [TrustGrant Ownership Authority Transition v0 Schema](TRUSTGRANT_OWNERSHIP_AUTHORITY_TRANSITION_V0_SCHEMA.json)
 

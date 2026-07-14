@@ -89,9 +89,11 @@ use std::collections::BTreeMap;
 
 use chrono::Utc;
 use trustgrant::{
+    TrustGrantDraft, TrustGrantDraftAuthorities,
+};
+use trustgrant::document::raw::{
     RawCapabilities, RawResourceScope, RawResourceType, RawScope, RawSelector,
-    RawTypeCapabilities, RawTypeConstraints, TrustGrantDraft,
-    TrustGrantDraftAuthorities,
+    RawTypeCapabilities, RawTypeConstraints,
 };
 
 let mut resource_types = BTreeMap::new();
@@ -326,7 +328,8 @@ let request = EvaluationRequest::new(
     audience_authority,
     resource,
     evaluation_time,
-)?;
+)?
+.with_origin_authority(origin_authority);
 
 let decision = EvaluationEngine::new().evaluate(&verified_grant, &request);
 ```

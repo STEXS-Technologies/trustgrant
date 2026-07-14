@@ -18,8 +18,8 @@ The test vectors validate each component independently.
 ## Test vectors
 
 ```
-tests/interop/vectors/      — 28 evaluation scenario vectors (language-agnostic)
-tests/conformance/vectors/  — 36 spec validation rule vectors (language-agnostic)
+tests/interop/vectors/      — 29 evaluation scenario vectors (language-agnostic)
+tests/conformance/vectors/  — 37 spec validation rule vectors (language-agnostic)
 ```
 
 ### Conformance vectors (validation rules)
