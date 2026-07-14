@@ -2,12 +2,12 @@
 
 use chrono::{TimeZone, Utc};
 use trustgrant::{
-    AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
-    ProofFinality, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
-    ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind, SignatureVerificationRequest,
-    SignatureVerifier, TrustGrantError, TrustGrantProofBundle, VerificationContext,
-    VerificationPipeline, VerificationPosture, parse_authority_discovery_document,
-    parse_revocation_status_proof,
+    AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine, EvaluationOutcome,
+    EvaluationRequest, ProofFinality, RequestedCapability, RequestedOperation, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind,
+    SignatureVerificationRequest, SignatureVerifier, TrustGrantError, TrustGrantProofBundle,
+    VerificationContext, VerificationPipeline, VerificationPosture,
+    parse_authority_discovery_document, parse_revocation_status_proof,
 };
 
 #[derive(Debug, Default)]
@@ -291,3 +291,101 @@ fn cached_verification_rejects_stale_trusted_snapshot_revocation() {
     // Cached posture requires fresh revocation state
     assert!(result.is_err());
 }
+
+// ---------------------------------------------------------------------------
+// Hot-path evaluation freshness checks
+// ---------------------------------------------------------------------------
+
+#[test]
+fn offline_evaluation_denies_when_revocation_data_has_expired() {
+    // Verify with fresh revocation data, then evaluate at a time after
+    // the freshness window has closed. The engine should deny with
+    // StaleRevocationData even though the verification passed.
+    let proof_bundle = offline_bundle(FRESH_REVOCATION_JSON);
+
+    let artifacts = VerificationPipeline::new()
+        .verify_json_str_with_sources(
+            SIMPLE_TRUSTGRANT_JSON,
+            &FakeSignatureVerifier,
+            proof_bundle.as_sources(),
+            VerificationContext::new(
+                fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                VerificationPosture::Offline,
+            ),
+        )
+        .unwrap_or_else(|error| panic!("verification should succeed: {error}"));
+
+    let engine = EvaluationEngine::new();
+    let resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    // Evaluate 48 hours after verification — well past the 24-hour freshness window.
+    let request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
+            "item".to_owned(),
+        )),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 9, 12, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+
+    let outcome = engine.evaluate(artifacts.verified_grant(), &request);
+
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::StaleRevocationData)
+    );
+}
+
+#[test]
+fn offline_evaluation_allows_with_fresh_revocation_data() {
+    // Verify with fresh revocation data and evaluate within the freshness
+    // window — the engine should allow evaluation to proceed and return
+    // an allow decision for a matching request.
+    let proof_bundle = offline_bundle(FRESH_REVOCATION_JSON);
+
+    let artifacts = VerificationPipeline::new()
+        .verify_json_str_with_sources(
+            SIMPLE_TRUSTGRANT_JSON,
+            &FakeSignatureVerifier,
+            proof_bundle.as_sources(),
+            VerificationContext::new(
+                fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                VerificationPosture::Offline,
+            ),
+        )
+        .unwrap_or_else(|error| panic!("verification should succeed: {error}"));
+
+    let engine = EvaluationEngine::new();
+    let resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    let request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
+            "item".to_owned(),
+        )),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 12, 0, 30),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+
+    let outcome = engine.evaluate(artifacts.verified_grant(), &request);
+
+    // The grant has target_scope.all = true and resource_scope.all = true,
+    // so a matching request should be allowed.
+    assert!(outcome.decision().is_allowed());
+}
+
+
