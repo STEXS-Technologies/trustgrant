@@ -500,7 +500,7 @@ fn selector_matches_context(
 #[cfg(test)]
 #[allow(clippy::panic)]
 mod tests {
-    use chrono::{TimeZone, Utc};
+    use chrono::{DateTime, TimeZone, Utc};
 
     use super::EvaluationEngine;
     use crate::{
@@ -1033,6 +1033,41 @@ mod tests {
         request
     }
 
+    fn recognize_request_at(timestamp: DateTime<Utc>) -> EvaluationRequest {
+        let mut resource = match ResourceContext::new("item") {
+            Ok(resource) => resource,
+            Err(error) => panic!("resource context should be valid: {error}"),
+        };
+        if let Err(error) = resource.insert_selector("namespace", "weapons") {
+            panic!("resource selector should be valid: {error}");
+        }
+
+        let origin = origin();
+        let mut request = match EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
+            match AuthorityId::new("https://target.example.com") {
+                Ok(authority) => authority,
+                Err(error) => panic!("valid target authority: {error}"),
+            },
+            match AuthorityId::new("https://audience.example.com") {
+                Ok(authority) => authority,
+                Err(error) => panic!("valid audience authority: {error}"),
+            },
+            resource,
+            timestamp,
+        ) {
+            Ok(request) => request,
+            Err(error) => panic!("evaluation request should be valid: {error}"),
+        };
+
+        if let Err(error) = request.insert_audience_principal_selector("actor", "player-123") {
+            panic!("audience principal selector should be valid: {error}");
+        }
+
+        request
+    }
+
     fn mint_request() -> EvaluationRequest {
         let mut resource = match ResourceContext::new("item") {
             Ok(resource) => resource,
@@ -1175,6 +1210,144 @@ mod tests {
         );
 
         let outcome = engine.evaluate(&grant, &recognize_request());
+
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::StaleRevocationData)
+        );
+    }
+
+    #[test]
+    fn evaluation_denies_stale_revocation_even_when_status_is_revoked() {
+        // When revocation data is stale, the engine denies with
+        // StaleRevocationData regardless of whether the recorded status
+        // says Active or Revoked. Freshness is checked first.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Revoked,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 12, 30, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        // Freshness check comes before status check — stale data always
+        // denies with StaleRevocationData, even if the record says Revoked.
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::StaleRevocationData)
+        );
+    }
+
+    #[test]
+    fn evaluation_allows_fresh_active_revocation_data() {
+        // Fresh revocation data with Active status should allow evaluation
+        // to proceed to subsequent checks.
+        let engine = EvaluationEngine::new();
+        let grant = verified_grant();
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        assert!(outcome.decision().is_allowed());
+    }
+
+    #[test]
+    fn evaluation_allows_non_revocable_grant_regardless_of_time() {
+        // Grants that are NonRevocable bypass revocation checks entirely,
+        // including freshness. Evaluation should proceed normally.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::NonRevocable,
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        assert!(outcome.decision().is_allowed());
+    }
+
+    #[test]
+    fn evaluation_allows_revocation_at_exact_freshness_boundary() {
+        // evaluated_at == fresh_until is considered fresh (inclusive bound).
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        // Create a request with evaluated_at == fresh_until
+        let request = recognize_request_at(fixed_timestamp(2026, 4, 7, 13, 0, 0));
+        let outcome = engine.evaluate(&grant, &request);
+
+        assert!(outcome.decision().is_allowed());
+    }
+
+    #[test]
+    fn evaluation_denies_stale_revocation_just_past_freshness_boundary() {
+        // evaluated_at == fresh_until + 1 second is stale.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        // Create a request with evaluated_at just past fresh_until
+        let request = recognize_request_at(fixed_timestamp(2026, 4, 7, 13, 0, 1));
+        let outcome = engine.evaluate(&grant, &request);
 
         assert_eq!(
             outcome.decision().deny_reason(),
