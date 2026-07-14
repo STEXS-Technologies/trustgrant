@@ -708,7 +708,8 @@ mod tests {
     fn with_revocation_sets_revocation_on_draft() {
         let revocation: RawRevocation = serde_json::from_value(serde_json::json!({
             "revocable": true,
-            "revocation_endpoint": "https://example.com/revoke"
+            "revocation_endpoint": "https://example.com/revoke",
+            "post_revocation_effect": "block_all"
         }))
         .unwrap_or_else(|error| panic!("revocation should deserialize: {error}"));
 

@@ -55,7 +55,8 @@ fn base_document_json() -> Value {
         },
         "revocation": {
             "revocable": true,
-            "revocation_endpoint": "https://issuer.example.com/revocation"
+            "revocation_endpoint": "https://issuer.example.com/revocation",
+            "post_revocation_effect": "block_all"
         },
         "issued_at": "2026-04-07T12:00:00Z",
         "signature": "base64-signature",

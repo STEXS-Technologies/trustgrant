@@ -64,7 +64,7 @@ const SIMPLE_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":true,"allow":null,"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":null
@@ -86,7 +86,7 @@ const NON_REVOCABLE_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":true,"allow":null,"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":false,"revocation_endpoint":""},
+  "revocation":{"revocable":false,"revocation_endpoint":"","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":null

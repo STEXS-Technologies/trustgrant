@@ -523,9 +523,7 @@ impl Default for PostRevocationEffect {
 pub struct RawRevocation {
     pub revocable: bool,
     pub revocation_endpoint: CompactString,
-    /// Optional on the wire — defaults to `BlockAll` in [`ValidatedRevocation`].
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub post_revocation_effect: Option<PostRevocationEffect>,
+    pub post_revocation_effect: PostRevocationEffect,
 }
 
 impl RawRevocation {
@@ -535,7 +533,7 @@ impl RawRevocation {
         Self {
             revocable,
             revocation_endpoint: revocation_endpoint.into(),
-            post_revocation_effect: None,
+            post_revocation_effect: PostRevocationEffect::BlockAll,
         }
     }
 
@@ -545,7 +543,7 @@ impl RawRevocation {
         mut self,
         effect: PostRevocationEffect,
     ) -> Self {
-        self.post_revocation_effect = Some(effect);
+        self.post_revocation_effect = effect;
         self
     }
 }
@@ -618,7 +616,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":null

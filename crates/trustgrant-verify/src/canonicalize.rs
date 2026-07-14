@@ -6,10 +6,10 @@ use compact_str::CompactString;
 use itoa::Buffer as ItoaBuffer;
 
 use trustgrant_document::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-    RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
-    RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument, RawTypeCapabilities,
-    RawTypeConstraints,
+    PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+    RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
+    RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
+    RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_domain::{CanonicalizationProfile, Utf16Key};
 use trustgrant_error::TrustGrantError;
@@ -407,6 +407,13 @@ fn write_revocation_field(
     };
 
     write_bytes(writer, b"{")?;
+    // JCS order: "p" before "r", so post_revocation_effect comes first
+    let effect = match revocation.post_revocation_effect {
+        PostRevocationEffect::BlockAll => "block_all",
+        PostRevocationEffect::BlockMintingOnly => "block_minting_only",
+    };
+    write_json_string_field(writer, "post_revocation_effect", effect)?;
+    write_bytes(writer, b",")?;
     write_bool_field(writer, "revocable", revocation.revocable)?;
     write_bytes(writer, b",")?;
     write_json_string_field(
@@ -606,10 +613,10 @@ mod tests {
 
     use super::{CanonicalizationProfile, canonicalize_trustgrant};
     use trustgrant_document::raw::{
-        RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-        RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation,
-        RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument,
-        RawTypeCapabilities, RawTypeConstraints,
+        PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+        RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
+        RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
+        RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
     };
     use trustgrant_domain::Utf16Key;
 

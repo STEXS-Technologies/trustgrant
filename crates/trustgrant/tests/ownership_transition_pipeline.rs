@@ -89,7 +89,7 @@ const SUCCESSOR_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}],
   "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"id","all":false,"values":["weapon_alpha"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:30:00Z",
   "signature":"base64-signature",
   "issuer_principal":null

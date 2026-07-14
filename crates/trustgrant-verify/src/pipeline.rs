@@ -517,7 +517,7 @@ mod tests {
               "capabilities":{{"recognize":true,"mint":false}},
               "default_audience_scope":null,
               "resource_scope":{{"types":{{"item":{{"all":true,"allow":null,"deny":null,"capabilities":{{"recognize":null,"mint":false}},"constraints":{{"minting":{{"max_total":null,"max_per_user":null}},"audience_scope":null}},"operations":null}}}}}},
-              "revocation":{{"revocable":{revocable},"revocation_endpoint":"https://issuer.example.com/revocation"}},
+              "revocation":{{"revocable":{revocable},"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"}},
               "issued_at":"2026-04-07T12:00:00Z",
               "signature":"{signature}"
             }}"#
@@ -988,7 +988,7 @@ mod tests {
         // Grant with not_before at Unix epoch (1970-01-01T00:00:00Z),
         // not_after far in the future → should verify successfully.
         let pipeline = VerificationPipeline::new();
-        let json = r#"{"trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000","version":0,"grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001","revision":1,"supersedes":null,"supersession_policy":"coexist","issuer_authority":"https://issuer.example.com","origin_authority":"https://issuer.example.com","active_owning_authority":"https://issuer.example.com","key_id":"root-key-1","target_scope":{"all":true,"allow":null,"deny":null},"capabilities":{"recognize":true,"mint":false},"default_audience_scope":null,"resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},"global_constraints":{"time":{"not_before":"1970-01-01T00:00:00Z","not_after":"2099-12-31T23:59:59Z"}},"revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},"issued_at":"1970-01-01T00:00:00Z","signature":"valid-signature"}"#;
+        let json = r#"{"trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000","version":0,"grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001","revision":1,"supersedes":null,"supersession_policy":"coexist","issuer_authority":"https://issuer.example.com","origin_authority":"https://issuer.example.com","active_owning_authority":"https://issuer.example.com","key_id":"root-key-1","target_scope":{"all":true,"allow":null,"deny":null},"capabilities":{"recognize":true,"mint":false},"default_audience_scope":null,"resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},"global_constraints":{"time":{"not_before":"1970-01-01T00:00:00Z","not_after":"2099-12-31T23:59:59Z"}},"revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},"issued_at":"1970-01-01T00:00:00Z","signature":"valid-signature"}"#;
 
         let artifacts = pipeline
             .verify_json_str(json, &FakeSignatureVerifier, metadata())
@@ -1159,7 +1159,7 @@ mod tests {
               "capabilities":{{"recognize":true,"mint":false}},
               "default_audience_scope":null,
               "resource_scope":{{"types":{{"item":{{"all":true,"allow":null,"deny":null,"capabilities":{{"recognize":null,"mint":false}},"constraints":{{"minting":{{"max_total":null,"max_per_user":null}},"audience_scope":null}},"operations":null}}}}}},
-              "revocation":{{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"}},
+              "revocation":{{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"}},
               "issued_at":"2026-04-07T12:00:00Z",
               "signature":"{signature}"
             }}"#

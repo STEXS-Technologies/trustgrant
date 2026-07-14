@@ -551,10 +551,10 @@ mod tests {
     };
     use trustgrant_document::ValidatedTrustGrantDocument;
     use trustgrant_document::raw::{
-        RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-        RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation,
-        RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument,
-        RawTypeCapabilities, RawTypeConstraints,
+        PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+        RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
+        RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
+        RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
     };
     use trustgrant_domain::AuthorityId;
     use trustgrant_domain::{
@@ -583,7 +583,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -701,7 +701,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -817,7 +817,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -928,7 +928,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1033,7 +1033,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1881,7 +1881,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1995,7 +1995,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2107,7 +2107,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2238,7 +2238,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2359,7 +2359,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2474,7 +2474,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2634,7 +2634,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2779,7 +2779,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2931,7 +2931,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3089,7 +3089,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3210,7 +3210,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3320,7 +3320,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -3392,7 +3392,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -3418,7 +3418,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -3508,7 +3508,7 @@ mod tests {
             {"authority_id":"https://audience.example.com","scope":{"all":false,"allow":[{"kind":"authority_id","all":false,"values":["https://audience.example.com"],"expressions":null}],"deny":[{"kind":"authority_id","all":false,"values":["https://audience.example.com"],"expressions":null}]},"principal_scope":null}
           ]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -3580,7 +3580,7 @@ mod tests {
             "badge":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["achievements"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
           }},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -3764,7 +3764,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3893,7 +3893,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
-                post_revocation_effect: None,
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
