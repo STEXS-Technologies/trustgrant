@@ -47,6 +47,14 @@ pub enum EvaluationDenyReason {
     MintTotalLimitReached,
     /// The per-user mint count has reached the `max_per_user` limit.
     MintPerUserLimitReached,
+    /// The request selectors have not been verified against trusted evidence.
+    ///
+    /// The integration layer must call [`EvaluationRequest::verify_selectors`]
+    /// after populating selectors from an authenticated identity, canonical
+    /// inventory record, or issuer-signed metadata source. The engine rejects
+    /// mint operations with unverified selectors to prevent self-assertion of
+    /// selector claims (spec §13 step 0).
+    UnverifiedSelectors,
     /// The revocation proof data is stale — its freshness window has expired.
     ///
     /// The revocation record was checked at `checked_at` and is only valid
@@ -204,6 +212,9 @@ impl std::fmt::Display for EvaluationDenyReason {
             }
             EvaluationDenyReason::StaleRevocationData => {
                 write!(f, "stale revocation data")
+            }
+            EvaluationDenyReason::UnverifiedSelectors => {
+                write!(f, "unverified selectors")
             }
         }
     }
@@ -464,6 +475,10 @@ mod tests {
             (
                 EvaluationDenyReason::StaleRevocationData,
                 "stale revocation data",
+            ),
+            (
+                EvaluationDenyReason::UnverifiedSelectors,
+                "unverified selectors",
             ),
         ];
         for (reason, expected) in &cases {

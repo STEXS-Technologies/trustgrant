@@ -167,7 +167,7 @@ fn mint_mutation(intent_id: &str) -> MutationRequest {
         request
             .insert_audience_principal_selector("actor", "player-123")
             .unwrap_or_else(|error| panic!("principal should be valid: {error}"));
-        MutationRequest::try_from(request.with_intent_id(intent_id))
+        MutationRequest::try_from(request.with_intent_id(intent_id).verify_selectors())
         .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
 }
 
@@ -811,7 +811,8 @@ fn mint_mutation_denied_when_capability_disabled() {
         timestamp(),
     )
     .unwrap_or_else(|e| panic!("request should be valid: {e}"))
-    .with_intent_id(intent_id);
+    .with_intent_id(intent_id)
+    .verify_selectors();
 
     let mutation = MutationRequest::try_from(request)
         .unwrap_or_else(|e| panic!("mutation request should build: {e}"));

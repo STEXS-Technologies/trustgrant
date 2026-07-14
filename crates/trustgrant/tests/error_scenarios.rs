@@ -561,6 +561,7 @@ fn missing_mint_context_evaluation_denied() {
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     // NOTE: We do NOT call request.with_mint_context_for_testing(...) — intentionally omitting it.
+    let request = request.verify_selectors();
 
     let engine = EvaluationEngine::new();
     let outcome = engine.evaluate(&grant, &request);

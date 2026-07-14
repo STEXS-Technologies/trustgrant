@@ -67,6 +67,22 @@ impl EvaluationEngine {
         request: &EvaluationRequest,
         trustgrant_id: TrustGrantId,
     ) -> EvaluationDecision {
+        // Spec §13 step 0: Reject unverified selectors for mint operations.
+        // Caller-self-asserted selectors must not authorize minting.
+        if matches!(request.operation(), RequestedOperation::Capability(RequestedCapability::Mint))
+            && !request.selectors_verified()
+        {
+            tracing::debug!(
+                trustgrant_id = %trustgrant_id,
+                operation = ?request.operation(),
+                reason = ?EvaluationDenyReason::UnverifiedSelectors,
+            );
+            return EvaluationDecision::deny(
+                trustgrant_id,
+                EvaluationDenyReason::UnverifiedSelectors,
+            );
+        }
+
         // Spec §13 step 1: Check revocation status and freshness.
         // The revocation record's freshness window is computed from the
         // issuer's declared policy — if the data is stale, deny regardless
@@ -1107,7 +1123,7 @@ mod tests {
             panic!("mint audience principal selector should be valid: {error}");
         }
 
-        request
+        request.verify_selectors()
     }
 
     fn expression_request(namespace: &str) -> EvaluationRequest {
@@ -1442,7 +1458,8 @@ mod tests {
             Ok(request) => request,
             Err(error) => panic!("mint evaluation request should be valid: {error}"),
         }
-        .with_runtime_mint_context(MintContext::new(5, 0));
+        .with_runtime_mint_context(MintContext::new(5, 0))
+        .verify_selectors();
 
         let outcome =
             EvaluationEngine::new().evaluate(&mint_grant_without_principal_scope(), &request);

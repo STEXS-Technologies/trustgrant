@@ -719,7 +719,7 @@ proptest! {
             AuthorityId::new("https://audience.example.com").unwrap(),
             resource,
             ts("2026-06-15T12:00:00Z"),
-        ).unwrap().with_mint_context_for_testing(MintContext::new(0, 0));
+        ).unwrap().with_mint_context_for_testing(MintContext::new(0, 0)).verify_selectors();
         let outcome = evaluate_request_json(&json_disabled, &request);
         prop_assert_eq!(
             outcome.decision().deny_reason(),
@@ -742,7 +742,7 @@ proptest! {
             AuthorityId::new("https://audience.example.com").unwrap(),
             resource2,
             ts("2026-06-15T12:00:00Z"),
-        ).unwrap().with_mint_context_for_testing(MintContext::new(0, 0));
+        ).unwrap().with_mint_context_for_testing(MintContext::new(0, 0)).verify_selectors();
         let outcome2 = evaluate_request_json(&json_global, &request2);
         prop_assert_eq!(
             outcome2.decision().deny_reason(),

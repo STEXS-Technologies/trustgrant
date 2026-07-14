@@ -207,6 +207,10 @@ fn run_evaluation(
         ));
     }
 
+    // All selectors from interop vectors are considered trusted — they
+    // come from the test fixture, not from a caller.
+    let request = request.verify_selectors();
+
     engine.evaluate(grant, &request)
 }
 

@@ -227,7 +227,9 @@ fn mint_request(total_mints: u64, mints_for_audience: u64) -> EvaluationRequest 
         .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
-    request.with_mint_context_for_testing(MintContext::new(total_mints, mints_for_audience))
+    request
+        .with_mint_context_for_testing(MintContext::new(total_mints, mints_for_audience))
+        .verify_selectors()
 }
 
 // ---------------------------------------------------------------------------

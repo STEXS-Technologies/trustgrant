@@ -512,6 +512,7 @@ fn simple_mint_request(resource_type: &str, namespace: &str) -> EvaluationReques
         fixed_timestamp(2026, 4, 7, 13, 0, 0),
     )
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"))
+    .verify_selectors()
 }
 
 fn simple_recognize_request(resource_type: &str, namespace: &str) -> EvaluationRequest {

@@ -747,7 +747,7 @@ mod tests {
         request
             .insert_audience_principal_selector("actor", "player-123")
             .unwrap_or_else(|error| panic!("principal should be valid: {error}"));
-        MutationRequest::try_from(request.with_intent_id(intent_id))
+        MutationRequest::try_from(request.with_intent_id(intent_id).verify_selectors())
             .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
     }
 

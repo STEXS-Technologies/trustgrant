@@ -404,7 +404,7 @@ fn mint_request() -> EvaluationRequest {
         .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
-    request
+    request.verify_selectors()
 }
 
 fn custom_operation_request() -> EvaluationRequest {

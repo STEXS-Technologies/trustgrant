@@ -473,6 +473,7 @@ pub struct EvaluationRequest {
     resource: ResourceContext,
     mint_context: Option<MintContext>,
     evaluated_at: DateTime<Utc>,
+    selectors_verified: bool,
 }
 
 impl EvaluationRequest {
@@ -540,6 +541,7 @@ impl EvaluationRequest {
             resource,
             mint_context: None,
             evaluated_at,
+            selectors_verified: false,
         })
     }
 
@@ -580,6 +582,25 @@ impl EvaluationRequest {
         value: impl Into<String>,
     ) -> Result<(), TrustGrantError> {
         self.audience_principal_context.insert(kind, value)
+    }
+
+    /// Marks all selectors in this request as verified against trusted
+    /// evidence (authenticated identity, canonical inventory record, or
+    /// issuer-signed metadata).
+    ///
+    /// The integration layer MUST call this after populating selectors
+    /// from a trusted source. The engine denies mint operations with
+    /// unverified selectors (spec §13 step 0).
+    #[must_use]
+    pub fn verify_selectors(mut self) -> Self {
+        self.selectors_verified = true;
+        self
+    }
+
+    /// Whether selectors have been verified against trusted evidence.
+    #[must_use]
+    pub const fn selectors_verified(&self) -> bool {
+        self.selectors_verified
     }
 
     /// Sets runtime mint counters for evaluation.
