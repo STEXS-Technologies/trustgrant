@@ -16,7 +16,7 @@ tests/
 ## Running
 
 ```bash
-make interop
+cargo make interop
 ```
 
 This runs:

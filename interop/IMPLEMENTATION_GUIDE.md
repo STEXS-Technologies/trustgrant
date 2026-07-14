@@ -179,7 +179,7 @@ Conformance vectors with `"selector_kind"` test kind equality:
 
 ```bash
 # Rust (reference implementation) — validates all vectors end-to-end
-make interop
+cargo make interop
 
 # TypeScript (when impl exists)
 cd interop/typescript && npx jest

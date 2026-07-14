@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Real signature verification e2e test
 - Malformed vector test for runner defensive paths
 - WASM build target (`wasm32-unknown-unknown`)
-- Profiling infrastructure (frame pointers, profiling profile, flamegraph Makefile targets)
+- Profiling infrastructure (frame pointers, profiling profile, flamegraph cargo-make targets)
 - CI pipeline (check, clippy, fmt, test, bench, interop, audit, fuzz, smoke, coverage)
 
 ### Changed
