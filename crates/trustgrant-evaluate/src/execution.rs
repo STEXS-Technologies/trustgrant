@@ -9,7 +9,9 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use trustgrant_domain::{ResourceTypeName, TrustGrantId};
+use chrono::{DateTime, Utc};
+
+use trustgrant_domain::{AuthorityId, ResourceTypeName, TrustGrantId};
 use trustgrant_error::TrustGrantError;
 use trustgrant_verify::VerifiedTrustGrant;
 
@@ -20,14 +22,16 @@ use crate::{
 
 /// A validated state-changing request suitable for atomic execution.
 ///
-/// It requires an intent ID, requires a typed resource reference and expected
-/// version for existing resources, and requires a typed template reference for
-/// minting. Read-only recognition should use [`EvaluationEngine::evaluate`]
-/// directly instead.
+/// Carries an intent ID for idempotency, an authenticated actor identity
+/// for audit, an envelope expiry for time-bounded authorization, and a
+/// typed resource reference or template reference. Read-only recognition
+/// should use [`EvaluationEngine::evaluate`] directly instead.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MutationRequest {
     request: EvaluationRequest,
     intent_id: IntentId,
+    actor: Option<AuthorityId>,
+    envelope_expires_at: Option<DateTime<Utc>>,
 }
 
 impl TryFrom<EvaluationRequest> for MutationRequest {
@@ -69,7 +73,18 @@ impl TryFrom<EvaluationRequest> for MutationRequest {
             }
         }
 
-        Ok(Self { request, intent_id })
+        // Actor defaults to the resource binding's origin authority —
+        // callers should set a more specific identity via [`with_actor`].
+        let actor = Some(request.origin_authority().clone());
+        // Envelope expiry defaults to the evaluation time.
+        let envelope_expires_at = Some(request.evaluated_at());
+
+        Ok(Self {
+            request,
+            intent_id,
+            actor,
+            envelope_expires_at,
+        })
     }
 }
 
@@ -84,6 +99,39 @@ impl MutationRequest {
     #[must_use]
     pub const fn intent_id(&self) -> &IntentId {
         &self.intent_id
+    }
+
+    /// The authenticated actor performing this operation.
+    ///
+    /// Defaults to the resource binding's `origin_authority`. Callers should
+    /// set a more specific identity via [`with_actor`].
+    #[must_use]
+    pub const fn actor(&self) -> &Option<AuthorityId> {
+        &self.actor
+    }
+
+    /// Sets the authenticated actor for this mutation request.
+    #[must_use]
+    pub fn with_actor(mut self, actor: AuthorityId) -> Self {
+        self.actor = Some(actor);
+        self
+    }
+
+    /// When this operation envelope expires.
+    ///
+    /// Defaults to `evaluated_at` from the evaluation request. The executor
+    /// MUST reject mutations with an expired envelope even if the grant is
+    /// still within its validity window.
+    #[must_use]
+    pub const fn envelope_expires_at(&self) -> Option<DateTime<Utc>> {
+        self.envelope_expires_at
+    }
+
+    /// Sets the envelope expiry for this mutation request.
+    #[must_use]
+    pub fn with_envelope_expiry(mut self, expires_at: DateTime<Utc>) -> Self {
+        self.envelope_expires_at = Some(expires_at);
+        self
     }
 
     /// Whether this request creates new resources.
@@ -115,11 +163,19 @@ impl MutationRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MutationAuthorization {
     outcome: EvaluationOutcome,
+    actor: Option<AuthorityId>,
+    intent_id: IntentId,
+    envelope_expires_at: Option<DateTime<Utc>>,
 }
 
 impl MutationAuthorization {
-    pub(crate) const fn new(outcome: EvaluationOutcome) -> Self {
-        Self { outcome }
+    pub(crate) fn new(request: &MutationRequest, outcome: EvaluationOutcome) -> Self {
+        Self {
+            outcome,
+            actor: request.actor.clone(),
+            intent_id: request.intent_id.clone(),
+            envelope_expires_at: request.envelope_expires_at,
+        }
     }
 
     /// The complete evaluation outcome to record in the mutation audit trail.
@@ -132,6 +188,24 @@ impl MutationAuthorization {
     #[must_use]
     pub const fn request(&self) -> &EvaluationRequest {
         self.outcome.request()
+    }
+
+    /// The authenticated actor that performed this mutation.
+    #[must_use]
+    pub const fn actor(&self) -> &Option<AuthorityId> {
+        &self.actor
+    }
+
+    /// The idempotency key for this mutation.
+    #[must_use]
+    pub const fn intent_id(&self) -> &IntentId {
+        &self.intent_id
+    }
+
+    /// When this transaction envelope expires.
+    #[must_use]
+    pub const fn envelope_expires_at(&self) -> Option<DateTime<Utc>> {
+        self.envelope_expires_at
     }
 
     fn matches(&self, grant_id: TrustGrantId, request: &MutationRequest) -> bool {
@@ -152,7 +226,7 @@ impl EvaluationEngine {
         grant: &VerifiedTrustGrant,
         request: &MutationRequest,
     ) -> MutationAuthorization {
-        MutationAuthorization::new(self.evaluate(grant, request.request()))
+        MutationAuthorization::new(request, self.evaluate(grant, request.request()))
     }
 }
 
@@ -406,6 +480,7 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
             request.request().clone()
         };
         let authorization = MutationAuthorization::new(
+            &request,
             EvaluationEngine::new().evaluate(grant, &evaluation_request),
         );
 
