@@ -11,7 +11,7 @@ use trustgrant::{
     RevocationFreshnessPolicy, RevocationRecord, RevocationSourceKind, RevocationStatus,
     SelectorContext, SignatureProfile, SignatureVerificationRequest, SignatureVerifier,
     SupersessionPolicy, TemplateRef, TrustGrantError, TrustGrantProofBundle,
-    VerificationContext, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    ValidatedPrincipal, VerificationContext, VerificationMetadata, VerificationPipeline, VerificationPosture,
     VerifiedRevocationState, VerifiedTrustGrant,
     parse_authority_discovery_document, parse_revocation_status_proof,
 };
@@ -1394,5 +1394,156 @@ fn grant_with_supersedes_field_parses_and_evaluates() {
     assert!(
         outcome.decision().is_allowed(),
         "superseding grant should evaluate to allowed",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Gap 6: Delegated capability grant — issuer_principal preserved
+// ---------------------------------------------------------------------------
+
+/// Grant with issuer_principal set (delegated principal).
+const DELEGATED_CAPABILITY_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-1000-a000-000000000070",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-1000-a000-000000000071",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn delegated_capability_grant_preserves_issuer_principal() {
+    // Verify that a grant with issuer_principal set preserves the delegated
+    // principal through the full verification pipeline.
+    let grant = verified_grant_from_json(DELEGATED_CAPABILITY_GRANT_JSON);
+
+    let principal = grant.document().issuer_principal();
+    assert!(
+        principal.is_some(),
+        "delegated capability grant should have issuer_principal",
+    );
+    assert_eq!(
+        principal.map(|p: &ValidatedPrincipal| p.kind().as_str()),
+        Some("service"),
+        "issuer_principal kind should match",
+    );
+    assert_eq!(
+        principal.map(|p: &ValidatedPrincipal| p.id().as_str()),
+        Some("issuer-worker"),
+        "issuer_principal id should match",
+    );
+
+    // The grant should still evaluate correctly for a matching request.
+    let engine = EvaluationEngine::new();
+    let request = simple_recognize_request("item", "general");
+    let outcome = engine.evaluate(&grant, &request);
+    assert!(
+        outcome.decision().is_allowed(),
+        "delegated capability grant should allow matching request",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Gap 7: Supersession coexist — two grants in same series both evaluate
+// ---------------------------------------------------------------------------
+
+/// First grant in series with coexist policy (revision 1).
+const COEXIST_SERIES_GRANT_A_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-1000-a000-000000000080",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-1000-a000-000000000090",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+/// Second grant in same series with coexist policy (revision 2).
+const COEXIST_SERIES_GRANT_B_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-1000-a000-000000000081",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-1000-a000-000000000090",
+  "revision":2,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:30:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn coexist_series_both_grants_verify_and_evaluate() {
+    // With coexist policy, both grants in the same series should verify and
+    // evaluate independently without conflict.
+    let engine = EvaluationEngine::new();
+
+    let grant_a = verified_grant_from_json(COEXIST_SERIES_GRANT_A_JSON);
+    let grant_b = verified_grant_from_json(COEXIST_SERIES_GRANT_B_JSON);
+
+    // Both grants should have the same series id
+    assert_eq!(grant_a.lineage().grant_series_id(), grant_b.lineage().grant_series_id());
+
+    // Grant A has revision 1
+    assert_eq!(grant_a.lineage().revision().get(), 1);
+    assert_eq!(
+        grant_a.lineage().supersession_policy(),
+        SupersessionPolicy::Coexist,
+    );
+
+    // Grant B has revision 2
+    assert_eq!(grant_b.lineage().revision().get(), 2);
+    assert_eq!(
+        grant_b.lineage().supersession_policy(),
+        SupersessionPolicy::Coexist,
+    );
+
+    // Both should evaluate successfully
+    let request = simple_recognize_request("item", "general");
+
+    let outcome_a = engine.evaluate(&grant_a, &request);
+    assert!(
+        outcome_a.decision().is_allowed(),
+        "grant A (coexist) should allow matching request",
+    );
+
+    let outcome_b = engine.evaluate(&grant_b, &request);
+    assert!(
+        outcome_b.decision().is_allowed(),
+        "grant B (coexist) should allow matching request",
     );
 }

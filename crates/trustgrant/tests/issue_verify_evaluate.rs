@@ -292,6 +292,87 @@ fn make_recognize_revocable_grant_json() -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Combined recognize + mint grant (for block_minting_only test)
+// ---------------------------------------------------------------------------
+
+fn make_recognize_and_mint_draft() -> TrustGrantDraft {
+    let authorities = TrustGrantDraftAuthorities::self_owned(ISSUER)
+        .unwrap_or_else(|error| panic!("authorities should be valid: {error}"));
+
+    let target_scope = RawScope::allow(vec![RawSelector::values("authority", vec![TARGET.into()])]);
+
+    let capabilities = RawCapabilities::new(true, true);
+
+    let mut types = BTreeMap::new();
+    types.insert(
+        Utf16Key::new("item"),
+        RawResourceType::new(
+            false,
+            Some(vec![RawSelector::values(
+                "namespace",
+                vec!["weapons".into()],
+            )]),
+            None,
+            RawTypeCapabilities::new(Some(true), Some(true)),
+            RawTypeConstraints::new(
+                RawMintingConstraints::new(Some(10), Some(1)),
+                Some(vec![RawAudienceEntry::new(
+                    AUDIENCE,
+                    RawScope::all(),
+                    Some(RawScope::allow(vec![RawSelector::values(
+                        "actor",
+                        vec!["player-123".into()],
+                    )])),
+                )]),
+            ),
+            Some(RawOperationScope::new(
+                false,
+                Some(vec!["recognize".into(), "create".into()]),
+                None,
+            )),
+        ),
+    );
+    let resource_scope = RawResourceScope::new(types);
+
+    TrustGrantDraft::new(
+        authorities,
+        "root-key-1",
+        target_scope,
+        capabilities,
+        resource_scope,
+        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("draft should be valid: {error}"))
+}
+
+/// Builds a revocable grant JSON (both recognize + mint) with
+/// post_revocation_effect = "block_minting_only".
+fn make_recognize_mint_revocable_block_minting_only_grant_json() -> String {
+    let draft = make_recognize_and_mint_draft();
+    let signed = draft
+        .into_signed_document(SIGNATURE)
+        .unwrap_or_else(|error| panic!("into_signed_document should succeed: {error}"));
+    let json = signed
+        .to_json_string()
+        .unwrap_or_else(|error| panic!("serialization should succeed: {error}"));
+
+    // Re-parse, inject revocation with block_minting_only effect, re-serialize
+    let mut raw = trustgrant::document::RawTrustGrantDocument::parse_json_str(&json)
+        .unwrap_or_else(|error| panic!("re-parse should succeed: {error}"));
+    raw.revocation = Some(
+        trustgrant::document::raw::RawRevocation::new(
+            true,
+            "https://issuer.example.com/revocation",
+        )
+        .with_post_revocation_effect(
+            trustgrant::document::raw::PostRevocationEffect::BlockMintingOnly,
+        ),
+    );
+    raw.to_json_string()
+        .unwrap_or_else(|error| panic!("final serialization should succeed: {error}"))
+}
+
+// ---------------------------------------------------------------------------
 // Custom operation grant builder
 // ---------------------------------------------------------------------------
 
@@ -596,5 +677,46 @@ fn issue_verify_evaluate_canonical_bytes_are_deterministic() {
     assert!(
         json_str.contains("\"key_id\":\"root-key-1\""),
         "canonical bytes should contain key_id"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// BlockMintingOnly full-pipeline test
+// ---------------------------------------------------------------------------
+
+#[test]
+fn revoked_grant_with_block_minting_only_allows_recognize() {
+    // Build grant with post_revocation_effect = "block_minting_only",
+    // verify with Revoked status, then evaluate.
+    // Recognize should pass, mint should be denied.
+    let grant_json = make_recognize_mint_revocable_block_minting_only_grant_json();
+
+    let pipeline = VerificationPipeline::new();
+    let artifacts = pipeline
+        .verify_json_str(
+            &grant_json,
+            &FakeSignatureVerifier,
+            verification_metadata_revocable(RevocationStatus::Revoked),
+        )
+        .unwrap_or_else(|error| panic!("verification should succeed: {error}"));
+    let verified_grant = artifacts.verified_grant();
+
+    let engine = EvaluationEngine::new();
+
+    // Recognize should pass even though revoked (block_minting_only)
+    let outcome = engine.evaluate(verified_grant, &recognize_request());
+    assert!(
+        outcome.decision().is_allowed(),
+        "recognize should be allowed under block_minting_only",
+    );
+
+    // Mint should be denied (revoked with block_minting_only)
+    let mint_req = mint_request().with_mint_context_for_testing(MintContext::new(5, 0));
+    let outcome = engine.evaluate(verified_grant, &mint_req);
+    assert!(!outcome.decision().is_allowed());
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::Revoked),
+        "mint should be denied due to revocation with block_minting_only",
     );
 }

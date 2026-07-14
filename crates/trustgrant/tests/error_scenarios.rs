@@ -4,12 +4,12 @@ use chrono::{TimeZone, Utc};
 
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
-    OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RequestedCapability,
-    RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
-    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TemplateRef, TrustGrantError,
-    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
-    VerifiedTrustGrant,
+    MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    SignatureProfile, SignatureVerificationRequest, SignatureVerifier, TemplateRef,
+    TrustGrantError, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 // ---------------------------------------------------------------------------
@@ -569,5 +569,223 @@ fn missing_mint_context_evaluation_denied() {
     assert_eq!(
         outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::MissingMintContext)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 11: UnverifiedSelectors deny path for mint (spec §13 step 0)
+// ---------------------------------------------------------------------------
+
+/// Mint-enabled grant without audience principal scope (mint=true, "create" operation).
+const MINT_WITHOUT_PRINCIPAL_SCOPE_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000030",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000031",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":true},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}]},"operations":{"all":false,"allow":["recognize","create"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn unverified_selectors_denies_mint() {
+    // Mint without verify_selectors() → UnverifiedSelectors
+    let grant = verified_grant_from_json(MINT_WITHOUT_PRINCIPAL_SCOPE_JSON, RevocationStatus::Active);
+
+    // Build a mint request WITHOUT calling .verify_selectors()
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
+    let request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(TemplateRef::new(origin)),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+
+    // NOTE: No .verify_selectors() call
+
+    let engine = EvaluationEngine::new();
+    let outcome = engine.evaluate(&grant, &request);
+
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::UnverifiedSelectors)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 12: AudienceDenied — audience scope deny list matches
+// ---------------------------------------------------------------------------
+
+/// Grant where the audience entry has an explicit deny matching the audience.
+const AUDIENCE_DENIED_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000040",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000041",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://audience.example.com"],"expressions":null}],"deny":[{"kind":"authority","all":false,"values":["https://audience.example.com"],"expressions":null}]},"principal_scope":null}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn audience_denied_evaluation_denied() {
+    let grant = verified_grant_from_json(AUDIENCE_DENIED_JSON, RevocationStatus::Active);
+    let engine = EvaluationEngine::new();
+    // The audience entry's scope has an explicit deny matching the request's
+    // audience context → AudienceDenied (deny wins over allow per spec §10).
+    let outcome = engine.evaluate(&grant, &recognize_request("player-123"));
+
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::AudienceDenied)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 13: AudiencePrincipalDenied — principal scope deny list matches
+// ---------------------------------------------------------------------------
+
+/// Grant where the audience entry's principal scope has an explicit deny.
+const AUDIENCE_PRINCIPAL_DENIED_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000050",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000051",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}]}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn audience_principal_denied_evaluation_denied() {
+    let grant = verified_grant_from_json(AUDIENCE_PRINCIPAL_DENIED_JSON, RevocationStatus::Active);
+    let engine = EvaluationEngine::new();
+    // The principal scope has an explicit deny matching "player-123".
+    // Deny wins over allow → AudiencePrincipalDenied.
+    let outcome = engine.evaluate(&grant, &recognize_request("player-123"));
+
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::AudiencePrincipalDenied)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 14: MissingAudiencePrincipalContext — mint with per-user limit
+// ---------------------------------------------------------------------------
+
+/// Mint-enabled grant with per-user minting limit but no audience principal
+/// context in the request.
+const MISSING_AUDIENCE_PRINCIPAL_CONTEXT_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000060",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000061",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":true},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}]},"operations":{"all":false,"allow":["recognize","create"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn missing_audience_principal_context_evaluation_denied() {
+    let grant = verified_grant_from_json(
+        MISSING_AUDIENCE_PRINCIPAL_CONTEXT_JSON,
+        RevocationStatus::Active,
+    );
+
+    // Build a mint request WITHOUT inserting audience principal selectors.
+    // Per-user mint limits require an audience principal context.
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
+    let request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(TemplateRef::new(origin)),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"))
+    .with_mint_context_for_testing(MintContext::new(5, 0))
+    .verify_selectors();
+
+    // NOTE: No .insert_audience_principal_selector() call
+
+    let engine = EvaluationEngine::new();
+    let outcome = engine.evaluate(&grant, &request);
+
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::MissingAudiencePrincipalContext)
     );
 }
