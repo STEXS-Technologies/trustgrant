@@ -978,6 +978,83 @@ mod tests {
         assert_eq!(ref_.expected_version(), None);
     }
 
+    #[test]
+    fn resource_ref_new_typed_with_expected_version() {
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin should be valid: {error}"));
+        let ref_ = ResourceRef::new_typed(origin, "item", "rsc-1")
+            .unwrap_or_else(|error| panic!("resource ref should be valid: {error}"))
+            .with_expected_version(3);
+
+        assert_eq!(ref_.expected_version(), Some(3));
+        assert_eq!(ref_.resource_id(), "rsc-1");
+    }
+
+    #[test]
+    fn resource_ref_new_typed_rejects_empty_resource_type() {
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin should be valid: {error}"));
+        let result = ResourceRef::new_typed(origin, "", "rsc-1");
+
+        assert_eq!(
+            result,
+            Err(TrustGrantError::EmptyStringField("resource_type"))
+        );
+    }
+
+    #[test]
+    fn resource_ref_new_typed_rejects_empty_resource_id() {
+        let origin = AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin should be valid: {error}"));
+        let result = ResourceRef::new_typed(origin, "item", "");
+
+        assert_eq!(
+            result,
+            Err(TrustGrantError::EmptyStringField("resource_ref.resource_id"))
+        );
+    }
+
+    #[test]
+    fn intent_id_as_ref_str() {
+        let id = IntentId::new("txn-001")
+            .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
+
+        let s: &str = id.as_ref();
+        assert_eq!(s, "txn-001");
+    }
+
+    #[test]
+    fn intent_id_as_str() {
+        let id = IntentId::new("test-intent-42")
+            .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
+
+        assert_eq!(id.as_str(), "test-intent-42");
+    }
+
+    #[test]
+    fn intent_id_rejects_overlong() {
+        let long = "a".repeat(
+            trustgrant_error::limits::MAX_REQUEST_SELECTOR_VALUE_BYTES + 1,
+        );
+        let result = IntentId::new(&long);
+
+        assert_eq!(
+            result,
+            Err(TrustGrantError::StringTooLong {
+                field: "intent_id",
+                max_bytes: trustgrant_error::limits::MAX_REQUEST_SELECTOR_VALUE_BYTES,
+            })
+        );
+    }
+
+    #[test]
+    fn intent_id_trims_whitespace() {
+        let id = IntentId::new("  txn-001  ")
+            .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
+
+        assert_eq!(id.as_str(), "txn-001");
+    }
+
     fn fixed_timestamp(
         year: i32,
         month: u32,
