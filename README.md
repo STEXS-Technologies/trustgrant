@@ -37,7 +37,7 @@ crates/
 tests/                      — Integration tests
   interop/vectors/          — Language-agnostic test vectors (29)
   conformance/vectors/      — Spec validation vectors (37)
-interop/                    — Cross-implementation tooling
+docs/                       — Cross-implementation guide, use cases, tracing
 kani-proofs/                — Kani formal verification harnesses
 ```
 
@@ -47,7 +47,7 @@ kani-proofs/                — Kani formal verification harnesses
 |-----|----------------|
 | [Protocol spec](crates/trustgrant/docs/TRUSTGRANT_V0_SPEC.md) | Full specification, 14 sections |
 | [Use cases](crates/trustgrant/docs/USE_CASES.md) | What problems TrustGrant solves |
-| [Implementation guide](interop/IMPLEMENTATION_GUIDE.md) | Implementing in other languages |
+| [Implementation guide](docs/IMPLEMENTATION_GUIDE.md) | Implementing in other languages |
 | [Error boundaries](crates/trustgrant/docs/ERROR_BOUNDARIES.md) | Fatal vs recoverable errors |
 | [Tracing guide](crates/trustgrant/docs/TRACING_GUIDE.md) | Observability setup |
 | [Crate README](crates/trustgrant/README.md) | Rust crate overview |

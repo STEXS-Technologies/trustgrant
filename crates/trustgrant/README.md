@@ -40,4 +40,4 @@ It does not own:
 - [Integration guide](docs/INTEGRATION_GUIDE.md) — how to use the Rust crate
 - [Error boundaries](docs/ERROR_BOUNDARIES.md) — which errors are retryable
 - [Tracing guide](docs/TRACING_GUIDE.md) — observability with tracing
-- [Cross-impl interop](../interop/IMPLEMENTATION_GUIDE.md) — implementing in Go, TS, etc.
+- [Cross-impl interop](../docs/IMPLEMENTATION_GUIDE.md) — implementing in Go, TS, etc.
