@@ -45,11 +45,11 @@ kani-proofs/                — Kani formal verification harnesses
 
 | Doc | What it covers |
 |-----|----------------|
-| [Protocol spec](crates/trustgrant/docs/TRUSTGRANT_V0_SPEC.md) | Full specification, 14 sections |
-| [Use cases](crates/trustgrant/docs/USE_CASES.md) | What problems TrustGrant solves |
+| [Protocol spec](docs/TRUSTGRANT_V0_SPEC.md) | Full specification, 14 sections |
+| [Use cases](docs/USE_CASES.md) | What problems TrustGrant solves |
 | [Implementation guide](docs/IMPLEMENTATION_GUIDE.md) | Implementing in other languages |
-| [Error boundaries](crates/trustgrant/docs/ERROR_BOUNDARIES.md) | Fatal vs recoverable errors |
-| [Tracing guide](crates/trustgrant/docs/TRACING_GUIDE.md) | Observability setup |
+| [Error boundaries](docs/ERROR_BOUNDARIES.md) | Fatal vs recoverable errors |
+| [Tracing guide](docs/TRACING_GUIDE.md) | Observability setup |
 | [Crate README](crates/trustgrant/README.md) | Rust crate overview |
 
 ## Status

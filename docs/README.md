@@ -32,7 +32,7 @@ This crate-local doc set stays focused on:
 - integration with inventory and auth
 - platform-level revocation and provenance rules
 
-**`crates/trustgrant/docs/` covers protocol mechanics:**
+**`docs/` covers protocol mechanics:**
 - TrustGrant v0 document model
 - authority discovery
 - federation flow

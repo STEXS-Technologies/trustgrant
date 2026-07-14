@@ -37,7 +37,7 @@ It does not own:
 - [Protocol spec](docs/TRUSTGRANT_V0_SPEC.md) — full specification
 - [Use cases](docs/USE_CASES.md) — what problems TrustGrant solves
 - [Implementation guide](docs/IMPLEMENTATION_ARCHITECTURE.md) — crate architecture
-- [Integration guide](docs/INTEGRATION_GUIDE.md) — how to use the Rust crate
-- [Error boundaries](docs/ERROR_BOUNDARIES.md) — which errors are retryable
-- [Tracing guide](docs/TRACING_GUIDE.md) — observability with tracing
-- [Cross-impl interop](../docs/IMPLEMENTATION_GUIDE.md) — implementing in Go, TS, etc.
+- [Integration guide](../../docs/INTEGRATION_GUIDE.md) — how to use the Rust crate
+- [Error boundaries](../../docs/ERROR_BOUNDARIES.md) — which errors are retryable
+- [Tracing guide](../../docs/TRACING_GUIDE.md) — observability with tracing
+- [Cross-impl interop](../../docs/IMPLEMENTATION_GUIDE.md) — implementing in Go, TS, etc.
