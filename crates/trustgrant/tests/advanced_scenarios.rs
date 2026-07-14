@@ -10,9 +10,10 @@ use trustgrant::{
     RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
     RevocationFreshnessPolicy, RevocationRecord, RevocationSourceKind, RevocationStatus,
     SelectorContext, SignatureProfile, SignatureVerificationRequest, SignatureVerifier,
-    SupersessionPolicy, TemplateRef, TrustGrantError, TrustGrantProofBundle, VerificationContext,
-    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
-    VerifiedTrustGrant, parse_authority_discovery_document, parse_revocation_status_proof,
+    SupersessionPolicy, TemplateRef, TrustGrantError, TrustGrantProofBundle,
+    VerificationContext, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    VerifiedRevocationState, VerifiedTrustGrant,
+    parse_authority_discovery_document, parse_revocation_status_proof,
 };
 
 // ---------------------------------------------------------------------------
@@ -1235,5 +1236,162 @@ fn duplicate_selectors_in_evaluation_request() {
         values.first(),
         Some(&"weapons".to_owned()),
         "deduplicated value should be preserved",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// G17: SupersessionPolicy chains — grant supersedes a previous revision
+// ---------------------------------------------------------------------------
+
+/// Earlier grant (revision 1) that the superseding grant will reference.
+const EARLIER_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000001",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000001",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"supersede_previous",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":true,"allow":null,"deny":null}}}},
+  "global_constraints":null,
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+/// Superseding grant (revision 2) that supersedes the earlier grant.
+const SUPERSEDING_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000002",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000001",
+  "revision":2,
+  "supersedes":"tg_00000000-0000-0000-0000-000000000001",
+  "supersession_policy":"supersede_previous",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":true,"allow":null,"deny":null}}}},
+  "global_constraints":null,
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:30:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn supersession_chain_earlier_grant_has_no_supersedes() {
+    let grant = verified_grant_from_json(EARLIER_GRANT_JSON);
+    // The earlier grant does not supersede anything.
+    assert!(grant.lineage().supersedes().is_none());
+    assert_eq!(grant.lineage().revision().get(), 1);
+    assert_eq!(
+        grant.lineage().supersession_policy(),
+        SupersessionPolicy::SupersedePrevious,
+    );
+}
+
+#[test]
+fn supersession_chain_superseding_grant_points_to_earlier() {
+    let grant = verified_grant_from_json(SUPERSEDING_GRANT_JSON);
+    // The superseding grant's `supersedes` field points to the earlier grant.
+    let supersedes = grant.lineage().supersedes();
+    assert!(
+        supersedes.is_some(),
+        "superseding grant should have a supersedes value",
+    );
+    assert_eq!(
+        supersedes.map(|id| id.to_string()).as_deref(),
+        Some("tg_00000000-0000-0000-0000-000000000001"),
+    );
+    assert_eq!(grant.lineage().revision().get(), 2);
+    assert_eq!(
+        grant.lineage().supersession_policy(),
+        SupersessionPolicy::SupersedePrevious,
+    );
+}
+
+#[test]
+fn supersession_chain_both_grants_verify_and_evaluate() {
+    // Both grants should verify and evaluate independently.
+    let engine = EvaluationEngine::new();
+
+    let earlier = verified_grant_from_json(EARLIER_GRANT_JSON);
+    let superseding = verified_grant_from_json(SUPERSEDING_GRANT_JSON);
+
+    let request = simple_recognize_request("item", "general");
+
+    let outcome_earlier = engine.evaluate(&earlier, &request);
+    assert!(
+        outcome_earlier.decision().is_allowed(),
+        "earlier grant should allow matching request",
+    );
+
+    let outcome_superseding = engine.evaluate(&superseding, &request);
+    assert!(
+        outcome_superseding.decision().is_allowed(),
+        "superseding grant should allow matching request",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// G19: Grant with supersedes field pointing to an earlier grant
+// ---------------------------------------------------------------------------
+
+/// Grant that explicitly supersedes another grant via the `supersedes` field.
+const G19_SUPERSEDES_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000003",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000002",
+  "revision":2,
+  "supersedes":"tg_00000000-0000-0000-0000-000000000001",
+  "supersession_policy":"supersede_previous",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":true,"allow":null,"deny":null}}}},
+  "global_constraints":null,
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "issued_at":"2026-04-07T12:30:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn grant_with_supersedes_field_parses_and_evaluates() {
+    let grant = verified_grant_from_json(G19_SUPERSEDES_GRANT_JSON);
+
+    // The `supersedes` field must be preserved through parsing/validation.
+    let supersedes = grant.lineage().supersedes();
+    assert!(
+        supersedes.is_some(),
+        "grant with supersedes field should have Some value",
+    );
+    assert_eq!(
+        supersedes.map(|id| id.to_string()).as_deref(),
+        Some("tg_00000000-0000-0000-0000-000000000001"),
+    );
+
+    // The superseding grant should evaluate correctly.
+    let engine = EvaluationEngine::new();
+    let request = simple_recognize_request("item", "general");
+    let outcome = engine.evaluate(&grant, &request);
+    assert!(
+        outcome.decision().is_allowed(),
+        "superseding grant should evaluate to allowed",
     );
 }
