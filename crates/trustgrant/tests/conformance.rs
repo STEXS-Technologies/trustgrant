@@ -667,8 +667,9 @@ fn conformance_s6_1_v0_compat_recognize_implies_recognize_allowed() {
 }
 
 #[test]
-fn conformance_s6_1_v0_compat_mint_implies_create_allowed() {
-    // Spec Section 6.1: "In v0 compat mode: mint capability implies operation 'create' is allowed"
+fn conformance_s6_1_v0_compat_operations_null_denies_mint() {
+    // v0 implicit mint authorization was removed. Mint requires explicit
+    // "create" in the operations scope, even when capabilities.mint=true.
     let json = make_grant_json(&[
         ("capabilities", json!({ "recognize": false, "mint": true })),
         (
@@ -707,9 +708,10 @@ fn conformance_s6_1_v0_compat_mint_implies_create_allowed() {
     .unwrap_or_else(|e| panic!("request: {e}"))
     .with_mint_context_for_testing(MintContext::new(0, 0)).verify_selectors();
     let outcome = evaluate_json(&json, &request);
-    assert!(
-        outcome.decision().is_allowed(),
-        "v0 compat: mint should be allowed via implicit create"
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::OperationDenied),
+        "mint with operations=null should be denied"
     );
 }
 
@@ -1443,7 +1445,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
                         "deny": null,
                         "capabilities": { "recognize": false, "mint": false },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": null
+                        "operations": {"all": false, "allow": ["create"], "deny": null}
                     }
                 }
             }),
@@ -1488,7 +1490,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
                         "deny": null,
                         "capabilities": { "recognize": false, "mint": null },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": null
+                        "operations": {"all": false, "allow": ["create"], "deny": null}
                     }
                 }
             }),
@@ -1533,7 +1535,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
                         "deny": null,
                         "capabilities": { "recognize": false, "mint": true },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": null
+                        "operations": {"all": false, "allow": ["create"], "deny": null}
                     }
                 }
             }),
@@ -1597,7 +1599,7 @@ fn conformance_s12_minting_constraints_are_per_type() {
                                 }
                             ]
                         },
-                        "operations": null
+                        "operations": {"all": false, "allow": ["create"], "deny": null}
                     }
                 }
             }),

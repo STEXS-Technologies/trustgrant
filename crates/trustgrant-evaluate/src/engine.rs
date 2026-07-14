@@ -401,13 +401,12 @@ fn is_operation_allowed(
     operation: &RequestedOperation,
 ) -> bool {
     let Some(operation_scope) = resource_type.operations() else {
-        // v0 compatibility mode (spec Section 6.1):
-        // operations=null → implicit recognize and create allowed
-        // Custom operations still need explicit operations scope
+        // operations=null → implicit recognize allowed for v0 compat.
+        // Mint and custom operations require an explicit operations scope
+        // that includes "create" or the custom operation name.
         return matches!(
             operation,
             RequestedOperation::Capability(RequestedCapability::Recognize)
-                | RequestedOperation::Capability(RequestedCapability::Mint)
         );
     };
 
@@ -1667,11 +1666,16 @@ mod tests {
     }
 
     #[test]
-    fn evaluation_allows_create_when_mint_operations_are_absent() {
+    fn evaluation_denies_mint_when_operations_scope_is_null() {
+        // v0 compat mode is removed for mint — operations must be explicit.
+        // Grant with mint=true but operations=null → mint denied.
         let request = mint_request().with_runtime_mint_context(MintContext::new(9, 0));
         let outcome = EvaluationEngine::new().evaluate(&mint_grant_without_operations(), &request);
 
-        assert!(outcome.decision().is_allowed());
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::OperationDenied)
+        );
     }
 
     #[test]
@@ -3807,8 +3811,10 @@ mod tests {
         // Line 293: evaluate_minting_constraints returns Ok(()) when the
         // operation IS Mint but there's no MintContext AND no max_total /
         // max_per_user constraints.
+        // Uses a grant with explicit "create" in operations scope — implicit
+        // mint authorization was removed; operations must be explicit.
         let engine = EvaluationEngine::new();
-        let grant = mint_grant_without_constraints();
+        let grant = mint_grant_with_explicit_create();
         let request = mint_request(); // No .with_runtime_mint_context()
         let outcome = engine.evaluate(&grant, &request);
 
@@ -3817,6 +3823,61 @@ mod tests {
             "expected allow, got deny: {:?}",
             outcome.decision().deny_reason(),
         );
+    }
+
+    fn mint_grant_with_explicit_create() -> VerifiedTrustGrant {
+        // Just like mint_grant() but with minting constraints set to None
+        // (no max_total / max_per_user) while keeping explicit operations.
+        let json = r#"{
+          "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174080",
+          "version":0,
+          "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174081",
+          "revision":1,
+          "supersedes":null,
+          "supersession_policy":"coexist",
+          "issuer_authority":"https://issuer.example.com",
+          "origin_authority":"https://issuer.example.com",
+          "active_owning_authority":"https://issuer.example.com",
+          "key_id":"root-key-1",
+          "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+          "capabilities":{"recognize":false,"mint":true},
+          "default_audience_scope":null,
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
+          "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+          "issued_at":"2026-04-07T12:00:00Z",
+          "signature":"base64-signature",
+          "issuer_principal":{"kind":"service","id":"issuer-worker"}
+        }"#;
+
+        let raw = match RawTrustGrantDocument::parse_json_str(json) {
+            Ok(document) => document,
+            Err(error) => panic!("raw document should parse: {error}"),
+        };
+        let validated = match ValidatedTrustGrantDocument::try_from(raw) {
+            Ok(document) => document,
+            Err(error) => panic!("validated document should succeed: {error}"),
+        };
+
+        VerifiedTrustGrant::new(
+            validated,
+            VerificationMetadata::new(
+                fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                VerificationPosture::Online,
+                signer_binding(),
+                ownership_record(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        )
     }
 
     // ── Selector-level `all: true` coverage (line 327) ────────────────
