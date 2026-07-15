@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 54 Rust conformance tests (spec sections)
 - 16 fuzz targets covering all parse/verify/evaluate paths (including bundle proof assembly, draft serialization)
 - 3 Kani proof harnesses verifying selector matching and full-pipeline invariants
+- 19 atomic executor tests (idempotency, stale version, quotas, quantity>1, counter overflow, callbacks, threading)
+- 18 proof source tests (discovery, delegation, revocation, ownership chains, duplicate rejection, empty sources)
+- 16 error scenario tests (all deny reasons at integration boundary, stale data, block_minting_only)
 - End-to-end test with real ed25519 signatures (full pipeline: draft → canonicalize → sign → verify → evaluate)
 - 12 integration tests covering P1/P2/P3 gaps (capabilities, origin authority, edge cases, boundaries)
 - Real signature verification e2e test
