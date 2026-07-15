@@ -898,4 +898,169 @@ mod tests {
 
         assert_eq!(result, Err(InMemoryExecutionError::UnknownResource));
     }
+
+    #[test]
+    fn try_from_rejects_mint_without_template_id() {
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(TemplateRef::new(authority("https://issuer.example.com"))),
+            authority("https://target.example.com"),
+            authority("https://audience.example.com"),
+            resource_context(),
+            timestamp(),
+        )
+        .unwrap_or_else(|error| panic!("request should be valid: {error}"))
+        .with_intent_id(
+            IntentId::new("test-mint-no-template")
+                .unwrap_or_else(|error| panic!("intent id should be valid: {error}")),
+        )
+        .verify_selectors();
+
+        assert_eq!(
+            MutationRequest::try_from(request),
+            Err(TrustGrantError::MissingTemplateId)
+        );
+    }
+
+    #[test]
+    fn try_from_rejects_mint_with_existing_binding() {
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Existing(ResourceRef::new(
+                authority("https://issuer.example.com"),
+                "resource-42".to_owned(),
+            )),
+            authority("https://target.example.com"),
+            authority("https://audience.example.com"),
+            resource_context(),
+            timestamp(),
+        )
+        .unwrap_or_else(|error| panic!("request should be valid: {error}"))
+        .with_intent_id(
+            IntentId::new("test-mint-existing")
+                .unwrap_or_else(|error| panic!("intent id should be valid: {error}")),
+        )
+        .verify_selectors();
+
+        assert_eq!(
+            MutationRequest::try_from(request),
+            Err(TrustGrantError::InvalidMutationResourceBinding)
+        );
+    }
+
+    #[test]
+    fn try_from_rejects_non_mint_with_mint_binding() {
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Mint(TemplateRef::new(authority("https://issuer.example.com"))),
+            authority("https://target.example.com"),
+            authority("https://audience.example.com"),
+            resource_context(),
+            timestamp(),
+        )
+        .unwrap_or_else(|error| panic!("request should be valid: {error}"))
+        .with_intent_id(
+            IntentId::new("test-recognize-mint")
+                .unwrap_or_else(|error| panic!("intent id should be valid: {error}")),
+        );
+
+        assert_eq!(
+            MutationRequest::try_from(request),
+            Err(TrustGrantError::InvalidMutationResourceBinding)
+        );
+    }
+
+    #[test]
+    fn try_from_rejects_resource_type_mismatch() {
+        let request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(
+                ResourceRef::new_typed(
+                    authority("https://issuer.example.com"),
+                    "different_type",
+                    "resource-42",
+                )
+                .unwrap_or_else(|error| panic!("resource ref should be valid: {error}"))
+                .with_expected_version(1),
+            ),
+            authority("https://target.example.com"),
+            authority("https://audience.example.com"),
+            resource_context(),
+            timestamp(),
+        )
+        .unwrap_or_else(|error| panic!("request should be valid: {error}"))
+        .with_intent_id(
+            IntentId::new("test-type-mismatch")
+                .unwrap_or_else(|error| panic!("intent id should be valid: {error}")),
+        );
+
+        assert_eq!(
+            MutationRequest::try_from(request),
+            Err(TrustGrantError::ResourceTypeBindingMismatch)
+        );
+    }
+
+    #[test]
+    fn intent_conflict_detected() {
+        let grant = verified_grant(true, 1);
+        let mut executor = InMemoryAtomicInventoryExecutor::new();
+
+        // First: mint mutation with a specific intent_id
+        let first = executor
+            .authorize_and_execute(
+                &grant,
+                mint_mutation("conflict-intent"),
+                |_, _| Ok(()),
+            )
+            .unwrap_or_else(|error| panic!("execution should not error: {error}"));
+        assert!(matches!(first, AtomicExecutionResult::Applied { .. }));
+
+        // Second: a DIFFERENT mutation (recognize) with the SAME intent_id
+        let intent_id = IntentId::new("conflict-intent")
+            .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
+        let second_request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(
+                ResourceRef::new_typed(
+                    authority("https://issuer.example.com"),
+                    "item",
+                    "resource-42",
+                )
+                .unwrap_or_else(|error| panic!("resource ref should be valid: {error}"))
+                .with_expected_version(1),
+            ),
+            authority("https://target.example.com"),
+            authority("https://audience.example.com"),
+            resource_context(),
+            timestamp(),
+        )
+        .unwrap_or_else(|error| panic!("request should be valid: {error}"))
+        .with_intent_id(intent_id);
+        let second_mutation = MutationRequest::try_from(second_request)
+            .unwrap_or_else(|error| panic!("mutation should be valid: {error}"));
+
+        let second = executor
+            .authorize_and_execute(&grant, second_mutation, |_, _| Ok(()))
+            .unwrap_or_else(|error| panic!("execution should not error: {error}"));
+        assert!(matches!(
+            second,
+            AtomicExecutionResult::IntentConflict { .. }
+        ));
+    }
+
+    #[test]
+    fn in_memory_execution_error_display() {
+        assert_eq!(
+            format!("{}", InMemoryExecutionError::UnknownResource),
+            "resource is not registered"
+        );
+        assert_eq!(
+            format!("{}", InMemoryExecutionError::MissingTypedResourceReference),
+            "resource reference is missing canonical type binding"
+        );
+        assert_eq!(
+            format!("{}", InMemoryExecutionError::CounterOverflow),
+            "execution counter overflow"
+        );
+    }
 }
