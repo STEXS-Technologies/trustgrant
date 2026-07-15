@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Facade crate re-exporting all TrustGrant protocol types for convenience"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-discovery = { path = "../trustgrant-discovery" }

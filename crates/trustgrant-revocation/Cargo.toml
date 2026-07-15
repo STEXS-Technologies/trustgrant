@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Revocation state management and proof verification for the TrustGrant protocol"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }

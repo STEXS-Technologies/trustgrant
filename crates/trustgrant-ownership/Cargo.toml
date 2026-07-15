@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Ownership authority transition verification for the TrustGrant protocol"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }

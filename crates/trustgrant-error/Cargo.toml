@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Error types for the TrustGrant delegation protocol"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 thiserror.workspace = true

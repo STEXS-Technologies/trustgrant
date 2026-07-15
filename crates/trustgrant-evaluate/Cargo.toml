@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Hot-path evaluation engine for TrustGrant grants"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-discovery = { path = "../trustgrant-discovery" }

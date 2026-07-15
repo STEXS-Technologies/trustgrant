@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Draft and signable TrustGrant document construction"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-document = { path = "../trustgrant-document" }

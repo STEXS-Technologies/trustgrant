@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Core domain types for the TrustGrant protocol (authority IDs, selector kinds, principal IDs, operation names)"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 chrono.workspace = true

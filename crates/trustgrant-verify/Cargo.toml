@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Cold-path verification pipeline for the TrustGrant protocol"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-discovery = { path = "../trustgrant-discovery" }

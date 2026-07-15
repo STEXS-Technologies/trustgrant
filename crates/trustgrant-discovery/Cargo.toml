@@ -5,6 +5,8 @@ edition.workspace = true
 description = "Authority discovery document parsing and signer binding resolution"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }

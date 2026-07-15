@@ -5,6 +5,8 @@ edition.workspace = true
 description = "TrustGrant document parsing, validation, normalization, and JSON schema types"
 license.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }
