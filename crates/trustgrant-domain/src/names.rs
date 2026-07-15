@@ -21,7 +21,6 @@ impl OperationName {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the name is empty after trimming.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -30,7 +29,6 @@ impl OperationName {
     }
 
     /// Operation name should be inspected or matched.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -62,7 +60,6 @@ impl CustomOperationName {
     ///
     /// Returns [`TrustGrantError`] when the name is empty or reuses a reserved
     /// built-in capability or operation name.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let operation = OperationName::new(value)?;
 
@@ -74,7 +71,6 @@ impl CustomOperationName {
     }
 
     /// Custom operation name should be inspected or matched.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -111,7 +107,6 @@ impl ResourceTypeName {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the name is empty after trimming.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -121,7 +116,6 @@ impl ResourceTypeName {
     }
 
     /// Resource type name should be inspected or matched.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -153,7 +147,6 @@ impl KeyId {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the identifier is empty after trimming.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -162,7 +155,6 @@ impl KeyId {
     }
 
     /// Key identifier should be inspected or matched.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -216,7 +208,6 @@ impl SelectorKind {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the kind is empty after trimming.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         let value =
@@ -229,7 +220,6 @@ impl SelectorKind {
     }
 
     /// Selector kind should be inspected or matched.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.value
     }
@@ -340,7 +330,6 @@ impl PrincipalKind {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the kind is empty after trimming.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -350,7 +339,6 @@ impl PrincipalKind {
     }
 
     /// Principal kind should be inspected or matched.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -382,7 +370,6 @@ impl PrincipalId {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the identifier is empty after trimming.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -392,7 +379,6 @@ impl PrincipalId {
     }
 
     /// Principal identifier should be inspected or matched.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

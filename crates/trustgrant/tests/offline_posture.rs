@@ -2,9 +2,9 @@
 
 use chrono::{TimeZone, Utc};
 use trustgrant::{
-    AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine,
-    EvaluationRequest, ProofFinality, RequestedCapability, RequestedOperation, ResourceBinding,
-    ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind, RevocationStatus,
+    AuthorityId, BundleRevocationProof, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
+    ProofFinality, RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext,
+    ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind, RevocationStatus,
     SignatureVerificationRequest, SignatureVerifier, TrustGrantError, TrustGrantProofBundle,
     VerificationContext, VerificationPipeline, VerificationPolicy, VerificationPosture,
     parse_authority_discovery_document, parse_revocation_status_proof,
@@ -466,7 +466,10 @@ fn offline_evaluation_allows_with_fresh_revocation_data() {
 #[test]
 fn for_posture_online_returns_observed_min_finality_and_no_live_requirement() {
     let policy = VerificationPolicy::for_posture(VerificationPosture::Online);
-    assert_eq!(policy.minimum_revocation_finality(), ProofFinality::Observed);
+    assert_eq!(
+        policy.minimum_revocation_finality(),
+        ProofFinality::Observed
+    );
     assert!(!policy.require_non_live_revocation_source());
 }
 
@@ -611,8 +614,8 @@ fn revocation_status_proof_into_record_with_active_status_and_online_policy() {
     let proof = parse_revocation_status_proof(json)
         .unwrap_or_else(|e| panic!("valid proof should parse: {e}"));
 
-    let policy = RevocationFreshnessPolicy::new(3600, 86400)
-        .unwrap_or_else(|e| panic!("valid policy: {e}"));
+    let policy =
+        RevocationFreshnessPolicy::new(3600, 86400).unwrap_or_else(|e| panic!("valid policy: {e}"));
     let record = proof
         .into_record(RevocationSourceKind::Api, ProofFinality::Observed, policy)
         .unwrap_or_else(|e| panic!("record should normalize: {e}"));
@@ -634,8 +637,8 @@ fn revocation_status_proof_into_record_with_revoked_status_and_offline_policy() 
     let proof = parse_revocation_status_proof(json)
         .unwrap_or_else(|e| panic!("valid proof should parse: {e}"));
 
-    let policy = RevocationFreshnessPolicy::new(3600, 7200)
-        .unwrap_or_else(|e| panic!("valid policy: {e}"));
+    let policy =
+        RevocationFreshnessPolicy::new(3600, 7200).unwrap_or_else(|e| panic!("valid policy: {e}"));
     let record = proof
         .into_record(
             RevocationSourceKind::ProofBundle,
@@ -658,8 +661,8 @@ fn revocation_status_proof_into_record_with_revoked_status_and_offline_policy() 
 #[test]
 fn revocation_freshness_policy_very_short_ttl_record_stale_after_61_seconds() {
     // Use RevocationFreshnessPolicy::new(60, 60) — very short freshness.
-    let policy = RevocationFreshnessPolicy::new(60, 60)
-        .unwrap_or_else(|e| panic!("valid policy: {e}"));
+    let policy =
+        RevocationFreshnessPolicy::new(60, 60).unwrap_or_else(|e| panic!("valid policy: {e}"));
 
     // Proof checked_at = 12:00:00, so fresh_until = 12:01:00.
     let json = r#"{
@@ -667,8 +670,7 @@ fn revocation_freshness_policy_very_short_ttl_record_stale_after_61_seconds() {
       "status":"active",
       "checked_at":"2026-04-07T12:00:00Z"
     }"#;
-    let proof = parse_revocation_status_proof(json)
-        .unwrap_or_else(|e| panic!("valid proof: {e}"));
+    let proof = parse_revocation_status_proof(json).unwrap_or_else(|e| panic!("valid proof: {e}"));
 
     let record = proof
         .into_record(RevocationSourceKind::Api, ProofFinality::Observed, policy)
@@ -734,5 +736,3 @@ fn posture_online_and_offline_both_succeed() {
         "Offline posture should accept bundle: {offline_result:?}",
     );
 }
-
-

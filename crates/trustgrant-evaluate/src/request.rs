@@ -55,7 +55,6 @@ struct SelectorValues {
 
 impl SelectorContext {
     /// New selector contexts should be populated before evaluation.
-    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -65,7 +64,6 @@ impl SelectorContext {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
-    #[must_use]
     pub fn insert(
         &mut self,
         kind: impl Into<String>,
@@ -114,7 +112,6 @@ impl SelectorContext {
     }
 
     /// Evaluation needs to inspect values by selector kind.
-    #[must_use]
     pub fn values_for_kind(&self, kind: &SelectorKind) -> Option<&[String]> {
         if let Some(idx) = kind_index_for_selector_kind(kind)
             && let Some(Some(entry_idx)) = self.kind_index.get(idx)
@@ -210,7 +207,6 @@ impl ResourceRef {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] if the resource type or identifier is invalid.
-    #[must_use]
     pub fn new_typed(
         origin_authority: AuthorityId,
         resource_type: impl Into<String>,
@@ -228,7 +224,6 @@ impl ResourceRef {
     }
 
     /// The authority that originated the resource.
-    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
@@ -289,7 +284,6 @@ impl TemplateRef {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] if the template identifier is invalid.
-    #[must_use]
     pub fn new_typed(
         origin_authority: AuthorityId,
         template_id: impl Into<String>,
@@ -303,7 +297,6 @@ impl TemplateRef {
     }
 
     /// The authority that defines the mint template or resource class.
-    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
@@ -386,8 +379,7 @@ impl MintContext {
     ///
     /// Returns [`TrustGrantError::EmptyStringField`] if `quantity` is 0.
     /// Use 1 for single-item minting.
-    #[must_use]
-    pub fn with_quantity(mut self, quantity: u64) -> Result<Self, TrustGrantError> {
+    pub const fn with_quantity(mut self, quantity: u64) -> Result<Self, TrustGrantError> {
         if quantity == 0 {
             return Err(TrustGrantError::InvalidMintQuantity);
         }
@@ -396,7 +388,6 @@ impl MintContext {
     }
 
     /// Total minted count is required for max_total checks.
-    #[must_use]
     pub const fn current_total_mints(&self) -> u64 {
         self.current_total_mints
     }
@@ -433,7 +424,6 @@ impl ResourceContext {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the resource type is empty.
-    #[must_use]
     pub fn new(resource_type: impl Into<String>) -> Result<Self, TrustGrantError> {
         Ok(Self {
             resource_type: ResourceTypeName::new(resource_type)?,
@@ -446,7 +436,6 @@ impl ResourceContext {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
-    #[must_use]
     pub fn insert_selector(
         &mut self,
         kind: impl Into<String>,
@@ -456,7 +445,6 @@ impl ResourceContext {
     }
 
     /// Resource type is required for evaluation.
-    #[must_use]
     pub const fn resource_type(&self) -> &ResourceTypeName {
         &self.resource_type
     }
@@ -521,7 +509,6 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when resource or selector inputs are invalid.
-    #[must_use]
     pub fn new(
         operation: RequestedOperation,
         resource_binding: ResourceBinding,
@@ -559,7 +546,6 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
-    #[must_use]
     pub fn insert_target_selector(
         &mut self,
         kind: impl Into<String>,
@@ -573,7 +559,6 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
-    #[must_use]
     pub fn insert_audience_selector(
         &mut self,
         kind: impl Into<String>,
@@ -587,7 +572,6 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
-    #[must_use]
     pub fn insert_audience_principal_selector(
         &mut self,
         kind: impl Into<String>,
@@ -603,8 +587,7 @@ impl EvaluationRequest {
     /// The integration layer MUST call this after populating selectors
     /// from a trusted source. The engine denies mint operations with
     /// unverified selectors (spec §13 step 0).
-    #[must_use]
-    pub fn verify_selectors(mut self) -> Self {
+    pub const fn verify_selectors(mut self) -> Self {
         self.selectors_verified = true;
         self
     }
@@ -622,7 +605,7 @@ impl EvaluationRequest {
     /// [`super::execution::AtomicInventoryExecutor::authorize_and_execute`] instead.
     #[doc(hidden)]
     #[must_use]
-    pub fn with_mint_context_for_testing(mut self, mint_context: MintContext) -> Self {
+    pub const fn with_mint_context_for_testing(mut self, mint_context: MintContext) -> Self {
         self.mint_context = Some(mint_context);
         self
     }
@@ -633,7 +616,7 @@ impl EvaluationRequest {
     /// External callers must use
     /// [`super::execution::AtomicInventoryExecutor::authorize_and_execute`] instead.
     #[must_use]
-    pub(crate) fn with_runtime_mint_context(mut self, mint_context: MintContext) -> Self {
+    pub(crate) const fn with_runtime_mint_context(mut self, mint_context: MintContext) -> Self {
         self.mint_context = Some(mint_context);
         self
     }
@@ -761,7 +744,6 @@ impl IntentId {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the identifier is empty or too large.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         Ok(Self(normalize_context_value("intent_id", &value.into())?))
     }
@@ -771,7 +753,6 @@ impl IntentId {
     /// Suitable for machine-generated IDs where an external tracking system
     /// is not involved. The generated ID is a UUIDv4 prefixed with `intent_`
     /// for recognizable logging.
-    #[must_use]
     pub fn generate() -> Self {
         Self(format!("intent_{}", uuid::Uuid::new_v4()))
     }
@@ -1059,7 +1040,10 @@ mod tests {
             fixed_timestamp(2026, 4, 8, 12, 0, 0),
         )
         .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"))
-        .with_intent_id(IntentId::new("txn-001").unwrap_or_else(|error| panic!("intent_id should be valid: {error}")));
+        .with_intent_id(
+            IntentId::new("txn-001")
+                .unwrap_or_else(|error| panic!("intent_id should be valid: {error}")),
+        );
 
         assert_eq!(request.intent_id().map(IntentId::as_str), Some("txn-001"));
     }
@@ -1067,18 +1051,14 @@ mod tests {
     #[test]
     fn intent_id_rejects_empty() {
         let result = IntentId::new("");
-        assert_eq!(
-            result,
-            Err(TrustGrantError::EmptyStringField("intent_id"))
-        );
+        assert_eq!(result, Err(TrustGrantError::EmptyStringField("intent_id")));
     }
 
     #[test]
     fn resource_ref_expected_version_round_trips() {
         let origin = AuthorityId::new("https://issuer.example.com")
             .unwrap_or_else(|error| panic!("origin should be valid: {error}"));
-        let ref_ = ResourceRef::new(origin.clone(), "rsc-1".to_owned())
-            .with_expected_version(7);
+        let ref_ = ResourceRef::new(origin.clone(), "rsc-1".to_owned()).with_expected_version(7);
 
         assert_eq!(ref_.expected_version(), Some(7));
         assert_eq!(ref_.origin_authority(), &origin);
@@ -1126,7 +1106,9 @@ mod tests {
 
         assert_eq!(
             result,
-            Err(TrustGrantError::EmptyStringField("resource_ref.resource_id"))
+            Err(TrustGrantError::EmptyStringField(
+                "resource_ref.resource_id"
+            ))
         );
     }
 
@@ -1149,9 +1131,7 @@ mod tests {
 
     #[test]
     fn intent_id_rejects_overlong() {
-        let long = "a".repeat(
-            trustgrant_error::limits::MAX_REQUEST_SELECTOR_VALUE_BYTES + 1,
-        );
+        let long = "a".repeat(trustgrant_error::limits::MAX_REQUEST_SELECTOR_VALUE_BYTES + 1);
         let result = IntentId::new(&long);
 
         assert_eq!(

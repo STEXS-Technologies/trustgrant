@@ -1,19 +1,19 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
 
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, TimeZone, Utc};
 use trustgrant::{
     AuthorityDiscoverySource, AuthorityId, AuthorityKeyRecord, BundleRevocationProof,
-    EvaluationDenyReason, EvaluationEngine, EvaluationRequest, GrantRevision, OwnershipChainVerifier,
-    OwnershipProofKind, OwnershipResourceScope, OwnershipSelector, OwnershipTransitionLineage,
-    OwnershipTransitionParties, OwnershipTransitionRecord, OwnershipTransitionVerifier,
-    ProofFinality, RawOwnershipTransitionDocument, RawTrustGrantDocument, RequestedCapability,
-    RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
-    ResourceTypeName, RevocationFreshnessPolicy, RevocationSourceKind, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TransitionId, TransitionSeriesId,
-    TrustGrantError, TrustGrantProofBundle, ValidatedPrincipal, ValidatedTrustGrantDocument,
-    VerificationContext, VerificationPipeline, VerificationPosture,
+    EvaluationDenyReason, EvaluationEngine, EvaluationRequest, GrantRevision,
+    OwnershipChainVerifier, OwnershipProofKind, OwnershipResourceScope, OwnershipSelector,
+    OwnershipTransitionLineage, OwnershipTransitionParties, OwnershipTransitionRecord,
+    OwnershipTransitionVerifier, ProofFinality, RawOwnershipTransitionDocument,
+    RawTrustGrantDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
+    ResourceBinding, ResourceContext, ResourceRef, ResourceTypeName, RevocationFreshnessPolicy,
+    RevocationSourceKind, SignatureProfile, SignatureVerificationRequest, SignatureVerifier,
+    TransitionId, TransitionSeriesId, TrustGrantError, TrustGrantProofBundle, ValidatedPrincipal,
+    ValidatedTrustGrantDocument, VerificationContext, VerificationPipeline, VerificationPosture,
     parse_authority_discovery_document, parse_revocation_status_proof,
 };
 
@@ -140,8 +140,7 @@ fn validated_document_from_json(json: &str) -> ValidatedTrustGrantDocument {
 
 /// Helper: construct a validated [`AuthorityId`].
 fn authority(value: &str) -> AuthorityId {
-    AuthorityId::new(value)
-        .unwrap_or_else(|error| panic!("authority should be valid: {error}"))
+    AuthorityId::new(value).unwrap_or_else(|error| panic!("authority should be valid: {error}"))
 }
 
 /// Helper: construct an [`OwnershipTransitionRecord`] for a single-hop transfer.
@@ -164,11 +163,10 @@ fn make_transition_record(
                 .unwrap_or_else(|error| panic!("series id should parse: {error}")),
             GrantRevision::new(revision)
                 .unwrap_or_else(|error| panic!("revision should be valid: {error}")),
-            supersedes
-                .map(|s| {
-                    s.parse::<TransitionId>()
-                        .unwrap_or_else(|error| panic!("supersedes id should parse: {error}"))
-                }),
+            supersedes.map(|s| {
+                s.parse::<TransitionId>()
+                    .unwrap_or_else(|error| panic!("supersedes id should parse: {error}"))
+            }),
         )
         .unwrap_or_else(|error| panic!("lineage should be valid: {error}")),
         OwnershipTransitionParties::new(
@@ -255,7 +253,10 @@ fn ownership_chain_verifier_rejects_empty_chain() {
         fixed_timestamp(2026, 4, 7, 12, 30, 0),
     );
 
-    assert_eq!(result, Err(TrustGrantError::MissingOwnershipTransitionChain));
+    assert_eq!(
+        result,
+        Err(TrustGrantError::MissingOwnershipTransitionChain)
+    );
 }
 
 #[test]
@@ -295,7 +296,10 @@ fn ownership_chain_verifier_rejects_duplicate_transition_ids() {
         fixed_timestamp(2026, 4, 7, 12, 30, 0),
     );
 
-    assert_eq!(result, Err(TrustGrantError::InvalidOwnershipTransitionChain));
+    assert_eq!(
+        result,
+        Err(TrustGrantError::InvalidOwnershipTransitionChain)
+    );
 }
 
 #[test]
@@ -329,7 +333,10 @@ fn ownership_chain_verifier_rejects_wrong_series_id() {
         fixed_timestamp(2026, 4, 7, 12, 30, 0),
     );
 
-    assert_eq!(result, Err(TrustGrantError::InvalidOwnershipTransitionChain));
+    assert_eq!(
+        result,
+        Err(TrustGrantError::InvalidOwnershipTransitionChain)
+    );
 }
 
 // ---------- OwnershipTransitionVerifier tests ----------
@@ -411,11 +418,10 @@ fn ownership_transition_verifier_rejects_wrong_signer_authority() {
 #[test]
 fn multi_hop_ownership_transition_evaluates_correctly() {
     // Grant document: origin → third, via an intermediate authority.
-    let multi_hop_json = SUCCESSOR_TRUSTGRANT_JSON
-        .replace(
-            r#""active_owning_authority":"https://successor.example.com""#,
-            r#""active_owning_authority":"https://third.example.com""#,
-        );
+    let multi_hop_json = SUCCESSOR_TRUSTGRANT_JSON.replace(
+        r#""active_owning_authority":"https://successor.example.com""#,
+        r#""active_owning_authority":"https://third.example.com""#,
+    );
     let document = validated_document_from_json(&multi_hop_json);
 
     // Chain: origin.example.com → intermediate.example.com → third.example.com
@@ -689,19 +695,25 @@ fn ownership_transition_pipeline_rejects_evaluation_with_audience_mismatch() {
 fn ownership_transition_rejects_missing_required_fields() {
     // Missing transition_id
     assert_eq!(
-        RawOwnershipTransitionDocument::parse_json_str(r#"{"version":0,"transition_series_id":"ts","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{}},"effective_at":"2026-04-07T12:00:00Z","predecessor_signature":{"key_id":"k","signature":"s"},"successor_acceptance":{"accepted_at":"2026-04-07T11:30:00Z","key_id":"k","signature":"s"}}"#),
+        RawOwnershipTransitionDocument::parse_json_str(
+            r#"{"version":0,"transition_series_id":"ts","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{}},"effective_at":"2026-04-07T12:00:00Z","predecessor_signature":{"key_id":"k","signature":"s"},"successor_acceptance":{"accepted_at":"2026-04-07T11:30:00Z","key_id":"k","signature":"s"}}"#
+        ),
         Err(TrustGrantError::InvalidOwnershipTransitionDocument),
     );
 
     // Missing effective_at
     assert_eq!(
-        RawOwnershipTransitionDocument::parse_json_str(r#"{"transition_id":"tgt_1","version":0,"transition_series_id":"ts","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{}},"predecessor_signature":{"key_id":"k","signature":"s"},"successor_acceptance":{"accepted_at":"2026-04-07T11:30:00Z","key_id":"k","signature":"s"}}"#),
+        RawOwnershipTransitionDocument::parse_json_str(
+            r#"{"transition_id":"tgt_1","version":0,"transition_series_id":"ts","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{}},"predecessor_signature":{"key_id":"k","signature":"s"},"successor_acceptance":{"accepted_at":"2026-04-07T11:30:00Z","key_id":"k","signature":"s"}}"#
+        ),
         Err(TrustGrantError::InvalidOwnershipTransitionDocument),
     );
 
     // Missing successor_acceptance
     assert_eq!(
-        RawOwnershipTransitionDocument::parse_json_str(r#"{"transition_id":"tgt_1","version":0,"transition_series_id":"ts","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{}},"effective_at":"2026-04-07T12:00:00Z","predecessor_signature":{"key_id":"k","signature":"s"}}"#),
+        RawOwnershipTransitionDocument::parse_json_str(
+            r#"{"transition_id":"tgt_1","version":0,"transition_series_id":"ts","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{}},"effective_at":"2026-04-07T12:00:00Z","predecessor_signature":{"key_id":"k","signature":"s"}}"#
+        ),
         Err(TrustGrantError::InvalidOwnershipTransitionDocument),
     );
 }
@@ -783,8 +795,5 @@ fn ownership_transition_rejects_invalid_authority_format() {
             VerificationPosture::Online,
         ),
     );
-    assert_eq!(
-        result.map(|_| ()),
-        Err(TrustGrantError::EmptyAuthorityId),
-    );
+    assert_eq!(result.map(|_| ()), Err(TrustGrantError::EmptyAuthorityId),);
 }

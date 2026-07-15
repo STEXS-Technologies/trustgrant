@@ -216,14 +216,15 @@ impl std::fmt::Display for EvaluationDenyReason {
             EvaluationDenyReason::UnverifiedSelectors => {
                 write!(f, "unverified selectors")
             }
+        }
     }
-}
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
 mod tests {
-    use crate::decision::{EvaluationDecision, EvaluationDenyReason};
     use crate::EvaluationOutcome;
+    use crate::decision::{EvaluationDecision, EvaluationDenyReason};
     use trustgrant_domain::TrustGrantId;
 
     #[test]
@@ -493,23 +494,23 @@ mod tests {
 
     #[test]
     fn evaluation_outcome_holds_decision_and_context() {
-        use chrono::{TimeZone, Utc};
         use crate::request::IntentId;
+        use chrono::{TimeZone, Utc};
 
         let trustgrant_id = TrustGrantId::generate();
         let decision = EvaluationDecision::allow(trustgrant_id);
 
-        let binding = crate::request::ResourceBinding::Existing(
-            crate::request::ResourceRef::new(
-                trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
-                "rsc-1".to_owned(),
-            ),
-        );
+        let binding = crate::request::ResourceBinding::Existing(crate::request::ResourceRef::new(
+            trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
+            "rsc-1".to_owned(),
+        ));
 
         let ts = Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0).single().unwrap();
 
         let request = crate::request::EvaluationRequest::new(
-            crate::request::RequestedOperation::Capability(crate::request::RequestedCapability::Recognize),
+            crate::request::RequestedOperation::Capability(
+                crate::request::RequestedCapability::Recognize,
+            ),
             binding,
             trustgrant_domain::AuthorityId::new("https://target.example.com").unwrap(),
             trustgrant_domain::AuthorityId::new("https://audience.example.com").unwrap(),
@@ -526,10 +527,7 @@ mod tests {
         assert_eq!(outcome.decision().trustgrant_id(), trustgrant_id);
 
         // Context fields round-trip
-        assert_eq!(
-            outcome.intent_id().map(IntentId::as_str),
-            Some("txn-001")
-        );
+        assert_eq!(outcome.intent_id().map(IntentId::as_str), Some("txn-001"));
         assert_eq!(
             outcome.origin_authority().as_str(),
             "https://issuer.example.com"
@@ -546,13 +544,13 @@ mod tests {
 
         let ts = Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0).single().unwrap();
         let request = crate::request::EvaluationRequest::new(
-            crate::request::RequestedOperation::Capability(crate::request::RequestedCapability::Recognize),
-            crate::request::ResourceBinding::Existing(
-                crate::request::ResourceRef::new(
-                    trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
-                    "rsc-2".to_owned(),
-                ),
+            crate::request::RequestedOperation::Capability(
+                crate::request::RequestedCapability::Recognize,
             ),
+            crate::request::ResourceBinding::Existing(crate::request::ResourceRef::new(
+                trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
+                "rsc-2".to_owned(),
+            )),
             trustgrant_domain::AuthorityId::new("https://target.example.com").unwrap(),
             trustgrant_domain::AuthorityId::new("https://audience.example.com").unwrap(),
             crate::request::ResourceContext::new("item").unwrap(),
@@ -579,13 +577,13 @@ mod tests {
         let decision = EvaluationDecision::allow(trustgrant_id);
 
         let ts = Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0).single().unwrap();
-        let binding = crate::request::ResourceBinding::Mint(
-            crate::request::TemplateRef::new(
-                trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
-            ),
-        );
+        let binding = crate::request::ResourceBinding::Mint(crate::request::TemplateRef::new(
+            trustgrant_domain::AuthorityId::new("https://issuer.example.com").unwrap(),
+        ));
         let request = crate::request::EvaluationRequest::new(
-            crate::request::RequestedOperation::Capability(crate::request::RequestedCapability::Recognize),
+            crate::request::RequestedOperation::Capability(
+                crate::request::RequestedCapability::Recognize,
+            ),
             binding,
             trustgrant_domain::AuthorityId::new("https://target.example.com").unwrap(),
             trustgrant_domain::AuthorityId::new("https://audience.example.com").unwrap(),
@@ -594,7 +592,7 @@ mod tests {
         )
         .unwrap();
 
-        let outcome = EvaluationOutcome::new(decision, request.clone());
+        let outcome = EvaluationOutcome::new(decision, request);
 
         assert!(outcome.decision().is_allowed());
         assert!(outcome.resource_binding().is_mint());

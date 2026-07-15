@@ -1,11 +1,9 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use trustgrant::{
-    AuthorityId, StorageSource, StoredGrantId, TrustGrantError,
-};
+use trustgrant::{AuthorityId, StorageSource, StoredGrantId, TrustGrantError};
 
 /// In-memory storage implementing `StorageSource` with interior mutability
 /// so the store/load round-trip actually persists data.
@@ -96,13 +94,11 @@ impl StorageSource for IndexedStorage {
 }
 
 fn test_authority() -> AuthorityId {
-    AuthorityId::new("https://issuer.example.com")
-        .unwrap_or_else(|e| panic!("AuthorityId: {e}"))
+    AuthorityId::new("https://issuer.example.com").unwrap_or_else(|e| panic!("AuthorityId: {e}"))
 }
 
 fn other_authority() -> AuthorityId {
-    AuthorityId::new("https://other.example.com")
-        .unwrap_or_else(|e| panic!("AuthorityId: {e}"))
+    AuthorityId::new("https://other.example.com").unwrap_or_else(|e| panic!("AuthorityId: {e}"))
 }
 
 const GRANT_JSON: &str = r#"{

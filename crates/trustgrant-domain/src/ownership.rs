@@ -28,7 +28,6 @@ impl OwnershipTransitionLineage {
     ///
     /// Returns [`TrustGrantError`] when revision/supersession invariants are
     /// violated.
-    #[must_use]
     pub fn new(
         transition_id: TransitionId,
         transition_series_id: TransitionSeriesId,
@@ -59,7 +58,6 @@ impl OwnershipTransitionLineage {
     }
 
     /// Transition id is required for proof-chain identity.
-    #[must_use]
     pub const fn transition_id(&self) -> TransitionId {
         self.transition_id
     }
@@ -100,7 +98,6 @@ impl OwnershipSelector {
     ///
     /// Returns [`TrustGrantError`] when kind or values are invalid, or when
     /// duplicate values are present.
-    #[must_use]
     pub fn new(kind: impl Into<String>, values: Vec<String>) -> Result<Self, TrustGrantError> {
         if values.is_empty() {
             return Err(TrustGrantError::InvalidOwnershipTransitionScope);
@@ -126,7 +123,6 @@ impl OwnershipSelector {
     }
 
     /// Selector kind is required for ownership-scope matching.
-    #[must_use]
     pub const fn kind(&self) -> &SelectorKind {
         &self.kind
     }
@@ -154,7 +150,6 @@ impl OwnershipResourceScope {
     ///
     /// Returns [`TrustGrantError`] when the selector set is empty or contains
     /// duplicates.
-    #[must_use]
     pub fn new(selectors: Vec<OwnershipSelector>) -> Result<Self, TrustGrantError> {
         if selectors.is_empty() {
             return Err(TrustGrantError::InvalidOwnershipTransitionScope);
@@ -172,7 +167,6 @@ impl OwnershipResourceScope {
     }
 
     /// Selectors are required for ownership-scope matching.
-    #[must_use]
     pub fn selectors(&self) -> &[OwnershipSelector] {
         &self.selectors
     }
@@ -195,7 +189,6 @@ impl OwnershipTimeWindow {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the time window is inverted.
-    #[must_use]
     pub fn new(
         not_before: DateTime<Utc>,
         not_after: DateTime<Utc>,
@@ -211,7 +204,6 @@ impl OwnershipTimeWindow {
     }
 
     /// Not_before is required for transition validity checks.
-    #[must_use]
     pub const fn not_before(&self) -> DateTime<Utc> {
         self.not_before
     }
@@ -244,7 +236,6 @@ impl OwnershipTransitionParties {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when predecessor and successor are equal.
-    #[must_use]
     pub fn new(
         origin_authority: AuthorityId,
         predecessor_authority: AuthorityId,
@@ -262,7 +253,6 @@ impl OwnershipTransitionParties {
     }
 
     /// Origin authority is required for canonical lineage validation.
-    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
@@ -300,7 +290,6 @@ impl OwnershipTransitionRecord {
     ///
     /// Returns [`TrustGrantError`] when participant, scope, or time-window
     /// invariants are violated.
-    #[must_use]
     pub fn new(
         lineage: OwnershipTransitionLineage,
         parties: OwnershipTransitionParties,
@@ -328,7 +317,6 @@ impl OwnershipTransitionRecord {
     }
 
     /// Transition lineage is required for proof-chain identity.
-    #[must_use]
     pub const fn lineage(&self) -> &OwnershipTransitionLineage {
         &self.lineage
     }

@@ -54,7 +54,6 @@ impl AuthorityId {
     /// Returns [`TrustGrantError`] when the identifier is empty, does not carry
     /// an explicit scheme, or contains disallowed whitespace/control
     /// characters.
-    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         let trimmed = value.trim();

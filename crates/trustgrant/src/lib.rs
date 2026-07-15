@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate)]
+
 #![forbid(unsafe_code)]
 
 //! Core TrustGrant protocol crate - umbrella re-exports.

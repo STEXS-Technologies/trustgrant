@@ -29,7 +29,6 @@ pub struct VerificationArtifacts {
 
 impl VerificationArtifacts {
     /// Verified grant is required for registration and evaluation.
-    #[must_use]
     pub const fn verified_grant(&self) -> &VerifiedTrustGrant {
         &self.verified_grant
     }

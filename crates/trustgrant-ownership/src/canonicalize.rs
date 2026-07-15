@@ -25,7 +25,6 @@ pub struct CanonicalOwnershipTransitionBytes(Vec<u8>);
 
 impl CanonicalOwnershipTransitionBytes {
     /// Canonical bytes should be passed to signature verification.
-    #[must_use]
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }

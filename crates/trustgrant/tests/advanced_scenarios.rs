@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
 
 use chrono::{TimeZone, Utc};
 
@@ -1516,7 +1516,10 @@ fn coexist_series_both_grants_verify_and_evaluate() {
     let grant_b = verified_grant_from_json(COEXIST_SERIES_GRANT_B_JSON);
 
     // Both grants should have the same series id
-    assert_eq!(grant_a.lineage().grant_series_id(), grant_b.lineage().grant_series_id());
+    assert_eq!(
+        grant_a.lineage().grant_series_id(),
+        grant_b.lineage().grant_series_id()
+    );
 
     // Grant A has revision 1
     assert_eq!(grant_a.lineage().revision().get(), 1);

@@ -1,12 +1,12 @@
-use std::collections::{BTreeMap, HashSet};
 use chrono::{DateTime, Utc};
 use compact_str::CompactString;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::raw::{
     InteroperabilityProfile, PostRevocationEffect, RawAudienceEntry, RawCapabilities,
-    RawGlobalConstraints, RawMintingConstraints, RawOperationScope, RawPrincipal,
-    RawResourceScope, RawResourceType, RawRevocation, RawScope, RawSelector,
-    RawSupersessionPolicy, RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
+    RawGlobalConstraints, RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope,
+    RawResourceType, RawRevocation, RawScope, RawSelector, RawSupersessionPolicy,
+    RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_domain::{
     AuthorityId, GrantLineage, GrantRevision, GrantSeriesId, KeyId, OperationName,
@@ -47,7 +47,6 @@ pub struct ValidatedTrustGrantDocument {
 
 impl ValidatedTrustGrantDocument {
     /// Validated lineage is required for registration and lookup.
-    #[must_use]
     pub const fn lineage(&self) -> &GrantLineage {
         &self.lineage
     }
@@ -128,7 +127,7 @@ impl ValidatedTrustGrantDocument {
     /// operations. When set, it signals that `operations.all = true` is
     /// intentional for custom operations.
     #[must_use]
-    pub fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
+    pub const fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
         self.interoperability_profile.as_ref()
     }
 }
@@ -253,7 +252,6 @@ pub struct ValidatedPrincipal {
 
 impl ValidatedPrincipal {
     /// Persisted principal state must stay valid by construction.
-    #[must_use]
     pub const fn new(kind: PrincipalKind, id: PrincipalId) -> Self {
         Self { kind, id }
     }
@@ -291,7 +289,6 @@ pub struct ValidatedCapabilities {
 
 impl ValidatedCapabilities {
     /// Capability state must stay valid by construction.
-    #[must_use]
     pub const fn new(recognize: bool, mint: bool) -> Self {
         Self { recognize, mint }
     }
@@ -353,7 +350,6 @@ impl ValidatedSelector {
     }
 
     /// Selector kind participates in evaluation matching.
-    #[must_use]
     pub const fn kind(&self) -> &SelectorKind {
         &self.kind
     }
@@ -405,7 +401,6 @@ impl ValidatedScope {
     }
 
     /// Scope all flag participates in evaluation matching.
-    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
@@ -462,7 +457,6 @@ impl ValidatedOperationScope {
     }
 
     /// Operation scope all flag participates in evaluation matching.
-    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
@@ -569,7 +563,6 @@ impl ValidatedResourceType {
     }
 
     /// Resource type all flag participates in evaluation matching.
-    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
@@ -724,7 +717,6 @@ impl ValidatedTimeWindow {
     }
 
     /// Not_before participates in time-based evaluation.
-    #[must_use]
     pub const fn not_before(&self) -> DateTime<Utc> {
         self.not_before
     }
@@ -1611,10 +1603,7 @@ mod tests {
 
         let result = ValidatedTrustGrantDocument::try_from(raw);
 
-        assert_eq!(
-            result,
-            Err(TrustGrantError::DuplicateAudienceAuthority)
-        );
+        assert_eq!(result, Err(TrustGrantError::DuplicateAudienceAuthority));
     }
 
     // ── ValidatedSelector::new error branches ────────────────────────

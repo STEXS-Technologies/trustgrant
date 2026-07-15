@@ -30,7 +30,6 @@ impl AlgorithmName {
     }
 
     /// Algorithm name should be used during verification.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -69,7 +68,6 @@ impl PublicKeyMaterial {
     }
 
     /// Public-key material should be forwarded to crypto adapters.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -113,7 +111,6 @@ impl SignatureFormat {
     }
 
     /// Signature-profile format should be inspected by adapters.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -157,7 +154,6 @@ impl CanonicalizationName {
     }
 
     /// Canonicalization name should be inspected during verification.
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -199,7 +195,6 @@ impl SignatureProfile {
     }
 
     /// Signature format participates in verifier dispatch.
-    #[must_use]
     pub const fn format(&self) -> &SignatureFormat {
         &self.format
     }
@@ -252,7 +247,6 @@ impl AuthorityKeyRecord {
     }
 
     /// Key id participates in key selection.
-    #[must_use]
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
@@ -311,7 +305,6 @@ impl DelegatedPrincipalRef {
     }
 
     /// Principal kind participates in signer attribution.
-    #[must_use]
     pub const fn kind(&self) -> &PrincipalKind {
         &self.kind
     }

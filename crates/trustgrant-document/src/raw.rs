@@ -47,7 +47,6 @@ impl RawTrustGrantDocument {
     /// Returns [`TrustGrantError`] when the input exceeds the protocol size
     /// limit, is not valid JSON, or does not match the TrustGrant v0 wire
     /// shape.
-    #[must_use]
     pub fn parse_json_bytes(bytes: &[u8]) -> Result<Self, TrustGrantError> {
         ensure_json_size("trustgrant", bytes.len(), MAX_TRUSTGRANT_JSON_BYTES)?;
 
@@ -88,7 +87,6 @@ impl RawTrustGrantDocument {
     /// Returns [`TrustGrantError`] when the input exceeds the protocol size
     /// limit, is not valid JSON, or does not match the TrustGrant v0 wire
     /// shape.
-    #[must_use]
     pub fn parse_json_str(json: &str) -> Result<Self, TrustGrantError> {
         ensure_json_size("trustgrant", json.len(), MAX_TRUSTGRANT_JSON_BYTES)?;
 
@@ -100,7 +98,6 @@ impl RawTrustGrantDocument {
     /// # Errors
     ///
     /// Returns [`serde_json::Error`] when serialization fails.
-    #[must_use]
     pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
@@ -543,7 +540,7 @@ impl InteroperabilityProfile {
 ///
 /// Defines which operations remain available and how existing resources
 /// are affected. This is a signed policy field in the grant document.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PostRevocationEffect {
     /// Only future mint operations are blocked. Recognition and custom
@@ -551,13 +548,8 @@ pub enum PostRevocationEffect {
     BlockMintingOnly,
     /// All operations on the grant are blocked. This is the default and
     /// most conservative behavior.
+    #[default]
     BlockAll,
-}
-
-impl Default for PostRevocationEffect {
-    fn default() -> Self {
-        Self::BlockAll
-    }
 }
 
 /// Wire representation of a revocation policy.
@@ -582,10 +574,7 @@ impl RawRevocation {
 
     /// Sets the post-revocation effect for this policy.
     #[must_use]
-    pub const fn with_post_revocation_effect(
-        mut self,
-        effect: PostRevocationEffect,
-    ) -> Self {
+    pub const fn with_post_revocation_effect(mut self, effect: PostRevocationEffect) -> Self {
         self.post_revocation_effect = effect;
         self
     }

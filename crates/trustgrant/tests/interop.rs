@@ -231,7 +231,9 @@ fn run_evaluation(
             mc_val["user_minted"].as_u64().unwrap_or(0),
         );
         let mint_ctx = if let Some(qty) = mc_val.get("quantity").and_then(|v| v.as_u64()) {
-            base_ctx.with_quantity(qty).unwrap_or_else(|_| base_ctx.clone())
+            base_ctx
+                .with_quantity(qty)
+                .unwrap_or_else(|_| base_ctx.clone())
         } else {
             base_ctx
         };

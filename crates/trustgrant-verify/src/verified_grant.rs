@@ -85,7 +85,6 @@ impl NormalizedTrustGrantDocument {
     }
 
     /// Normalized lineage is required for evaluation and persistence.
-    #[must_use]
     pub const fn lineage(&self) -> &GrantLineage {
         &self.lineage
     }
@@ -159,7 +158,7 @@ impl NormalizedTrustGrantDocument {
     /// Interoperability profile declares the operational context for custom
     /// operations.
     #[must_use]
-    pub fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
+    pub const fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
         self.interoperability_profile.as_ref()
     }
 

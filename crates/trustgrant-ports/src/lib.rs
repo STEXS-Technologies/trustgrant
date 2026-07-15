@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate)]
+
 //! Backend-agnostic port traits for the TrustGrant protocol.
 //!
 //! # Architecture

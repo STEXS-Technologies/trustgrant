@@ -106,7 +106,6 @@ impl SelectorExpression {
     }
 
     /// Selector expressions participate in evaluation matching.
-    #[must_use]
     pub const fn predicate(&self) -> SelectorPredicate {
         self.predicate
     }

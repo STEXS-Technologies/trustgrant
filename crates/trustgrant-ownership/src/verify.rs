@@ -27,7 +27,6 @@ pub struct OwnershipTransitionVerificationMetadata {
 
 impl OwnershipTransitionVerificationMetadata {
     /// Verification metadata should be attached to verified transitions.
-    #[must_use]
     pub const fn new(
         verified_at: DateTime<Utc>,
         posture: VerificationPosture,

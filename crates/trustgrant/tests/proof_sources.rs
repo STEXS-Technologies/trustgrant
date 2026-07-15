@@ -8,12 +8,12 @@ use trustgrant::{
     BundleRevocationProof, DelegatedPrincipalKeyDocument, DelegatedPrincipalRef, DiscoverySource,
     EvaluationEngine, EvaluationRequest, KeyId, OwnershipProofKind, OwnershipTransitionProofSource,
     OwnershipVerificationRecord, ProofFinality, RawOwnershipTransitionDocument,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext,
-    ResourceRef, RevocationFreshnessPolicy, RevocationProofSource, RevocationRecord,
-    RevocationSourceKind, SignatureProfile, SignatureVerificationRequest, SignatureVerifier,
-    TrustGrantError, TrustGrantProofBundle, ValidatedPrincipal, ValidatedTrustGrantDocument,
-    VerificationContext, VerificationMetadata, VerificationPipeline, VerificationPosture,
-    VerificationSources, VerifiedRevocationState,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationProofSource,
+    RevocationRecord, RevocationSourceKind, SignatureProfile, SignatureVerificationRequest,
+    SignatureVerifier, TrustGrantError, TrustGrantProofBundle, ValidatedPrincipal,
+    ValidatedTrustGrantDocument, VerificationContext, VerificationMetadata, VerificationPipeline,
+    VerificationPosture, VerificationSources, VerifiedRevocationState,
     parse_authority_discovery_document, parse_delegated_principal_key_document,
     parse_revocation_status_proof,
 };
@@ -471,8 +471,7 @@ fn source_driven_verification_and_evaluation_allow_matching_request() {
 /// HashMap, simulating what an application-level endpoint fetcher would do.
 struct HashMapDiscoverySource {
     discovery_docs: HashMap<AuthorityId, AuthorityDiscoveryDocument>,
-    delegated_docs:
-        HashMap<AuthorityId, HashMap<(String, String), DelegatedPrincipalKeyDocument>>,
+    delegated_docs: HashMap<AuthorityId, HashMap<(String, String), DelegatedPrincipalKeyDocument>>,
 }
 
 impl HashMapDiscoverySource {
@@ -483,11 +482,7 @@ impl HashMapDiscoverySource {
         }
     }
 
-    fn insert_discovery(
-        &mut self,
-        authority: AuthorityId,
-        doc: AuthorityDiscoveryDocument,
-    ) {
+    fn insert_discovery(&mut self, authority: AuthorityId, doc: AuthorityDiscoveryDocument) {
         self.discovery_docs.insert(authority, doc);
     }
 
@@ -583,8 +578,7 @@ fn custom_discovery_source_feeds_into_pipeline() {
                 .unwrap_or_else(|e| panic!("revocation proof: {e}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(86400, 86400)
-                .unwrap_or_else(|e| panic!("policy: {e}")),
+            RevocationFreshnessPolicy::new(86400, 86400).unwrap_or_else(|e| panic!("policy: {e}")),
         ))
         .unwrap_or_else(|e| panic!("insert revocation: {e}"));
 
@@ -709,7 +703,9 @@ fn parse_delegated_principal_key_document_rejects_malformed_json() {
 
     // Valid JSON but wrong types for fields
     assert_eq!(
-        parse_delegated_principal_key_document(r#"{"authority_id":123,"principal":{"kind":"x","id":"y"},"keys":[]}"#),
+        parse_delegated_principal_key_document(
+            r#"{"authority_id":123,"principal":{"kind":"x","id":"y"},"keys":[]}"#
+        ),
         Err(TrustGrantError::InvalidDelegatedPrincipalDocument),
     );
 }
@@ -1091,11 +1087,8 @@ fn pipeline_rejects_empty_sources() {
     let failing_revocation = FailingRevocationSource;
     let failing_ownership = FailingOwnershipSource;
 
-    let sources = VerificationSources::new(
-        &failing_discovery,
-        &failing_revocation,
-        &failing_ownership,
-    );
+    let sources =
+        VerificationSources::new(&failing_discovery, &failing_revocation, &failing_ownership);
 
     let result = VerificationPipeline::new().verify_json_str_with_sources(
         DELEGATED_TRUSTGRANT_JSON,

@@ -48,7 +48,6 @@ pub struct SignatureVerificationRequest<'request> {
 
 impl<'request> SignatureVerificationRequest<'request> {
     /// Signature verification requests should be built by the pipeline.
-    #[must_use]
     pub const fn new(
         canonical_bytes: &'request [u8],
         canonicalization_profile: CanonicalizationProfile,

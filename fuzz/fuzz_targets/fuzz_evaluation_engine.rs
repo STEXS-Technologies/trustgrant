@@ -1,16 +1,17 @@
 #![no_main]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn)]
+
 use libfuzzer_sys::fuzz_target;
 
 use chrono::{Duration, Utc};
 
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, CustomOperationName, DelegatedPrincipalRef, EvaluationEngine,
-    EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord,
-    ProofFinality, RawTrustGrantDocument, RequestedCapability, RequestedOperation,
-    ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef, RevocationRecord,
-    RevocationSourceKind, RevocationStatus, SignatureProfile, TrustGrantError,
-    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPosture,
-    VerifiedRevocationState, VerifiedTrustGrant,
+    EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
+    RawTrustGrantDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
+    ResourceBinding, ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind,
+    RevocationStatus, SignatureProfile, TrustGrantError, ValidatedTrustGrantDocument,
+    VerificationMetadata, VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 fn build_metadata(doc: &RawTrustGrantDocument) -> Result<VerificationMetadata, TrustGrantError> {

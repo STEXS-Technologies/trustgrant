@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
 
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -158,21 +158,21 @@ fn mint_mutation(intent_id: &str) -> MutationRequest {
     let intent_id = IntentId::new(intent_id)
         .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
     let mut request = EvaluationRequest::new(
-            RequestedOperation::Capability(RequestedCapability::Mint),
-            ResourceBinding::Mint(
-                TemplateRef::new_typed(authority("https://issuer.example.com"), "sword-v1")
-                    .unwrap_or_else(|error| panic!("template ref should be valid: {error}")),
-            ),
-            authority("https://target.example.com"),
-            authority("https://audience.example.com"),
-            resource_context(),
-            timestamp(),
-        )
-        .unwrap_or_else(|error| panic!("request should be valid: {error}"));
-        request
-            .insert_audience_principal_selector("actor", "player-123")
-            .unwrap_or_else(|error| panic!("principal should be valid: {error}"));
-        MutationRequest::try_from(request.with_intent_id(intent_id).verify_selectors())
+        RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(
+            TemplateRef::new_typed(authority("https://issuer.example.com"), "sword-v1")
+                .unwrap_or_else(|error| panic!("template ref should be valid: {error}")),
+        ),
+        authority("https://target.example.com"),
+        authority("https://audience.example.com"),
+        resource_context(),
+        timestamp(),
+    )
+    .unwrap_or_else(|error| panic!("request should be valid: {error}"));
+    request
+        .insert_audience_principal_selector("actor", "player-123")
+        .unwrap_or_else(|error| panic!("principal should be valid: {error}"));
+    MutationRequest::try_from(request.with_intent_id(intent_id).verify_selectors())
         .unwrap_or_else(|error| panic!("mutation should be valid: {error}"))
 }
 
@@ -203,8 +203,14 @@ fn successful_mutation_execution() {
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
 
     match &result {
-        AtomicExecutionResult::Applied { value, authorization } => {
-            assert_eq!(*value, "executed", "mutation callback value must be returned");
+        AtomicExecutionResult::Applied {
+            value,
+            authorization,
+        } => {
+            assert_eq!(
+                *value, "executed",
+                "mutation callback value must be returned"
+            );
             assert!(
                 authorization.outcome().decision().is_allowed(),
                 "decision must be allowed"
@@ -215,11 +221,7 @@ fn successful_mutation_execution() {
 
     // The resource version should have advanced from 1 to 2
     let version = executor
-        .authorize_and_execute(
-            &grant,
-            existing_mutation("exec-test-1b", 2),
-            |_, _| Ok(()),
-        )
+        .authorize_and_execute(&grant, existing_mutation("exec-test-1b", 2), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
     assert!(
         matches!(version, AtomicExecutionResult::Applied { .. }),
@@ -245,9 +247,7 @@ fn idempotent_replay_returns_duplicate() {
 
     // First execution — should succeed
     let first = executor
-        .authorize_and_execute(&grant, existing_mutation("idem-1", 1), |_, _| {
-            Ok("first")
-        })
+        .authorize_and_execute(&grant, existing_mutation("idem-1", 1), |_, _| Ok("first"))
         .unwrap_or_else(|error| panic!("first execution should not error: {error}"));
     assert!(
         matches!(first, AtomicExecutionResult::Applied { .. }),
@@ -256,9 +256,7 @@ fn idempotent_replay_returns_duplicate() {
 
     // Second execution with identical intent_id — should be Duplicate
     let second = executor
-        .authorize_and_execute(&grant, existing_mutation("idem-1", 1), |_, _| {
-            Ok("second")
-        })
+        .authorize_and_execute(&grant, existing_mutation("idem-1", 1), |_, _| Ok("second"))
         .unwrap_or_else(|error| panic!("second execution should not error: {error}"));
 
     match &second {
@@ -290,9 +288,7 @@ fn stale_state_detected_when_version_mismatch() {
 
     // Execute with matching version 5 — succeeds and advances to 6
     let first = executor
-        .authorize_and_execute(&grant, existing_mutation("stale-1", 5), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("stale-1", 5), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("first execution should not error: {error}"));
     assert!(
         matches!(first, AtomicExecutionResult::Applied { .. }),
@@ -301,9 +297,7 @@ fn stale_state_detected_when_version_mismatch() {
 
     // Attempt with stale expected_version=5 (current is now 6) → Stale
     let stale = executor
-        .authorize_and_execute(&grant, existing_mutation("stale-2", 5), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("stale-2", 5), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("stale execution should not error: {error}"));
 
     match stale {
@@ -387,13 +381,14 @@ fn mint_mutation_creates_new_resource() {
     let mut executor = InMemoryAtomicInventoryExecutor::new();
 
     let result = executor
-        .authorize_and_execute(&grant, mint_mutation("mint-flow-1"), |_, _| {
-            Ok("minted")
-        })
+        .authorize_and_execute(&grant, mint_mutation("mint-flow-1"), |_, _| Ok("minted"))
         .unwrap_or_else(|error| panic!("mint execution should not error: {error}"));
 
     match &result {
-        AtomicExecutionResult::Applied { value, authorization } => {
+        AtomicExecutionResult::Applied {
+            value,
+            authorization,
+        } => {
             assert_eq!(*value, "minted", "mutation callback value must be returned");
             assert!(
                 authorization.outcome().decision().is_allowed(),
@@ -411,9 +406,7 @@ fn mint_mutation_respects_quota_limit() {
     let mut executor = InMemoryAtomicInventoryExecutor::new();
 
     let first = executor
-        .authorize_and_execute(&grant, mint_mutation("mint-quota-1"), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, mint_mutation("mint-quota-1"), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("first mint should not error: {error}"));
     assert!(
         matches!(first, AtomicExecutionResult::Applied { .. }),
@@ -421,9 +414,7 @@ fn mint_mutation_respects_quota_limit() {
     );
 
     let second = executor
-        .authorize_and_execute(&grant, mint_mutation("mint-quota-2"), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, mint_mutation("mint-quota-2"), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("second mint should not error: {error}"));
 
     match second {
@@ -456,31 +447,23 @@ fn audit_log_records_all_executions() {
 
     // First successful execution
     let _r1 = executor
-        .authorize_and_execute(&grant, existing_mutation("audit-1", 1), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("audit-1", 1), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
 
     // Duplicate replay (does not add to audit log — the executor returns
     // Duplicate without recording)
     let _r2 = executor
-        .authorize_and_execute(&grant, existing_mutation("audit-1", 1), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("audit-1", 1), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
 
     // Stale version attempt (recorded in audit log even though evaluation passed)
     let _r3 = executor
-        .authorize_and_execute(&grant, existing_mutation("audit-2", 1), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("audit-2", 1), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
 
     // Successful execution with correct version
     let _r4 = executor
-        .authorize_and_execute(&grant, existing_mutation("audit-3", 2), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("audit-3", 2), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
 
     let log = executor.audit_log();
@@ -586,7 +569,10 @@ fn concurrent_execution_is_thread_safe() {
 
     let results: Vec<_> = handles
         .into_iter()
-        .map(|h| h.join().unwrap_or_else(|_| panic!("thread should not panic")))
+        .map(|h| {
+            h.join()
+                .unwrap_or_else(|_| panic!("thread should not panic"))
+        })
         .collect();
 
     // All threads should have succeeded independently
@@ -612,10 +598,11 @@ fn executor_errors_on_unknown_resource() {
     let mut executor = InMemoryAtomicInventoryExecutor::new();
     let grant = verified_grant(false, 0);
 
-    let result =
-        executor.authorize_and_execute(&grant, existing_mutation("unknown-res-1", 1), |_, _| {
-            Ok(())
-        });
+    let result = executor.authorize_and_execute(
+        &grant,
+        existing_mutation("unknown-res-1", 1),
+        |_, _| Ok(()),
+    );
 
     assert_eq!(
         result,
@@ -642,33 +629,25 @@ fn applied_mutation_advances_resource_version() {
 
     // First mutation: version 1 → 2
     let r1 = executor
-        .authorize_and_execute(&grant, existing_mutation("ver-adv-1", 1), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("ver-adv-1", 1), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
     assert!(matches!(r1, AtomicExecutionResult::Applied { .. }));
 
     // Second mutation: version 2 → 3
     let r2 = executor
-        .authorize_and_execute(&grant, existing_mutation("ver-adv-2", 2), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("ver-adv-2", 2), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
     assert!(matches!(r2, AtomicExecutionResult::Applied { .. }));
 
     // Third mutation: version 3 → 4
     let r3 = executor
-        .authorize_and_execute(&grant, existing_mutation("ver-adv-3", 3), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("ver-adv-3", 3), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
     assert!(matches!(r3, AtomicExecutionResult::Applied { .. }));
 
     // Now version 1 is stale
     let stale = executor
-        .authorize_and_execute(&grant, existing_mutation("ver-adv-4", 1), |_, _| {
-            Ok(())
-        })
+        .authorize_and_execute(&grant, existing_mutation("ver-adv-4", 1), |_, _| Ok(()))
         .unwrap_or_else(|error| panic!("execution should not error: {error}"));
     assert!(
         matches!(
@@ -760,10 +739,7 @@ fn mutation_request_rejects_missing_expected_version() {
     .with_intent_id(intent_id);
 
     let result = MutationRequest::try_from(request);
-    assert_eq!(
-        result,
-        Err(TrustGrantError::MissingExpectedResourceVersion)
-    );
+    assert_eq!(result, Err(TrustGrantError::MissingExpectedResourceVersion));
 }
 
 #[test]
@@ -794,7 +770,10 @@ fn mutation_request_rejects_resource_type_binding_mismatch() {
     // originates from the typed ResourceRef usage.
     let result = MutationRequest::try_from(request)
         .unwrap_or_else(|e| panic!("typed ResourceRef should produce valid MutationRequest: {e}"));
-    assert_eq!(result.request().origin_authority().as_str(), "https://issuer.example.com");
+    assert_eq!(
+        result.request().origin_authority().as_str(),
+        "https://issuer.example.com"
+    );
 }
 
 #[test]
@@ -823,7 +802,8 @@ fn mint_mutation_denied_when_capability_disabled() {
         .unwrap_or_else(|e| panic!("mutation request should build: {e}"));
 
     let mut executor = InMemoryAtomicInventoryExecutor::new();
-    let result = executor.authorize_and_execute(&grant, mutation, |_, _| Ok(()))
+    let result = executor
+        .authorize_and_execute(&grant, mutation, |_, _| Ok(()))
         .unwrap_or_else(|e| panic!("executor should not error: {e}"));
 
     let deny_reason = match &result {
@@ -942,8 +922,8 @@ fn mint_mutation_counter_overflow_handled() {
         let mc = MintContext::new(0, 0)
             .with_quantity(quantity)
             .unwrap_or_else(|e| panic!("quantity should be valid: {e}"));
-        let intent_id = IntentId::new(intent_id)
-            .unwrap_or_else(|e| panic!("intent id should be valid: {e}"));
+        let intent_id =
+            IntentId::new(intent_id).unwrap_or_else(|e| panic!("intent id should be valid: {e}"));
         let mut request = EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
             ResourceBinding::Mint(
@@ -970,7 +950,11 @@ fn mint_mutation_counter_overflow_handled() {
 
     // First mint: quantity = u64::MAX - 1 (fills the counter)
     let first = executor
-        .authorize_and_execute(&grant, make_mutation("mint-overflow-1", u64::MAX - 1), |_, _| Ok(()))
+        .authorize_and_execute(
+            &grant,
+            make_mutation("mint-overflow-1", u64::MAX - 1),
+            |_, _| Ok(()),
+        )
         .unwrap_or_else(|e| panic!("first mint should succeed: {e}"));
     assert!(
         matches!(first, AtomicExecutionResult::Applied { .. }),
@@ -978,11 +962,8 @@ fn mint_mutation_counter_overflow_handled() {
     );
 
     // Second mint: quantity = 2 → (u64::MAX - 1) + 2 overflows u64
-    let result = executor.authorize_and_execute(
-        &grant,
-        make_mutation("mint-overflow-2", 2),
-        |_, _| Ok(()),
-    );
+    let result =
+        executor.authorize_and_execute(&grant, make_mutation("mint-overflow-2", 2), |_, _| Ok(()));
 
     assert_eq!(
         result,

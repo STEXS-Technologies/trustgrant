@@ -25,7 +25,6 @@ pub struct CanonicalTrustGrantBytes(Vec<u8>);
 
 impl CanonicalTrustGrantBytes {
     /// Canonical bytes should be passed to signature verification.
-    #[must_use]
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
@@ -613,10 +612,10 @@ mod tests {
 
     use super::{CanonicalizationProfile, canonicalize_trustgrant};
     use trustgrant_document::raw::{
-        RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
-        RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
-        RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
-        RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
+        RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
+        RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation,
+        RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument,
+        RawTypeCapabilities, RawTypeConstraints,
     };
     use trustgrant_domain::Utf16Key;
 

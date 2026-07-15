@@ -37,7 +37,6 @@ impl TrustGrantDraftAuthorities {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the authority identifier is invalid.
-    #[must_use]
     pub fn self_owned(authority: impl Into<String>) -> Result<Self, TrustGrantError> {
         let authority = AuthorityId::new(authority)?;
 
@@ -54,7 +53,6 @@ impl TrustGrantDraftAuthorities {
     ///
     /// Returns [`TrustGrantError`] when one of the authority identifiers is
     /// invalid.
-    #[must_use]
     pub fn new(
         issuer_authority: impl Into<String>,
         origin_authority: impl Into<String>,
@@ -153,7 +151,6 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when one of the authority or key identity
     /// fields is invalid.
-    #[must_use]
     pub fn new(
         authorities: TrustGrantDraftAuthorities,
         key_id: impl Into<String>,
@@ -185,7 +182,6 @@ impl TrustGrantDraft {
     }
 
     /// Generated trustgrant id should be used for publication or signing.
-    #[must_use]
     pub const fn trustgrant_id(&self) -> TrustGrantId {
         self.trustgrant_id
     }
@@ -202,7 +198,6 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when the requested supersession policy
     /// cannot be represented by the TrustGrant v0 wire contract.
-    #[must_use]
     pub fn with_lineage(
         mut self,
         grant_series_id: GrantSeriesId,
@@ -233,14 +228,13 @@ impl TrustGrantDraft {
     }
 
     /// Draft updates should be chained into the final signable draft.
-    #[must_use]
     pub fn with_default_audience_scope(mut self, audience_scope: Vec<RawAudienceEntry>) -> Self {
         self.default_audience_scope = audience_scope;
         self
     }
 
     /// Draft updates should be chained into the final signable draft.
-    #[must_use]
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the provided time window is inverted.
@@ -257,7 +251,6 @@ impl TrustGrantDraft {
     }
 
     /// Draft updates should be chained into the final signable draft.
-    #[must_use]
     pub fn with_revocation(mut self, revocation: RawRevocation) -> Self {
         self.revocation = Some(revocation);
         self
@@ -293,7 +286,6 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when the current draft cannot be expressed
     /// by the TrustGrant v0 wire contract.
-    #[must_use]
     pub fn signable_document(&self) -> Result<RawTrustGrantDocument, TrustGrantError> {
         let supersession_policy = match self.supersession_policy {
             SupersessionPolicy::Coexist => RawSupersessionPolicy::Coexist,
@@ -393,7 +385,6 @@ impl TrustGrantDraft {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when canonicalization fails.
-    #[must_use]
     pub fn canonical_bytes(&self) -> Result<CanonicalTrustGrantBytes, TrustGrantError> {
         canonicalize_trustgrant(&self.signable_document()?, CanonicalizationProfile::Rfc8785)
     }
@@ -404,7 +395,6 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when the provided signature is empty after
     /// trimming.
-    #[must_use]
     pub fn into_signed_document(
         self,
         signature: impl Into<CompactString>,

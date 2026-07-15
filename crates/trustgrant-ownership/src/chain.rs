@@ -22,7 +22,6 @@ pub struct OwnershipChainVerifier;
 
 impl OwnershipChainVerifier {
     /// Ownership chain verifier should be reused by adapters and the verification pipeline.
-    #[must_use]
     pub const fn new() -> Self {
         Self
     }

@@ -20,7 +20,6 @@ impl RevocationFreshnessPolicy {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when one of the TTL values is zero.
-    #[must_use]
     pub const fn new(
         non_revoked_ttl_seconds: u64,
         max_stale_seconds: u64,
@@ -39,7 +38,6 @@ impl RevocationFreshnessPolicy {
     }
 
     /// Non-revoked ttl participates in record freshness normalization.
-    #[must_use]
     pub const fn non_revoked_ttl_seconds(&self) -> u64 {
         self.non_revoked_ttl_seconds.get()
     }
@@ -104,7 +102,6 @@ impl RevocationStatusProof {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the freshness policy cannot be applied.
-    #[must_use]
     pub fn into_record(
         self,
         source_kind: RevocationSourceKind,
@@ -190,7 +187,6 @@ impl TryFrom<RawRevocationStatusProof> for RevocationStatusProof {
 /// # Errors
 ///
 /// Returns [`TrustGrantError`] when the JSON or normalized proof is invalid.
-#[must_use]
 pub fn parse_revocation_status_proof(json: &str) -> Result<RevocationStatusProof, TrustGrantError> {
     ensure_json_size(
         "revocation_proof",

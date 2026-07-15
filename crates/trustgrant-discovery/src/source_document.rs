@@ -43,7 +43,6 @@ impl DiscoveryRevocationPolicy {
     }
 
     /// Status endpoint participates in revocation resolution.
-    #[must_use]
     pub fn status_endpoint(&self) -> &str {
         &self.status_endpoint
     }
@@ -144,7 +143,6 @@ impl AuthorityDiscoveryDocument {
     }
 
     /// Authority id participates in issuer discovery validation.
-    #[must_use]
     pub const fn authority_id(&self) -> &AuthorityId {
         &self.authority_id
     }
@@ -233,7 +231,6 @@ impl DelegatedPrincipalKeyDocument {
     }
 
     /// Authority id participates in delegated-key routing.
-    #[must_use]
     pub const fn authority_id(&self) -> &AuthorityId {
         &self.authority_id
     }

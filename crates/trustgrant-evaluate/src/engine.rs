@@ -21,7 +21,6 @@ pub struct EvaluationEngine;
 
 impl EvaluationEngine {
     /// Evaluation engine should be reused for repeated authorization checks.
-    #[must_use]
     pub const fn new() -> Self {
         Self
     }
@@ -69,8 +68,10 @@ impl EvaluationEngine {
     ) -> EvaluationDecision {
         // Spec §13 step 0: Reject unverified selectors for mint operations.
         // Caller-self-asserted selectors must not authorize minting.
-        if matches!(request.operation(), RequestedOperation::Capability(RequestedCapability::Mint))
-            && !request.selectors_verified()
+        if matches!(
+            request.operation(),
+            RequestedOperation::Capability(RequestedCapability::Mint)
+        ) && !request.selectors_verified()
         {
             tracing::debug!(
                 trustgrant_id = %trustgrant_id,
@@ -102,10 +103,10 @@ impl EvaluationEngine {
                         EvaluationDenyReason::StaleRevocationData,
                     );
                 }
-        if record.status() == trustgrant_revocation::RevocationStatus::Revoked {
-            // Check post-revocation effect: if the grant only blocks minting
-            // and this is a recognize or custom operation, allow it.
-            let should_deny = match grant.document().revocation() {
+                if record.status() == trustgrant_revocation::RevocationStatus::Revoked {
+                    // Check post-revocation effect: if the grant only blocks minting
+                    // and this is a recognize or custom operation, allow it.
+                    let should_deny = match grant.document().revocation() {
                 Some(rev) if rev.post_revocation_effect()
                     == trustgrant_document::raw::PostRevocationEffect::BlockMintingOnly =>
                 {
@@ -116,16 +117,19 @@ impl EvaluationEngine {
                 }
                 _ => true,
             };
-            if should_deny {
-                tracing::debug!(
-                    trustgrant_id = %trustgrant_id,
-                    operation = ?request.operation(),
-                    reason = ?EvaluationDenyReason::Revoked,
-                );
-                return EvaluationDecision::deny(trustgrant_id, EvaluationDenyReason::Revoked);
-            }
-            // BlockMintingOnly + non-mint operation → allow through
-        }
+                    if should_deny {
+                        tracing::debug!(
+                            trustgrant_id = %trustgrant_id,
+                            operation = ?request.operation(),
+                            reason = ?EvaluationDenyReason::Revoked,
+                        );
+                        return EvaluationDecision::deny(
+                            trustgrant_id,
+                            EvaluationDenyReason::Revoked,
+                        );
+                    }
+                    // BlockMintingOnly + non-mint operation → allow through
+                }
             }
             trustgrant_revocation::VerifiedRevocationState::NonRevocable => {}
         }
@@ -260,10 +264,7 @@ fn evaluate_resource_type(
     }
 
     // Spec step 7: check operation matches operations if present
-    if let Err(reason) = is_operation_allowed(
-        resource_type,
-        request.operation(),
-    ) {
+    if let Err(reason) = is_operation_allowed(resource_type, request.operation()) {
         return ResourceEvaluation::Denied(reason);
     }
 
@@ -1511,13 +1512,13 @@ mod tests {
         );
 
         // Recognize should be allowed even though revoked
-        let outcome = engine.evaluate(&grant, &recognize_request());
-        assert!(outcome.decision().is_allowed());
+        let recog_outcome = engine.evaluate(&grant, &recognize_request());
+        assert!(recog_outcome.decision().is_allowed());
 
         // Mint should be denied
-        let outcome = engine.evaluate(&grant, &mint_request());
+        let mint_outcome = engine.evaluate(&grant, &mint_request());
         assert_eq!(
-            outcome.decision().deny_reason(),
+            mint_outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::Revoked)
         );
     }
@@ -2664,7 +2665,7 @@ mod tests {
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
-             issuer_principal: Some(RawPrincipal {
+            issuer_principal: Some(RawPrincipal {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),

@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
 
 //! Integration tests for the persistence/recovery path:
 //! create a verified grant → serialize to record → rehydrate from record → evaluate.
@@ -7,11 +7,11 @@ use chrono::{TimeZone, Utc};
 
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, CustomOperationName, EvaluationDenyReason, EvaluationEngine,
-    EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord,
-    ProofFinality, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
-    ResourceBinding, ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind,
-    RevocationStatus, SignatureProfile, SignatureVerificationRequest, SignatureVerifier,
-    TemplateRef, TrustGrantError, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    SignatureProfile, SignatureVerificationRequest, SignatureVerifier, TemplateRef,
+    TrustGrantError, VerificationMetadata, VerificationPipeline, VerificationPosture,
     VerifiedRevocationState, VerifiedTrustGrant, VerifiedTrustGrantRecord,
 };
 

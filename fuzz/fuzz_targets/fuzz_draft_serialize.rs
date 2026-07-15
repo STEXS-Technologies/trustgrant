@@ -5,9 +5,8 @@ use chrono::{TimeZone, Utc};
 use std::collections::BTreeMap;
 
 use trustgrant::{
-    TrustGrantDraft, TrustGrantDraftAuthorities, document::raw::{
-        RawCapabilities, RawResourceScope, RawScope,
-    },
+    TrustGrantDraft, TrustGrantDraftAuthorities,
+    document::raw::{RawCapabilities, RawResourceScope, RawScope},
 };
 
 // Fuzz the TrustGrantDraft builder and serialization paths.

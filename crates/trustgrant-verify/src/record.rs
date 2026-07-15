@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use trustgrant_discovery::{
     AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
 };
-use trustgrant_document::validated::{ValidatedTypeCapabilities, ValidatedTypeConstraints};
 use trustgrant_document::raw::{InteroperabilityProfile, PostRevocationEffect};
+use trustgrant_document::validated::{ValidatedTypeCapabilities, ValidatedTypeConstraints};
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedOperationScope, ValidatedPrincipal, ValidatedResourceType, ValidatedRevocation,
@@ -52,7 +52,6 @@ impl VerifiedTrustGrantRecord {
     ///
     /// Returns [`TrustGrantError`] when the persisted record cannot be
     /// converted back into normalized verified state.
-    #[must_use]
     pub fn try_to_verified_grant(&self) -> Result<VerifiedTrustGrant, TrustGrantError> {
         if self.record_version != VERIFIED_TRUSTGRANT_RECORD_VERSION {
             return Err(
@@ -81,7 +80,6 @@ impl VerifiedTrustGrantRecord {
     ///
     /// Returns [`TrustGrantError`] when the persisted record cannot be
     /// converted back into normalized verified state.
-    #[must_use]
     pub fn try_into_verified_grant(self) -> Result<VerifiedTrustGrant, TrustGrantError> {
         self.try_to_verified_grant()
     }

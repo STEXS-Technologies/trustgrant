@@ -58,7 +58,6 @@ pub enum RevocationSourceKind {
 
 impl RevocationSourceKind {
     /// Verification posture policy must distinguish live from non-live evidence.
-    #[must_use]
     pub const fn is_non_live(self) -> bool {
         matches!(self, Self::Snapshot | Self::ProofBundle)
     }

@@ -87,7 +87,6 @@ impl TryFrom<EvaluationRequest> for MutationRequest {
 
 impl MutationRequest {
     /// Returns the validated evaluation request.
-    #[must_use]
     pub const fn request(&self) -> &EvaluationRequest {
         &self.request
     }
@@ -125,7 +124,7 @@ impl MutationRequest {
 
     /// Sets the envelope expiry for this mutation request.
     #[must_use]
-    pub fn with_envelope_expiry(mut self, expires_at: DateTime<Utc>) -> Self {
+    pub const fn with_envelope_expiry(mut self, expires_at: DateTime<Utc>) -> Self {
         self.envelope_expires_at = Some(expires_at);
         self
     }
@@ -337,7 +336,6 @@ pub struct InMemoryExecutionTransaction {
 
 impl InMemoryExecutionTransaction {
     /// Returns the current version for one registered resource.
-    #[must_use]
     pub fn resource_version(&self, resource: &ResourceRef) -> Option<u64> {
         ResourceKey::try_from(resource)
             .ok()
@@ -405,7 +403,6 @@ impl InMemoryAtomicInventoryExecutor {
     }
 
     /// Returns the committed audit records in execution order.
-    #[must_use]
     pub fn audit_log(&self) -> &[MutationAuthorization] {
         &self.state.audit_log
     }
@@ -467,7 +464,7 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
                 .mint_context()
                 .map(|ctx| ctx.requested_quantity())
                 .unwrap_or(1);
-            let mc = MintContext::new(
+            let base_mc = MintContext::new(
                 self.state
                     .total_mints
                     .get(&mint_total_key)
@@ -478,9 +475,11 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
                     .get(&mint_principal_key)
                     .copied()
                     .unwrap_or(0),
-            )
-            .with_quantity(quantity)
-            .expect("quantity should be non-zero (default is 1, caller must validate)");
+            );
+            // Safety: quantity is ≥ 1 (derived from caller-supplied MintContext
+            // or defaults to 1). with_quantity only fails on 0.
+            #[allow(clippy::unwrap_used, clippy::unwrap_in_result)]
+            let mc = base_mc.with_quantity(quantity).unwrap();
             request.with_runtime_mint_context(mc)
         } else {
             request.request().clone()
@@ -605,8 +604,8 @@ mod tests {
         InMemoryExecutionError, MutationRequest,
     };
     use crate::{
-        EvaluationDenyReason, EvaluationRequest, IntentId, RequestedCapability,
-        RequestedOperation, ResourceBinding, ResourceContext, ResourceRef, TemplateRef,
+        EvaluationDenyReason, EvaluationRequest, IntentId, RequestedCapability, RequestedOperation,
+        ResourceBinding, ResourceContext, ResourceRef, TemplateRef,
     };
 
     fn timestamp() -> chrono::DateTime<Utc> {
@@ -1007,11 +1006,7 @@ mod tests {
 
         // First: mint mutation with a specific intent_id
         let first = executor
-            .authorize_and_execute(
-                &grant,
-                mint_mutation("conflict-intent"),
-                |_, _| Ok(()),
-            )
+            .authorize_and_execute(&grant, mint_mutation("conflict-intent"), |_, _| Ok(()))
             .unwrap_or_else(|error| panic!("execution should not error: {error}"));
         assert!(matches!(first, AtomicExecutionResult::Applied { .. }));
 

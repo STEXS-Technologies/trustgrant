@@ -36,7 +36,6 @@ pub struct BundleRevocationProof {
 
 impl BundleRevocationProof {
     /// Bundle revocation proof should be assembled before verification.
-    #[must_use]
     pub const fn new(
         proof: RevocationStatusProof,
         source_kind: RevocationSourceKind,
@@ -58,7 +57,6 @@ impl BundleRevocationProof {
     ///
     /// Returns [`TrustGrantError`] when the bundled proof does not match the
     /// requested grant or the freshness policy cannot be applied.
-    #[must_use]
     pub fn to_record_for(
         &self,
         trustgrant_id: TrustGrantId,
@@ -101,13 +99,11 @@ impl TrustGrantProofBundle {
     /// // Populate with fluent builders:
     /// // let bundle = bundle.with_discovery_document(doc)?;
     /// ```
-    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Proof bundles may be assembled fluently before verification.
-    #[must_use]
     ///
     /// # Errors
     ///
@@ -122,7 +118,6 @@ impl TrustGrantProofBundle {
     }
 
     /// Proof bundles may be assembled fluently before verification.
-    #[must_use]
     ///
     /// # Errors
     ///
@@ -137,7 +132,6 @@ impl TrustGrantProofBundle {
     }
 
     /// Proof bundles may be assembled fluently before verification.
-    #[must_use]
     ///
     /// # Errors
     ///
@@ -152,7 +146,6 @@ impl TrustGrantProofBundle {
     }
 
     /// Proof bundles may be assembled fluently before verification.
-    #[must_use]
     ///
     /// # Errors
     ///
@@ -168,7 +161,6 @@ impl TrustGrantProofBundle {
     }
 
     /// Shared proof bundles may act as all source types.
-    #[must_use]
     pub fn as_sources(&self) -> VerificationSources<'_> {
         VerificationSources::new(self, self, self)
     }
@@ -179,7 +171,6 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the document conflicts with an
     /// existing entry or would exceed bundle limits.
-    #[must_use]
     pub fn insert_discovery_document(
         &mut self,
         document: AuthorityDiscoveryDocument,
@@ -211,7 +202,6 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the document conflicts with an
     /// existing entry or would exceed bundle limits.
-    #[must_use]
     pub fn insert_delegated_principal_document(
         &mut self,
         document: DelegatedPrincipalKeyDocument,
@@ -252,7 +242,6 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the proof conflicts with an existing
     /// entry or would exceed bundle limits.
-    #[must_use]
     pub fn insert_revocation_proof(
         &mut self,
         proof: BundleRevocationProof,
@@ -285,7 +274,6 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the chain conflicts with an existing
     /// entry, exceeds the per-chain limit, or would exceed bundle limits.
-    #[must_use]
     pub fn insert_ownership_transition_chain(
         &mut self,
         trustgrant_id: TrustGrantId,

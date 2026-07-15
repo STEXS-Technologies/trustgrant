@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
 
 use chrono::{TimeZone, Utc};
 
@@ -602,7 +602,8 @@ const MINT_WITHOUT_PRINCIPAL_SCOPE_JSON: &str = r#"{
 #[test]
 fn unverified_selectors_denies_mint() {
     // Mint without verify_selectors() → UnverifiedSelectors
-    let grant = verified_grant_from_json(MINT_WITHOUT_PRINCIPAL_SCOPE_JSON, RevocationStatus::Active);
+    let grant =
+        verified_grant_from_json(MINT_WITHOUT_PRINCIPAL_SCOPE_JSON, RevocationStatus::Active);
 
     // Build a mint request WITHOUT calling .verify_selectors()
     let mut resource = ResourceContext::new("item")
@@ -825,11 +826,7 @@ fn stale_revocation_at_verification_level() {
     );
 
     let pipeline = VerificationPipeline::new();
-    let result = pipeline.verify_json_str(
-        VALID_TRUSTGRANT_JSON,
-        &FakeSignatureVerifier,
-        meta,
-    );
+    let result = pipeline.verify_json_str(VALID_TRUSTGRANT_JSON, &FakeSignatureVerifier, meta);
 
     assert_eq!(result, Err(TrustGrantError::StaleRevocationRecord));
 }

@@ -45,7 +45,6 @@ impl RawOwnershipTransitionDocument {
     /// Returns [`TrustGrantError`] when the input exceeds the protocol size
     /// limit, is not valid JSON, or does not match the ownership-transition v0
     /// wire shape.
-    #[must_use]
     pub fn parse_json_bytes(bytes: &[u8]) -> Result<Self, TrustGrantError> {
         ensure_json_size(
             "ownership_transition",
@@ -64,7 +63,6 @@ impl RawOwnershipTransitionDocument {
     /// Returns [`TrustGrantError`] when the input exceeds the protocol size
     /// limit, is not valid JSON, or does not match the ownership-transition v0
     /// wire shape.
-    #[must_use]
     pub fn parse_json_str(json: &str) -> Result<Self, TrustGrantError> {
         ensure_json_size(
             "ownership_transition",
@@ -136,7 +134,6 @@ pub struct OwnershipTransitionSignature {
 
 impl OwnershipTransitionSignature {
     /// Transition signature key id is required for verification.
-    #[must_use]
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
@@ -236,7 +233,6 @@ impl ValidatedOwnershipTransitionDocument {
     ///
     /// Returns [`TrustGrantError`] when the normalized record invariants are
     /// violated.
-    #[must_use]
     pub fn to_record(&self) -> Result<OwnershipTransitionRecord, TrustGrantError> {
         OwnershipTransitionRecord::new(
             self.lineage.clone(),

@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate, clippy::shadow_unrelated)]
+
 mod decision;
 mod engine;
 mod execution;

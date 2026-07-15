@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate)]
+
 pub mod ownership_transition;
 pub mod raw;
 pub mod validated;

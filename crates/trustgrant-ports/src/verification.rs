@@ -42,7 +42,6 @@ impl<'source> VerificationSources<'source> {
     /// The TrustGrant core does not merge mirrored sources or arbitrate
     /// conflicting proof inputs. If a deployment wants multi-source
     /// reconciliation, that must happen before constructing this value.
-    #[must_use]
     pub const fn new(
         discovery_source: &'source dyn AuthorityDiscoverySource,
         revocation_source: &'source dyn RevocationProofSource,

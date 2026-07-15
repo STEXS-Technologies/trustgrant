@@ -1,4 +1,4 @@
-#![allow(clippy::panic)]
+#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
 
 use trustgrant::{
     CanonicalizationProfile, NormalizedTrustGrantDocument, RawTrustGrantDocument,
@@ -101,15 +101,19 @@ fn normalized_document_constructs_from_validated_and_exposes_fields() {
     // Default audience scope
     assert_eq!(normalized.default_audience_scope().len(), 1);
     assert_eq!(
-        normalized.default_audience_scope()[0].authority_id().as_str(),
+        normalized.default_audience_scope()[0]
+            .authority_id()
+            .as_str(),
         "https://audience.example.com"
     );
 
     // Resource scope
     let resource_scope = normalized.resource_scope();
     assert_eq!(resource_scope.len(), 1);
-    let item_type = resource_scope
-        .get(&trustgrant::ResourceTypeName::new("item").unwrap_or_else(|e| panic!("ResourceTypeName: {e}")));
+    let item_type = resource_scope.get(
+        &trustgrant::ResourceTypeName::new("item")
+            .unwrap_or_else(|e| panic!("ResourceTypeName: {e}")),
+    );
     assert!(item_type.is_some());
 
     // Global time window
@@ -133,7 +137,10 @@ fn normalized_document_constructs_from_validated_and_exposes_fields() {
 
     // Issued at
     assert_eq!(
-        normalized.issued_at().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        normalized
+            .issued_at()
+            .format("%Y-%m-%dT%H:%M:%SZ")
+            .to_string(),
         "2026-04-07T12:00:00Z"
     );
 
@@ -146,7 +153,10 @@ fn normalized_document_constructs_from_validated_and_exposes_fields() {
 
     // Ownership authority state
     let ownership = normalized.ownership_authority_state();
-    assert_eq!(ownership.origin_authority().as_str(), "https://issuer.example.com");
+    assert_eq!(
+        ownership.origin_authority().as_str(),
+        "https://issuer.example.com"
+    );
     assert_eq!(
         ownership.active_owning_authority().as_str(),
         "https://issuer.example.com"
@@ -160,7 +170,10 @@ fn normalized_document_constructs_from_validated_and_exposes_fields() {
 #[test]
 fn parse_authority_discovery_malformed_json_returns_error() {
     let result = parse_authority_discovery_document(r#"this is not valid json at all"#);
-    assert_eq!(result, Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument));
+    assert_eq!(
+        result,
+        Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument)
+    );
 }
 
 #[test]
@@ -171,7 +184,10 @@ fn parse_authority_discovery_missing_keys_field_returns_error() {
       "issued_at":"2026-04-07T12:00:00Z"
     }"#;
     let result = parse_authority_discovery_document(json);
-    assert_eq!(result, Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument));
+    assert_eq!(
+        result,
+        Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument)
+    );
 }
 
 #[test]
@@ -184,7 +200,10 @@ fn parse_authority_discovery_missing_authority_id_returns_error() {
       "issued_at":"2026-04-07T12:00:00Z"
     }"#;
     let result = parse_authority_discovery_document(json);
-    assert_eq!(result, Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument));
+    assert_eq!(
+        result,
+        Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument)
+    );
 }
 
 #[test]
@@ -197,7 +216,10 @@ fn parse_authority_discovery_missing_signature_profile_returns_error() {
       "issued_at":"2026-04-07T12:00:00Z"
     }"#;
     let result = parse_authority_discovery_document(json);
-    assert_eq!(result, Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument));
+    assert_eq!(
+        result,
+        Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument)
+    );
 }
 
 #[test]
@@ -212,7 +234,10 @@ fn parse_authority_discovery_unknown_field_returns_error() {
       "unexpected_field":"boom"
     }"#;
     let result = parse_authority_discovery_document(json);
-    assert_eq!(result, Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument));
+    assert_eq!(
+        result,
+        Err(trustgrant::TrustGrantError::InvalidDiscoveryDocument)
+    );
 }
 
 // ---------------------------------------------------------------------------
