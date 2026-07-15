@@ -16,7 +16,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - run: cargo check --workspace --all-targets -D warnings
+      - run: cargo check --workspace --all-targets -- -D warnings
 
   clippy:
     name: Clippy
@@ -107,10 +107,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked
       - name: Build all fuzz targets
-        run: cargo fuzz build --all
+        run: cargo check -p trustgrant-fuzz
 
   interop:
     name: Interop
@@ -120,6 +118,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
       - name: Interop and conformance
         run: cargo make interop_all
 

@@ -1,4 +1,11 @@
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
+#![allow(
+    clippy::panic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing
+)]
 
 //! Integration tests for the persistence/recovery path:
 //! create a verified grant → serialize to record → rehydrate from record → evaluate.

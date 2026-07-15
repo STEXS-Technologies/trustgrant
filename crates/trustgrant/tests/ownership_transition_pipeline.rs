@@ -1,4 +1,11 @@
-#![allow(clippy::panic, clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing)]
+#![allow(
+    clippy::panic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing
+)]
 
 use std::collections::BTreeMap;
 
@@ -796,5 +803,8 @@ fn ownership_transition_rejects_invalid_authority_format() {
             VerificationPosture::Online,
         ),
     );
-    assert_eq!(third_result.map(|_| ()), Err(TrustGrantError::EmptyAuthorityId),);
+    assert_eq!(
+        third_result.map(|_| ()),
+        Err(TrustGrantError::EmptyAuthorityId),
+    );
 }

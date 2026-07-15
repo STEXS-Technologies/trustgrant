@@ -238,11 +238,12 @@ fn run_evaluation(
             mc_val["total_minted"].as_u64().unwrap_or(0),
             mc_val["user_minted"].as_u64().unwrap_or(0),
         );
-        let mint_ctx = mc_val.get("quantity").and_then(|v| v.as_u64()).map_or(base_ctx, |qty| {
-            base_ctx
-                .with_quantity(qty)
-                .unwrap_or(base_ctx)
-        });
+        let mint_ctx = mc_val
+            .get("quantity")
+            .and_then(|v| v.as_u64())
+            .map_or(base_ctx, |qty| {
+                base_ctx.with_quantity(qty).unwrap_or(base_ctx)
+            });
         request = request.with_mint_context_for_testing(mint_ctx);
     }
 

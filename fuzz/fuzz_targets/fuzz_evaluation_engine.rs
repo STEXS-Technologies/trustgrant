@@ -1,5 +1,10 @@
 #![no_main]
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::unwrap_in_result, clippy::panic_in_result_fn)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn
+)]
 
 use libfuzzer_sys::fuzz_target;
 
