@@ -71,7 +71,8 @@ impl AuthorityId {
             return Err(TrustGrantError::InvalidAuthorityIdCharacter(character));
         }
 
-        let scheme_end = trimmed
+        let lowercased = trimmed.to_lowercase();
+        let scheme_end = lowercased
             .find(':')
             .ok_or(TrustGrantError::InvalidAuthorityIdMissingScheme)?;
 
@@ -79,7 +80,7 @@ impl AuthorityId {
             return Err(TrustGrantError::InvalidAuthorityIdMissingScheme);
         }
 
-        let scheme_name = &trimmed[..scheme_end];
+        let scheme_name = &lowercased[..scheme_end];
         let scheme = if scheme_name.eq_ignore_ascii_case("https") {
             AuthorityScheme::Https
         } else if scheme_name.eq_ignore_ascii_case("did") {
@@ -91,7 +92,7 @@ impl AuthorityId {
         };
 
         Ok(Self {
-            value: trimmed.to_lowercase(),
+            value: lowercased,
             scheme_end,
             scheme,
         })
