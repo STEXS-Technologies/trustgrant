@@ -1,5 +1,5 @@
 {
-  "description": "Recognize grant — operations.all=true with deny list",
+  "description": "Recognize grant — explicit operations allow/deny lists, all=false",
   "trustgrant": {
     "trustgrant_id": "tg_00000027-0027-4027-a027-000000000027",
     "version": 0,
@@ -70,7 +70,7 @@
   },
   "evaluations": [
     {
-      "description": "operation in deny list with all=true — should be denied",
+      "description": "operation in deny list — should be denied",
       "request": {
         "operation": "recognize",
         "target_authority": "https://target.example.com",
@@ -82,7 +82,7 @@
       "expected": { "Denied": "OperationDenied" }
     },
     {
-      "description": "operation not in deny list with all=true — should be allowed",
+      "description": "operation not in deny list — should be allowed",
       "request": {
         "operation": "mint",
         "target_authority": "https://target.example.com",

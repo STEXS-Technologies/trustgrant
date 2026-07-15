@@ -62,7 +62,6 @@
     "revocation": {
       "revocable": true,
       "revocation_endpoint": "https://issuer.example.com/revocation",
-      "post_revocation_effect": "block_all",
       "post_revocation_effect": "block_all"
     },
     "issued_at": "2026-06-01T12:00:00Z",
