@@ -780,6 +780,14 @@ impl ValidatedRevocation {
     pub const fn post_revocation_effect(&self) -> PostRevocationEffect {
         self.post_revocation_effect
     }
+
+    /// Sets the post-revocation effect. Used during rehydration from a
+    /// persisted record.
+    #[must_use]
+    pub const fn with_post_revocation_effect(mut self, effect: PostRevocationEffect) -> Self {
+        self.post_revocation_effect = effect;
+        self
+    }
 }
 
 fn validate_resource_scope(

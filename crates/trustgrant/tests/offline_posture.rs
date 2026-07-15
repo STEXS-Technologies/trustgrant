@@ -681,4 +681,58 @@ fn revocation_freshness_policy_very_short_ttl_record_stale_after_61_seconds() {
     assert!(!record.is_fresh_at(fixed_timestamp(2026, 4, 7, 12, 1, 1)));
 }
 
+// ---------------------------------------------------------------------------
+// P2 gap: posture_online_and_offline_both_succeed
+// ---------------------------------------------------------------------------
+
+#[test]
+fn posture_online_and_offline_both_succeed() {
+    // Build a bundle with discovery doc + revocation proof that is compatible
+    // with both Online and Offline verification postures.
+    let bundle = TrustGrantProofBundle::new()
+        .with_discovery_document(
+            parse_authority_discovery_document(ROOT_DISCOVERY_JSON)
+                .unwrap_or_else(|error| panic!("discovery should parse: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("discovery should insert: {error}"))
+        .with_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(FRESH_REVOCATION_JSON)
+                .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
+            RevocationSourceKind::ProofBundle,
+            ProofFinality::TrustedSnapshot,
+            RevocationFreshnessPolicy::new(86400, 86400)
+                .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
+        ))
+        .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
+
+    let timestamp = fixed_timestamp(2026, 4, 7, 12, 0, 0);
+    let verifier = FakeSignatureVerifier;
+
+    // Online posture: should succeed because Online accepts any source kind
+    // (including ProofBundle) and any finality >= Observed (TrustedSnapshot >= Observed).
+    let online_result = VerificationPipeline::new().verify_json_str_with_bundle(
+        SIMPLE_TRUSTGRANT_JSON,
+        &verifier,
+        &bundle,
+        VerificationContext::new(timestamp, VerificationPosture::Online),
+    );
+    assert!(
+        online_result.is_ok(),
+        "Online posture should accept bundle: {online_result:?}",
+    );
+
+    // Offline posture: should also succeed because Offline accepts
+    // non-live sources (ProofBundle) and finality >= TrustedSnapshot.
+    let offline_result = VerificationPipeline::new().verify_json_str_with_bundle(
+        SIMPLE_TRUSTGRANT_JSON,
+        &verifier,
+        &bundle,
+        VerificationContext::new(timestamp, VerificationPosture::Offline),
+    );
+    assert!(
+        offline_result.is_ok(),
+        "Offline posture should accept bundle: {offline_result:?}",
+    );
+}
+
 

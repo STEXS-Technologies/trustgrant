@@ -4,14 +4,16 @@ use chrono::{TimeZone, Utc};
 use std::collections::HashMap;
 
 use trustgrant::{
-    AuthorityDiscoveryDocument, AuthorityId, AuthorityKeyRecord, BundleRevocationProof,
-    DelegatedPrincipalKeyDocument, DelegatedPrincipalRef, DiscoverySource, EvaluationEngine,
-    EvaluationRequest, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
-    RawOwnershipTransitionDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
-    ResourceBinding, ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationSourceKind,
-    SignatureProfile, SignatureVerificationRequest, SignatureVerifier, TrustGrantError,
-    TrustGrantProofBundle, VerificationContext, VerificationMetadata, VerificationPipeline,
-    VerificationPosture, VerifiedRevocationState,
+    AuthorityDiscoveryDocument, AuthorityDiscoverySource, AuthorityId, AuthorityKeyRecord,
+    BundleRevocationProof, DelegatedPrincipalKeyDocument, DelegatedPrincipalRef, DiscoverySource,
+    EvaluationEngine, EvaluationRequest, KeyId, OwnershipProofKind, OwnershipTransitionProofSource,
+    OwnershipVerificationRecord, ProofFinality, RawOwnershipTransitionDocument,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext,
+    ResourceRef, RevocationFreshnessPolicy, RevocationProofSource, RevocationRecord,
+    RevocationSourceKind, SignatureProfile, SignatureVerificationRequest, SignatureVerifier,
+    TrustGrantError, TrustGrantProofBundle, ValidatedPrincipal, ValidatedTrustGrantDocument,
+    VerificationContext, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    VerificationSources, VerifiedRevocationState,
     parse_authority_discovery_document, parse_delegated_principal_key_document,
     parse_revocation_status_proof,
 };
@@ -908,6 +910,207 @@ fn fixed_timestamp(
     Utc.with_ymd_and_hms(year, month, day, hour, minute, second)
         .single()
         .unwrap_or_else(|| panic!("fixed timestamp should be valid"))
+}
+
+// ---------------------------------------------------------------------------
+// Duplicate / conflict tests for proof bundles
+// ---------------------------------------------------------------------------
+
+#[test]
+fn bundle_rejects_duplicate_discovery_document() {
+    // Insert the same discovery document twice is idempotent (same content),
+    // but a *different* document for the same authority_id is a conflict.
+    let mut bundle = TrustGrantProofBundle::new();
+
+    // First insert succeeds
+    bundle
+        .insert_discovery_document(
+            parse_authority_discovery_document(DELEGATED_ROOT_DISCOVERY_JSON)
+                .unwrap_or_else(|e| panic!("first discovery should parse: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("first discovery should insert: {e}"));
+
+    // Second insert with *different* content but same authority_id → conflict
+    let err = bundle.insert_discovery_document(
+        parse_authority_discovery_document(NO_DELEGATION_ROOT_DISCOVERY_JSON)
+            .unwrap_or_else(|e| panic!("second discovery should parse: {e}")),
+    );
+
+    assert!(
+        matches!(err, Err(TrustGrantError::ConflictingProofBundleEntry(_))),
+        "expected ConflictingProofBundleEntry, got {err:?}",
+    );
+}
+
+#[test]
+fn bundle_rejects_duplicate_revocation_proof() {
+    let mut bundle = TrustGrantProofBundle::new();
+
+    let policy = RevocationFreshnessPolicy::new(86400, 86400)
+        .unwrap_or_else(|e| panic!("policy should be valid: {e}"));
+
+    // First insert succeeds
+    bundle
+        .insert_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(DELEGATED_REVOCATION_JSON)
+                .unwrap_or_else(|e| panic!("first revocation should parse: {e}")),
+            RevocationSourceKind::Api,
+            ProofFinality::Observed,
+            policy,
+        ))
+        .unwrap_or_else(|e| panic!("first revocation should insert: {e}"));
+
+    // Second insert with *different* content (revoked vs active) for same
+    // trustgrant_id → conflict
+    let conflicting_revocation_json = r#"{
+      "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+      "status":"revoked",
+      "checked_at":"2026-04-07T12:05:00Z"
+    }"#;
+    let err = bundle.insert_revocation_proof(BundleRevocationProof::new(
+        parse_revocation_status_proof(conflicting_revocation_json)
+            .unwrap_or_else(|e| panic!("conflicting revocation should parse: {e}")),
+        RevocationSourceKind::Api,
+        ProofFinality::Observed,
+        RevocationFreshnessPolicy::new(86400, 86400)
+            .unwrap_or_else(|e| panic!("policy should be valid: {e}")),
+    ));
+
+    assert!(
+        matches!(err, Err(TrustGrantError::ConflictingProofBundleEntry(_))),
+        "expected ConflictingProofBundleEntry, got {err:?}",
+    );
+}
+
+#[test]
+fn bundle_with_all_four_document_types_verifies_successfully() {
+    // Build a bundle containing all four document types and verify a grant.
+    let mut bundle = TrustGrantProofBundle::new();
+
+    bundle
+        .insert_discovery_document(
+            parse_authority_discovery_document(DELEGATED_ROOT_DISCOVERY_JSON)
+                .unwrap_or_else(|e| panic!("discovery should parse: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("discovery should insert: {e}"));
+
+    bundle
+        .insert_delegated_principal_document(
+            parse_delegated_principal_key_document(DELEGATED_PRINCIPAL_KEYS_JSON)
+                .unwrap_or_else(|e| panic!("delegated keys should parse: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("delegated keys should insert: {e}"));
+
+    bundle
+        .insert_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(DELEGATED_REVOCATION_JSON)
+                .unwrap_or_else(|e| panic!("revocation should parse: {e}")),
+            RevocationSourceKind::Api,
+            ProofFinality::Observed,
+            RevocationFreshnessPolicy::new(86400, 86400)
+                .unwrap_or_else(|e| panic!("policy should be valid: {e}")),
+        ))
+        .unwrap_or_else(|e| panic!("revocation should insert: {e}"));
+
+    // Insert an ownership transition chain for a different grant ID to
+    // exercise the fourth document type without affecting verification.
+    bundle
+        .insert_ownership_transition_chain(
+            "tg_123e4567-e89b-12d3-a456-426614174100"
+                .parse()
+                .unwrap_or_else(|e| panic!("trustgrant id should parse: {e}")),
+            vec![
+                RawOwnershipTransitionDocument::parse_json_str(OWNERSHIP_TRANSITION_JSON)
+                    .unwrap_or_else(|e| panic!("ownership transition should parse: {e}")),
+            ],
+        )
+        .unwrap_or_else(|e| panic!("ownership chain should insert: {e}"));
+
+    // Verify DELEGATED_TRUSTGRANT_JSON using all four types in the bundle
+    let result = VerificationPipeline::new().verify_json_str_with_sources(
+        DELEGATED_TRUSTGRANT_JSON,
+        &FakeSignatureVerifier,
+        bundle.as_sources(),
+        VerificationContext::new(
+            fixed_timestamp(2026, 4, 7, 12, 0, 0),
+            VerificationPosture::Online,
+        ),
+    );
+
+    result
+        .as_ref()
+        .unwrap_or_else(|e| panic!("verification should succeed: {e}"));
+}
+
+// ---------------------------------------------------------------------------
+// Error sources for empty-sources test
+// ---------------------------------------------------------------------------
+
+struct FailingDiscoverySource;
+
+impl AuthorityDiscoverySource for FailingDiscoverySource {
+    fn resolve_signer_binding(
+        &self,
+        _: &AuthorityId,
+        _: &KeyId,
+        _: Option<&ValidatedPrincipal>,
+        _: VerificationContext,
+    ) -> Result<ResolvedSignerBinding, TrustGrantError> {
+        Err(TrustGrantError::MissingAuthorityDiscoveryDocument)
+    }
+}
+
+struct FailingRevocationSource;
+
+impl RevocationProofSource for FailingRevocationSource {
+    fn resolve_revocation_record(
+        &self,
+        _: &ValidatedTrustGrantDocument,
+        _: &ResolvedSignerBinding,
+        _: VerificationContext,
+    ) -> Result<RevocationRecord, TrustGrantError> {
+        Err(TrustGrantError::MissingRevocationProof)
+    }
+}
+
+struct FailingOwnershipSource;
+
+impl OwnershipTransitionProofSource for FailingOwnershipSource {
+    fn resolve_ownership_transition_chain(
+        &self,
+        _: &ValidatedTrustGrantDocument,
+        _: VerificationContext,
+    ) -> Result<Vec<RawOwnershipTransitionDocument>, TrustGrantError> {
+        Err(TrustGrantError::MissingOwnershipTransitionChain)
+    }
+}
+
+#[test]
+fn pipeline_rejects_empty_sources() {
+    let failing_discovery = FailingDiscoverySource;
+    let failing_revocation = FailingRevocationSource;
+    let failing_ownership = FailingOwnershipSource;
+
+    let sources = VerificationSources::new(
+        &failing_discovery,
+        &failing_revocation,
+        &failing_ownership,
+    );
+
+    let result = VerificationPipeline::new().verify_json_str_with_sources(
+        DELEGATED_TRUSTGRANT_JSON,
+        &FakeSignatureVerifier,
+        sources,
+        VerificationContext::new(
+            fixed_timestamp(2026, 4, 7, 12, 0, 0),
+            VerificationPosture::Online,
+        ),
+    );
+
+    assert_eq!(
+        result,
+        Err(TrustGrantError::MissingAuthorityDiscoveryDocument),
+    );
 }
 
 fn matching_request() -> EvaluationRequest {

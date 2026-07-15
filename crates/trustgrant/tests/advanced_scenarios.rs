@@ -6,14 +6,14 @@ use trustgrant::limits;
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, BundleRevocationProof, CustomOperationName,
     EvaluationDenyReason, EvaluationEngine, EvaluationRequest, OwnershipProofKind,
-    OwnershipVerificationRecord, ProofFinality, RawTrustGrantDocument, RequestedCapability,
-    RequestedOperation, ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef,
-    RevocationFreshnessPolicy, RevocationRecord, RevocationSourceKind, RevocationStatus,
-    SelectorContext, SignatureProfile, SignatureVerificationRequest, SignatureVerifier,
-    SupersessionPolicy, TemplateRef, TrustGrantError, TrustGrantProofBundle,
-    ValidatedPrincipal, VerificationContext, VerificationMetadata, VerificationPipeline, VerificationPosture,
-    VerifiedRevocationState, VerifiedTrustGrant,
-    parse_authority_discovery_document, parse_revocation_status_proof,
+    OwnershipVerificationRecord, ProofFinality, RawOwnershipTransitionDocument,
+    RawTrustGrantDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
+    ResourceBinding, ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationRecord,
+    RevocationSourceKind, RevocationStatus, SelectorContext, SignatureProfile,
+    SignatureVerificationRequest, SignatureVerifier, SupersessionPolicy, TemplateRef,
+    TrustGrantError, TrustGrantProofBundle, ValidatedPrincipal, VerificationContext,
+    VerificationMetadata, VerificationPipeline, VerificationPosture, VerifiedRevocationState,
+    VerifiedTrustGrant, parse_authority_discovery_document, parse_revocation_status_proof,
 };
 
 // ---------------------------------------------------------------------------
@@ -1545,5 +1545,241 @@ fn coexist_series_both_grants_verify_and_evaluate() {
     assert!(
         outcome_b.decision().is_allowed(),
         "grant B (coexist) should allow matching request",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// P2 gap: full_ownership_transfer_workflow
+// ---------------------------------------------------------------------------
+
+#[test]
+fn full_ownership_transfer_workflow() {
+    // ── Grant JSON (static owner) ──────────────────────────────────────
+    // All authorities match — no transition chain needed.
+    let static_grant_json = r#"{
+      "trustgrant_id":"tg_ff000001-0000-1000-a000-000000000400",
+      "version":0,
+      "grant_series_id":"tgs_ff000001-0000-1000-a000-000000000401",
+      "revision":1,
+      "supersedes":null,
+      "supersession_policy":"coexist",
+      "issuer_authority":"https://issuer.example.com",
+      "origin_authority":"https://issuer.example.com",
+      "active_owning_authority":"https://issuer.example.com",
+      "key_id":"root-key-1",
+      "target_scope":{"all":true,"allow":null,"deny":null},
+      "capabilities":{"recognize":true,"mint":false},
+      "default_audience_scope":null,
+      "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["general"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+      "global_constraints":null,
+      "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+      "issued_at":"2026-04-07T12:00:00Z",
+      "signature":"base64-signature",
+      "issuer_principal":null
+    }"#;
+
+    // ── Transferred grant JSON (same grant, new owner) ─────────────────
+    // Core identity (trustgrant_id, target_scope, capabilities) unchanged,
+    // but now owned and re-issued by the successor authority.
+    let transferred_grant_json = r#"{
+      "trustgrant_id":"tg_ff000001-0000-1000-a000-000000000400",
+      "version":0,
+      "grant_series_id":"tgs_ff000001-0000-1000-a000-000000000401",
+      "revision":1,
+      "supersedes":null,
+      "supersession_policy":"coexist",
+      "issuer_authority":"https://successor.example.com",
+      "origin_authority":"https://issuer.example.com",
+      "active_owning_authority":"https://successor.example.com",
+      "key_id":"root-key-1",
+      "target_scope":{"all":true,"allow":null,"deny":null},
+      "capabilities":{"recognize":true,"mint":false},
+      "default_audience_scope":null,
+      "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["general"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+      "global_constraints":null,
+      "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation","post_revocation_effect":"block_all"},
+      "issued_at":"2026-04-07T13:00:00Z",
+      "signature":"base64-signature",
+      "issuer_principal":null
+    }"#;
+
+    // ── Discovery documents ────────────────────────────────────────────
+    let successor_discovery_json = r#"{
+      "authority_id":"https://successor.example.com",
+      "keys":[
+        {
+          "key_id":"root-key-1",
+          "algorithm":"ed25519",
+          "public_key":"base64-successor-public-key",
+          "not_before":"2026-01-01T00:00:00Z",
+          "not_after":"2027-01-01T00:00:00Z"
+        }
+      ],
+      "signature_profile":{"format":"jcs+ed25519","canonicalization":"RFC8785"},
+      "issued_at":"2026-04-07T12:00:00Z"
+    }"#;
+
+    // ── Revocation proof (shared between both phases) ──────────────────
+    let revocation_json = r#"{
+      "trustgrant_id":"tg_ff000001-0000-1000-a000-000000000400",
+      "status":"active",
+      "checked_at":"2026-04-07T12:00:00Z"
+    }"#;
+
+    // ── Ownership transition document ──────────────────────────────────
+    // Transfers from origin (issuer) to successor.
+    let transition_json = r#"{
+      "transition_id":"tgt_ff000001-0000-1000-a000-000000000500",
+      "version":0,
+      "transition_series_id":"tgts_ff000001-0000-1000-a000-000000000501",
+      "revision":1,
+      "supersedes_transition_id":null,
+      "origin_authority":"https://issuer.example.com",
+      "from_authority":"https://issuer.example.com",
+      "to_authority":"https://successor.example.com",
+      "canonical_resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["general"],"expressions":null}],"deny":null}}},
+      "global_constraints":null,
+      "effective_at":"2026-04-07T12:30:00Z",
+      "predecessor_signature":{"key_id":"root-key-1","signature":"base64-signature"},
+      "successor_acceptance":{"accepted_at":"2026-04-07T12:00:00Z","key_id":"root-key-1","signature":"base64-signature"}
+    }"#;
+
+    let verifier = FakeSignatureVerifier;
+    let ts_initial = fixed_timestamp(2026, 4, 7, 12, 0, 0);
+    let ts_transfer = fixed_timestamp(2026, 4, 7, 13, 0, 0);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Phase 1: Static owner — no transition chain needed
+    // ═══════════════════════════════════════════════════════════════════
+    let mut initial_bundle = TrustGrantProofBundle::new();
+    initial_bundle
+        .insert_discovery_document(
+            parse_authority_discovery_document(ROOT_DISCOVERY_JSON)
+                .unwrap_or_else(|error| panic!("discovery should parse: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("discovery should insert: {error}"));
+    initial_bundle
+        .insert_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(revocation_json)
+                .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
+            RevocationSourceKind::ProofBundle,
+            ProofFinality::TrustedSnapshot,
+            RevocationFreshnessPolicy::new(86400, 86400)
+                .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
+        ))
+        .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
+
+    let artifacts = VerificationPipeline::new()
+        .verify_json_str_with_bundle(
+            static_grant_json,
+            &verifier,
+            &initial_bundle,
+            VerificationContext::new(ts_initial, VerificationPosture::Online),
+        )
+        .unwrap_or_else(|error| panic!("static owner verification should succeed: {error}"));
+
+    let verified_grant = artifacts.verified_grant().clone();
+
+    // Verify the ownership is static (no transition chain)
+    assert_eq!(
+        verified_grant.metadata().ownership().proof_kind(),
+        OwnershipProofKind::StaticOwner,
+    );
+    assert_eq!(
+        verified_grant
+            .metadata()
+            .ownership()
+            .active_owning_authority()
+            .as_str(),
+        "https://issuer.example.com",
+    );
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Phase 1 step 2: Evaluate recognize request → Allowed
+    // ═══════════════════════════════════════════════════════════════════
+    let engine = EvaluationEngine::new();
+    let request = simple_recognize_request("item", "general");
+    let outcome = engine.evaluate(&verified_grant, &request);
+    assert!(
+        outcome.decision().is_allowed(),
+        "static owner grant should allow matching request",
+    );
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Phase 2: Build proof bundle with ownership transition chain
+    // ═══════════════════════════════════════════════════════════════════
+    let transfer_bundle = TrustGrantProofBundle::new()
+        .with_discovery_document(
+            parse_authority_discovery_document(ROOT_DISCOVERY_JSON)
+                .unwrap_or_else(|error| panic!("origin discovery should parse: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("origin discovery should insert: {error}"))
+        .with_discovery_document(
+            parse_authority_discovery_document(successor_discovery_json)
+                .unwrap_or_else(|error| panic!("successor discovery should parse: {error}")),
+        )
+        .unwrap_or_else(|error| panic!("successor discovery should insert: {error}"))
+        .with_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(revocation_json)
+                .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
+            RevocationSourceKind::ProofBundle,
+            ProofFinality::TrustedSnapshot,
+            RevocationFreshnessPolicy::new(86400, 86400)
+                .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
+        ))
+        .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"))
+        .with_ownership_transition_chain(
+            "tg_ff000001-0000-1000-a000-000000000400"
+                .parse()
+                .unwrap_or_else(|error| panic!("trustgrant id should parse: {error}")),
+            vec![
+                RawOwnershipTransitionDocument::parse_json_str(transition_json)
+                    .unwrap_or_else(|error| panic!("transition should parse: {error}")),
+            ],
+        )
+        .unwrap_or_else(|error| panic!("ownership chain should insert: {error}"));
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Phase 2 step 2: Re-verify the grant with the transition chain
+    // ═══════════════════════════════════════════════════════════════════
+    let transferred_artifacts = VerificationPipeline::new()
+        .verify_json_str_with_bundle(
+            transferred_grant_json,
+            &verifier,
+            &transfer_bundle,
+            VerificationContext::new(ts_transfer, VerificationPosture::Online),
+        )
+        .unwrap_or_else(|error| panic!("transferred grant verification should succeed: {error}"));
+
+    let transferred_grant = transferred_artifacts.verified_grant();
+
+    // Verify the ownership chain was applied
+    assert_eq!(
+        transferred_grant.metadata().ownership().proof_kind(),
+        OwnershipProofKind::TransitionChain,
+    );
+    assert_eq!(
+        transferred_grant
+            .metadata()
+            .ownership()
+            .active_owning_authority()
+            .as_str(),
+        "https://successor.example.com",
+    );
+    assert!(
+        transferred_grant
+            .metadata()
+            .ownership()
+            .transition_chain_tip()
+            .is_some(),
+    );
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Phase 2 step 3: Evaluate the same recognize request → still Allowed
+    // ═══════════════════════════════════════════════════════════════════
+    let outcome = engine.evaluate(transferred_grant, &request);
+    assert!(
+        outcome.decision().is_allowed(),
+        "transferred grant should still allow matching request",
     );
 }

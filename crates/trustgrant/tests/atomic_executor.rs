@@ -8,7 +8,7 @@ use chrono::{TimeZone, Utc};
 use trustgrant::{
     AtomicExecutionResult, AtomicInventoryExecutor, AuthorityId, AuthorityKeyRecord,
     EvaluationDenyReason, EvaluationRequest, InMemoryAtomicInventoryExecutor,
-    InMemoryExecutionError, IntentId, MutationRequest, OwnershipProofKind,
+    InMemoryExecutionError, IntentId, MintContext, MutationRequest, OwnershipProofKind,
     OwnershipVerificationRecord, ProofFinality, RequestedCapability, RequestedOperation,
     ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef, RevocationRecord,
     RevocationSourceKind, RevocationStatus, SignatureProfile, TemplateRef, TrustGrantError,
@@ -30,6 +30,10 @@ fn authority(value: &str) -> AuthorityId {
 }
 
 fn verified_grant(mint: bool, max_total: u64) -> VerifiedTrustGrant {
+    verified_grant_ex(mint, max_total, 1)
+}
+
+fn verified_grant_ex(mint: bool, max_total: u64, max_per_user: u64) -> VerifiedTrustGrant {
     let capabilities = if mint {
         r#"{"recognize":false,"mint":true}"#
     } else {
@@ -54,7 +58,7 @@ fn verified_grant(mint: bool, max_total: u64) -> VerifiedTrustGrant {
           "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
           "capabilities":__CAPABILITIES__,
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":__TYPE_CAPABILITIES__,"constraints":{"minting":{"max_total":__MAX_TOTAL__,"max_per_user":1},"audience_scope":null},"operations":__OPERATIONS__}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":__TYPE_CAPABILITIES__,"constraints":{"minting":{"max_total":__MAX_TOTAL__,"max_per_user":__MAX_PER_USER__},"audience_scope":null},"operations":__OPERATIONS__}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2027-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -63,6 +67,7 @@ fn verified_grant(mint: bool, max_total: u64) -> VerifiedTrustGrant {
         .replace("__CAPABILITIES__", capabilities)
         .replace("__TYPE_CAPABILITIES__", capabilities)
         .replace("__MAX_TOTAL__", &max_total.to_string())
+        .replace("__MAX_PER_USER__", &max_per_user.to_string())
         .replace("__OPERATIONS__", operations);
 
     let raw = trustgrant::document::RawTrustGrantDocument::parse_json_str(&document)
@@ -867,3 +872,174 @@ fn execution_outcome_origin_authority_matches_binding() {
         panic!("expected Applied, got {result:?}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Quota limit tests with quantity
+// ---------------------------------------------------------------------------
+
+#[test]
+fn mint_mutation_with_quantity_exceeds_limit() {
+    // max_total=1, total_minted=0, quantity=2 → 0+2 > 1 → MintTotalLimitReached
+    let grant = verified_grant(true, 1);
+    let mut executor = InMemoryAtomicInventoryExecutor::new();
+
+    let mc = MintContext::new(0, 0)
+        .with_quantity(2)
+        .unwrap_or_else(|error| panic!("quantity should be valid: {error}"));
+
+    let intent_id = IntentId::new("mint-qty-exceed-1")
+        .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(
+            TemplateRef::new_typed(authority("https://issuer.example.com"), "sword-v1")
+                .unwrap_or_else(|error| panic!("template ref should be valid: {error}")),
+        ),
+        authority("https://target.example.com"),
+        authority("https://audience.example.com"),
+        resource_context(),
+        timestamp(),
+    )
+    .unwrap_or_else(|error| panic!("mint request should be valid: {error}"));
+    request
+        .insert_audience_principal_selector("actor", "player-123")
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    let mutation = MutationRequest::try_from(
+        request
+            .with_intent_id(intent_id)
+            .with_mint_context_for_testing(mc)
+            .verify_selectors(),
+    )
+    .unwrap_or_else(|error| panic!("mutation request should be valid: {error}"));
+
+    let result = executor
+        .authorize_and_execute(&grant, mutation, |_, _| Ok(()))
+        .unwrap_or_else(|error| panic!("executor should not error: {error}"));
+
+    match result {
+        AtomicExecutionResult::Denied { authorization } => {
+            assert_eq!(
+                authorization.outcome().decision().deny_reason(),
+                Some(EvaluationDenyReason::MintTotalLimitReached),
+                "deny reason should be MintTotalLimitReached",
+            );
+        }
+        other => panic!("expected Denied, got {other:?}"),
+    }
+}
+
+#[test]
+fn mint_mutation_counter_overflow_handled() {
+    // The executor's counter uses checked_add so overflow is caught as an error.
+    // We perform two sequential mints: the first fills the counter to u64::MAX-1,
+    // and the second tries to add 2 more, which triggers CounterOverflow.
+    let grant = verified_grant_ex(true, u64::MAX, u64::MAX);
+    let mut executor = InMemoryAtomicInventoryExecutor::new();
+
+    // Helper to build a mint mutation with custom quantity
+    let make_mutation = |intent_id: &str, quantity: u64| -> MutationRequest {
+        let mc = MintContext::new(0, 0)
+            .with_quantity(quantity)
+            .unwrap_or_else(|e| panic!("quantity should be valid: {e}"));
+        let intent_id = IntentId::new(intent_id)
+            .unwrap_or_else(|e| panic!("intent id should be valid: {e}"));
+        let mut request = EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(
+                TemplateRef::new_typed(authority("https://issuer.example.com"), "sword-v1")
+                    .unwrap_or_else(|e| panic!("template ref should be valid: {e}")),
+            ),
+            authority("https://target.example.com"),
+            authority("https://audience.example.com"),
+            resource_context(),
+            timestamp(),
+        )
+        .unwrap_or_else(|e| panic!("mint request should be valid: {e}"));
+        request
+            .insert_audience_principal_selector("actor", "player-123")
+            .unwrap_or_else(|e| panic!("principal selector should be valid: {e}"));
+        MutationRequest::try_from(
+            request
+                .with_intent_id(intent_id)
+                .with_mint_context_for_testing(mc)
+                .verify_selectors(),
+        )
+        .unwrap_or_else(|e| panic!("mutation request should be valid: {e}"))
+    };
+
+    // First mint: quantity = u64::MAX - 1 (fills the counter)
+    let first = executor
+        .authorize_and_execute(&grant, make_mutation("mint-overflow-1", u64::MAX - 1), |_, _| Ok(()))
+        .unwrap_or_else(|e| panic!("first mint should succeed: {e}"));
+    assert!(
+        matches!(first, AtomicExecutionResult::Applied { .. }),
+        "first mint should be Applied"
+    );
+
+    // Second mint: quantity = 2 → (u64::MAX - 1) + 2 overflows u64
+    let result = executor.authorize_and_execute(
+        &grant,
+        make_mutation("mint-overflow-2", 2),
+        |_, _| Ok(()),
+    );
+
+    assert_eq!(
+        result,
+        Err(InMemoryExecutionError::CounterOverflow),
+        "overflow should produce CounterOverflow error"
+    );
+}
+
+#[test]
+fn mint_mutation_respects_quantity_in_quota() {
+    // max_total=1, total_minted=0, quantity=1 → 0+1 ≤ 1 → ALLOWED
+    let grant = verified_grant(true, 1);
+    let mut executor = InMemoryAtomicInventoryExecutor::new();
+
+    let mc = MintContext::new(0, 0)
+        .with_quantity(1)
+        .unwrap_or_else(|error| panic!("quantity should be valid: {error}"));
+
+    let intent_id = IntentId::new("mint-qty-allowed-1")
+        .unwrap_or_else(|error| panic!("intent id should be valid: {error}"));
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(
+            TemplateRef::new_typed(authority("https://issuer.example.com"), "sword-v1")
+                .unwrap_or_else(|error| panic!("template ref should be valid: {error}")),
+        ),
+        authority("https://target.example.com"),
+        authority("https://audience.example.com"),
+        resource_context(),
+        timestamp(),
+    )
+    .unwrap_or_else(|error| panic!("mint request should be valid: {error}"));
+    request
+        .insert_audience_principal_selector("actor", "player-123")
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    let mutation = MutationRequest::try_from(
+        request
+            .with_intent_id(intent_id)
+            .with_mint_context_for_testing(mc)
+            .verify_selectors(),
+    )
+    .unwrap_or_else(|error| panic!("mutation request should be valid: {error}"));
+
+    let result = executor
+        .authorize_and_execute(&grant, mutation, |_, _| Ok(()))
+        .unwrap_or_else(|error| panic!("executor should not error: {error}"));
+
+    match result {
+        AtomicExecutionResult::Applied { .. } => {
+            // Quantity 1 within quota → allowed
+        }
+        other => panic!("expected Applied, got {other:?}"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MintContext import check — used in tests above
+// ---------------------------------------------------------------------------
+// Note: MintContext is imported from trustgrant at the top of the file

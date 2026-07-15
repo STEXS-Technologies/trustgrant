@@ -8,7 +8,7 @@ use trustgrant_discovery::{
     AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
 };
 use trustgrant_document::validated::{ValidatedTypeCapabilities, ValidatedTypeConstraints};
-use trustgrant_document::raw::InteroperabilityProfile;
+use trustgrant_document::raw::{InteroperabilityProfile, PostRevocationEffect};
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedOperationScope, ValidatedPrincipal, ValidatedResourceType, ValidatedRevocation,
@@ -627,11 +627,13 @@ impl From<&ValidatedTimeWindow> for TimeWindowRecord {
 struct RevocationPolicyRecord {
     revocable: bool,
     revocation_endpoint: String,
+    post_revocation_effect: PostRevocationEffect,
 }
 
 impl RevocationPolicyRecord {
     fn try_to_validated_revocation(&self) -> ValidatedRevocation {
         ValidatedRevocation::new(self.revocable, self.revocation_endpoint.clone().into())
+            .with_post_revocation_effect(self.post_revocation_effect)
     }
 }
 
@@ -640,6 +642,7 @@ impl From<&ValidatedRevocation> for RevocationPolicyRecord {
         Self {
             revocable: value.revocable(),
             revocation_endpoint: value.revocation_endpoint().to_owned(),
+            post_revocation_effect: value.post_revocation_effect(),
         }
     }
 }

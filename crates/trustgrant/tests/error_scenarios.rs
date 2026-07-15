@@ -789,3 +789,138 @@ fn missing_audience_principal_context_evaluation_denied() {
         Some(EvaluationDenyReason::MissingAudiencePrincipalContext)
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test 15: Stale revocation record at verification time
+// ---------------------------------------------------------------------------
+
+#[test]
+fn stale_revocation_at_verification_level() {
+    // Create a revocation record whose fresh_until is before verified_at.
+    // checked_at must be <= fresh_until for the record to be internally valid.
+    let fresh_until = fixed_timestamp(2026, 4, 6, 12, 0, 0);
+    let checked_at = fixed_timestamp(2026, 4, 5, 12, 0, 0);
+    let verified_at = fixed_timestamp(2026, 4, 7, 12, 0, 0);
+
+    let record = RevocationRecord::new(
+        RevocationStatus::Active,
+        RevocationSourceKind::Api,
+        ProofFinality::Observed,
+        checked_at,
+        fresh_until,
+    )
+    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}"));
+
+    assert!(
+        fresh_until < verified_at,
+        "precondition: fresh_until should be before verified_at"
+    );
+
+    let meta = VerificationMetadata::new(
+        verified_at,
+        VerificationPosture::Online,
+        signer_binding(),
+        ownership_record(),
+        VerifiedRevocationState::Checked(record),
+    );
+
+    let pipeline = VerificationPipeline::new();
+    let result = pipeline.verify_json_str(
+        VALID_TRUSTGRANT_JSON,
+        &FakeSignatureVerifier,
+        meta,
+    );
+
+    assert_eq!(result, Err(TrustGrantError::StaleRevocationRecord));
+}
+
+// ---------------------------------------------------------------------------
+// Test 16: BlockMintingOnly — verification succeeds, recognize allowed,
+//          mint denied
+// ---------------------------------------------------------------------------
+
+/// Grant with post_revocation_effect = "block_minting_only", revocable,
+/// mint capability enabled, and both "recognize" and "create" operations.
+const BLOCK_MINTING_ONLY_JSON: &str = r#"{
+  "trustgrant_id":"tg_00000000-0000-0000-0000-000000000070",
+  "version":0,
+  "grant_series_id":"tgs_00000000-0000-0000-0000-000000000071",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":true},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize","create"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_minting_only"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+#[test]
+fn block_minting_only_survives_verification_and_denies_mint() {
+    let pipeline = VerificationPipeline::new();
+    let artifacts = pipeline
+        .verify_json_str(
+            BLOCK_MINTING_ONLY_JSON,
+            &FakeSignatureVerifier,
+            verification_metadata(RevocationStatus::Revoked),
+        )
+        .unwrap_or_else(|error| {
+            panic!("verification should succeed with block_minting_only: {error}")
+        });
+
+    let grant = artifacts.verified_grant();
+
+    let engine = EvaluationEngine::new();
+
+    // Recognize should be allowed under block_minting_only
+    let outcome = engine.evaluate(grant, &recognize_request("player-123"));
+    assert!(
+        outcome.decision().is_allowed(),
+        "recognize should be allowed under block_minting_only",
+    );
+
+    // Build a mint request
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
+    let mut mint_req = EvaluationRequest::new(
+        RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(TemplateRef::new(origin)),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+    mint_req
+        .insert_audience_principal_selector("actor", "player-123")
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+    let mint_req = mint_req
+        .with_mint_context_for_testing(MintContext::new(5, 0))
+        .verify_selectors();
+
+    // Mint should be denied with Revoked
+    let outcome = engine.evaluate(grant, &mint_req);
+    assert!(!outcome.decision().is_allowed());
+    assert_eq!(
+        outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::Revoked),
+        "mint should be denied due to revocation with block_minting_only",
+    );
+}

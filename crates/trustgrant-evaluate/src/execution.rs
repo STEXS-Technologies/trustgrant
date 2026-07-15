@@ -460,7 +460,14 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
 
         let (mint_total_key, mint_principal_key) = Self::mint_keys(grant, &request);
         let evaluation_request = if request.is_mint() {
-            request.with_runtime_mint_context(MintContext::new(
+            // Preserve the requested_quantity from the caller-supplied mint context
+            // (e.g. a test harness) while overriding counters with authoritative state.
+            let quantity = request
+                .request()
+                .mint_context()
+                .map(|ctx| ctx.requested_quantity())
+                .unwrap_or(1);
+            let mc = MintContext::new(
                 self.state
                     .total_mints
                     .get(&mint_total_key)
@@ -471,7 +478,10 @@ impl AtomicInventoryExecutor for InMemoryAtomicInventoryExecutor {
                     .get(&mint_principal_key)
                     .copied()
                     .unwrap_or(0),
-            ))
+            )
+            .with_quantity(quantity)
+            .expect("quantity should be non-zero (default is 1, caller must validate)");
+            request.with_runtime_mint_context(mc)
         } else {
             request.request().clone()
         };
