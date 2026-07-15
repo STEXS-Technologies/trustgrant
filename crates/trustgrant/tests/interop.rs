@@ -225,11 +225,17 @@ fn run_evaluation(
         }
     }
 
-    if let Some(mc) = req.get("mint_context") {
-        request = request.with_mint_context_for_testing(MintContext::new(
-            mc["total_minted"].as_u64().unwrap(),
-            mc["user_minted"].as_u64().unwrap(),
-        ));
+    if let Some(mc_val) = req.get("mint_context") {
+        let base_ctx = MintContext::new(
+            mc_val["total_minted"].as_u64().unwrap_or(0),
+            mc_val["user_minted"].as_u64().unwrap_or(0),
+        );
+        let mint_ctx = if let Some(qty) = mc_val.get("quantity").and_then(|v| v.as_u64()) {
+            base_ctx.with_quantity(qty).unwrap_or_else(|_| base_ctx.clone())
+        } else {
+            base_ctx
+        };
+        request = request.with_mint_context_for_testing(mint_ctx);
     }
 
     // All selectors from interop vectors are considered trusted — they

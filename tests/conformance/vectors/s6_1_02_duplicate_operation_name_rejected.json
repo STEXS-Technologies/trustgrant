@@ -1,0 +1,19 @@
+{
+  "spec_section": "6.1",
+  "description": "duplicate operation names in allow should be rejected",
+  "overrides": {
+    "resource_scope": {
+      "types": {
+        "item": {
+          "all": false,
+          "allow": [{"kind": "namespace", "all": false, "values": ["weapons"], "expressions": null}],
+          "deny": null,
+          "capabilities": { "recognize": null, "mint": null },
+          "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
+          "operations": { "all": false, "allow": ["custom:use", "custom:use"], "deny": null }
+        }
+      }
+    }
+  },
+  "assert": { "validation": "rejected" }
+}

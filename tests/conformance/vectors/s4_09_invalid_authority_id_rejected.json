@@ -1,0 +1,6 @@
+{
+  "spec_section": "4",
+  "description": "authority_id without scheme should be rejected",
+  "overrides": { "issuer_authority": "no-scheme" },
+  "assert": { "validation": "rejected" }
+}

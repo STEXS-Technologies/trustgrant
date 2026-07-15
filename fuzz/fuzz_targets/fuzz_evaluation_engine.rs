@@ -4,12 +4,13 @@ use libfuzzer_sys::fuzz_target;
 use chrono::{Duration, Utc};
 
 use trustgrant::{
-    AuthorityId, AuthorityKeyRecord, DelegatedPrincipalRef, EvaluationEngine, EvaluationRequest,
-    MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
-    RawTrustGrantDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
-    ResourceBinding, ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind,
-    RevocationStatus, SignatureProfile, TrustGrantError, ValidatedTrustGrantDocument,
-    VerificationMetadata, VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
+    AuthorityId, AuthorityKeyRecord, CustomOperationName, DelegatedPrincipalRef, EvaluationEngine,
+    EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord,
+    ProofFinality, RawTrustGrantDocument, RequestedCapability, RequestedOperation,
+    ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef, RevocationRecord,
+    RevocationSourceKind, RevocationStatus, SignatureProfile, TrustGrantError,
+    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPosture,
+    VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 fn build_metadata(doc: &RawTrustGrantDocument) -> Result<VerificationMetadata, TrustGrantError> {
@@ -308,6 +309,53 @@ fn build_mismatched_target_request(
     .ok()
 }
 
+/// Build a request with a custom operation name, exercising
+/// `CustomOperationName::new` validation and the `RequestedOperation::Custom`
+/// evaluation path (OperationDenied or fallback to capability-based checks).
+/// Uses the first 32 bytes of the fuzzer data (hex-encoded) as the operation
+/// name to cover various character combinations.
+fn build_custom_request(
+    doc: &RawTrustGrantDocument,
+    evaluated_at: chrono::DateTime<Utc>,
+    op_name: &str,
+) -> Option<EvaluationRequest> {
+    let target_authority = AuthorityId::new(doc.issuer_authority.as_str()).ok()?;
+    let audience_authority = AuthorityId::new(doc.active_owning_authority.as_str()).ok()?;
+
+    let custom_op = CustomOperationName::new(op_name).ok()?;
+
+    let resource_type_name = doc
+        .resource_scope
+        .types
+        .keys()
+        .next()
+        .map(|k| k.as_str())
+        .unwrap_or("item");
+
+    let mut resource = ResourceContext::new(resource_type_name).ok()?;
+
+    if let Some(resource_type) = doc.resource_scope.types.get(resource_type_name) {
+        for selector in resource_type.allow.iter().flatten() {
+            for value in selector.values.iter().flatten() {
+                let _ = resource.insert_selector(selector.kind.as_str(), value.as_str());
+            }
+        }
+    }
+
+    EvaluationRequest::new(
+        RequestedOperation::Custom(custom_op),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "resource-42".to_string(),
+        )),
+        target_authority,
+        audience_authority,
+        resource,
+        evaluated_at,
+    )
+    .ok()
+}
+
 fn evaluate_and_check(grant: &VerifiedTrustGrant, request: &EvaluationRequest) {
     let engine = EvaluationEngine::new();
     let outcome = engine.evaluate(grant, request);
@@ -381,5 +429,25 @@ fuzz_target!(|data: &[u8]| {
     // Variant 4: Request with a mismatched target authority.
     if let Some(request) = build_mismatched_target_request(&raw_for_metadata, evaluated_at) {
         evaluate_and_check(&grant, &request);
+    }
+
+    // Variant 5: Custom operation request using fuzzer-derived name.
+    // Only attempt when data has enough bytes for a non-trivial name.
+    if data.len() > 4 {
+        // Use the raw bytes directly as a potential custom operation name
+        // (the last bytes, to avoid reusing the same data for all fuzz passes).
+        let custom_name_bytes: String = data[(data.len() / 2)..]
+            .iter()
+            .map(|b| (b & 0x7F) as char) // Keep ASCII-printable range
+            .filter(|c| c.is_ascii_graphic() || *c == ' ' || *c == '-')
+            .take(32)
+            .collect();
+        if !custom_name_bytes.is_empty() {
+            if let Some(request) =
+                build_custom_request(&raw_for_metadata, evaluated_at, &custom_name_bytes)
+            {
+                evaluate_and_check(&grant, &request);
+            }
+        }
     }
 });

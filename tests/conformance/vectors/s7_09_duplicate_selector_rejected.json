@@ -1,0 +1,15 @@
+{
+  "spec_section": "7",
+  "description": "duplicate selectors in allow should be rejected",
+  "overrides": {
+    "target_scope": {
+      "all": false,
+      "allow": [
+        { "kind": "authority", "all": false, "values": ["https://same.example.com"], "expressions": null },
+        { "kind": "authority", "all": false, "values": ["https://same.example.com"], "expressions": null }
+      ],
+      "deny": null
+    }
+  },
+  "assert": { "validation": "rejected" }
+}
