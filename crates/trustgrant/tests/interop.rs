@@ -42,12 +42,13 @@ fn timestamp(s: &str) -> DateTime<Utc> {
 
 fn make_revocation_record(
     verified_at: DateTime<Utc>,
+    evaluated_at: DateTime<Utc>,
     override_val: Option<&str>,
 ) -> VerifiedRevocationState {
     // Use a far-future fresh_until so the engine freshness check does not
     // interfere with the specific vector scenario being tested. Vectors that
     // test revocation specifically set their own override values.
-    let fresh_until = verified_at
+    let far_future = verified_at
         .checked_add_days(chrono::Days::new(3650))
         .unwrap_or(verified_at);
 
@@ -58,18 +59,42 @@ fn make_revocation_record(
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 verified_at,
-                fresh_until,
+                far_future,
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),
         Some("non_revocable") => VerifiedRevocationState::NonRevocable,
+        // Stale revocation data: fresh_until is set before evaluated_at,
+        // causing the engine to deny with StaleRevocationData.
+        // checked_at must be <= fresh_until (RevocationRecord invariant), so
+        // we set checked_at well before the stale fresh_until.
+        Some("stale") => VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                RevocationStatus::Active,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                evaluated_at - chrono::Duration::days(30),
+                evaluated_at - chrono::Duration::seconds(1),
+            )
+            .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
+        ),
+        Some("stale_revoked") => VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                RevocationStatus::Revoked,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                evaluated_at - chrono::Duration::days(30),
+                evaluated_at - chrono::Duration::seconds(1),
+            )
+            .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
+        ),
         _ => VerifiedRevocationState::Checked(
             RevocationRecord::new(
                 RevocationStatus::Active,
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 verified_at,
-                fresh_until,
+                far_future,
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),
@@ -208,8 +233,14 @@ fn run_evaluation(
     }
 
     // All selectors from interop vectors are considered trusted — they
-    // come from the test fixture, not from a caller.
-    let request = request.verify_selectors();
+    // come from the test fixture, not from a caller — UNLESS the
+    // evaluation explicitly requests unverified selectors to test the
+    // provenance enforcement path.
+    let request = if eval.get("unverified_selectors").and_then(|v| v.as_bool()) == Some(true) {
+        request
+    } else {
+        request.verify_selectors()
+    };
 
     engine.evaluate(grant, &request)
 }
@@ -239,9 +270,20 @@ fn run_vector(path: &Path) -> Result<(), String> {
 
     let pipeline = VerificationPipeline::new();
     let verifier = InteropSignatureVerifier;
-    let verified_at = timestamp("2026-06-15T12:00:00Z");
+    let default_verified_at = timestamp("2026-06-15T12:00:00Z");
+    let verified_at = vector
+        .get("verified_at")
+        .and_then(|v| v.as_str())
+        .map(timestamp)
+        .unwrap_or(default_verified_at);
     let revocation_override = vector.get("revocation_override").and_then(|v| v.as_str());
-    let revocation = make_revocation_record(verified_at, revocation_override);
+    // Use the evaluated_at from the first evaluation as the reference point for
+    // freshness, so stale/active revocation records can be set correctly.
+    let evaluated_at = vector["evaluations"][0]["request"]["evaluated_at"]
+        .as_str()
+        .map(timestamp)
+        .unwrap_or(verified_at);
+    let revocation = make_revocation_record(verified_at, evaluated_at, revocation_override);
     let metadata = make_metadata(verified_at, revocation);
 
     let verified = pipeline

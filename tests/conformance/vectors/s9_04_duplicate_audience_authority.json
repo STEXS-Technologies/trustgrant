@@ -1,0 +1,19 @@
+{
+  "spec_section": "9",
+  "description": "Duplicate audience authority entries should be rejected",
+  "overrides": {
+    "default_audience_scope": [
+      {
+        "authority_id": "https://audience.example.com",
+        "scope": { "all": true, "allow": null, "deny": null },
+        "principal_scope": null
+      },
+      {
+        "authority_id": "https://audience.example.com",
+        "scope": { "all": false, "allow": [{"kind": "authority", "all": false, "values": ["https://specific.example.com"], "expressions": null}], "deny": null },
+        "principal_scope": null
+      }
+    ]
+  },
+  "assert": { "validation": "rejected" }
+}

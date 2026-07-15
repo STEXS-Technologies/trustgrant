@@ -100,3 +100,15 @@ name = "fuzz_evaluation_engine"
 path = "fuzz_targets/fuzz_evaluation_engine.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "fuzz_bundle_proof_parse"
+path = "fuzz_targets/fuzz_bundle_proof_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_draft_serialize"
+path = "fuzz_targets/fuzz_draft_serialize.rs"
+test = false
+doc = false
