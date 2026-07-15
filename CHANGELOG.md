@@ -51,7 +51,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance**: direct datetime buffer write (−55% canonicalize), Utf16Key newtype (−55% canonicalize), compact_str for raw documents (−33% parse)
 - **Origin authority constraint**: spec §13 step 3 now enforced in evaluation engine
 - **Docs simplified**: README now concise with quick example, all P-number jargon removed
-- **Port traits documented**: `DiscoverySource`, `RevocationSource`, `StorageSource` added to architecture docs
+- **P0 protocol hardening (all 8 items)**:
+  - Origin binding mandatory via `ResourceBinding` — every evaluation request binds to a resource
+  - Atomic execution boundary (`MutationRequest`, `intent_id`, `expected_version`, `EvaluationOutcome`)
+  - Race-safe mint quotas — authoritative counters injected by executor, `pub(crate)` API
+  - Mint idempotency + supply semantics — `MintContext.with_quantity()`, engine checks `current + quantity > max`
+  - Typed transaction envelope — `MutationRequest.actor`, `envelope_expires_at`, `intent_id` required
+  - Selector provenance — `verify_selectors()` required before engine evaluation for mint ops
+  - Post-revocation effect — `PostRevocationEffect` enum (`BlockAll`/`BlockMintingOnly`), wire-format optional
+  - Remove implicit mint authorization — `operations=null` no longer allows mint, explicit `"create"` required
+  - Remove `operations.all` wildcard — all operations must be explicitly listed in allow/deny
+  - Reject duplicate audience authorities — `DuplicateAudienceAuthority` error on duplicate `authority_id`
 
 ### Fixed
 

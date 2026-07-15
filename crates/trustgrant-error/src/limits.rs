@@ -43,6 +43,7 @@ pub const MAX_REQUEST_SELECTOR_VALUE_BYTES: usize = 256;
 /// # Errors
 ///
 /// Returns [`TrustGrantError::DocumentTooLarge`] if `actual_bytes` exceeds `max_bytes`.
+#[must_use]
 pub const fn ensure_json_size(
     document: &'static str,
     actual_bytes: usize,
@@ -63,6 +64,7 @@ pub const fn ensure_json_size(
 /// # Errors
 ///
 /// Returns [`TrustGrantError::CollectionTooLarge`] if `actual_items` exceeds `max_items`.
+#[must_use]
 pub const fn ensure_collection_limit(
     field: &'static str,
     actual_items: usize,
@@ -80,6 +82,7 @@ pub const fn ensure_collection_limit(
 /// # Errors
 ///
 /// Returns [`TrustGrantError::StringTooLong`] if `value.len()` exceeds `max_bytes`.
+#[must_use]
 pub const fn ensure_string_limit(
     field: &'static str,
     value: &str,

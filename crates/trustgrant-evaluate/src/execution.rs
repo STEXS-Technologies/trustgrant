@@ -74,8 +74,8 @@ impl TryFrom<EvaluationRequest> for MutationRequest {
         }
 
         // Actor and envelope expiry are intentionally None —
-        // callers MUST set them explicitly via [`with_actor`] and
-        // [`with_envelope_expiry`] before execution.
+        // callers MUST set them explicitly via [`MutationRequest::with_actor`] and
+        // [`MutationRequest::with_envelope_expiry`] before execution.
         Ok(Self {
             request,
             intent_id,
@@ -100,7 +100,7 @@ impl MutationRequest {
 
     /// The authenticated actor performing this operation.
     ///
-    /// Must be set explicitly via [`with_actor`] before execution.
+    /// Must be set explicitly via [`MutationRequest::with_actor`] before execution.
     /// When `None`, the executor should reject the mutation.
     #[must_use]
     pub const fn actor(&self) -> &Option<AuthorityId> {
@@ -116,7 +116,7 @@ impl MutationRequest {
 
     /// When this operation envelope expires.
     ///
-    /// Must be set explicitly via [`with_envelope_expiry`] before execution.
+    /// Must be set explicitly via [`MutationRequest::with_envelope_expiry`] before execution.
     /// When `None`, the executor should reject the mutation.
     #[must_use]
     pub const fn envelope_expires_at(&self) -> Option<DateTime<Utc>> {

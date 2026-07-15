@@ -52,6 +52,7 @@ impl VerifiedTrustGrantRecord {
     ///
     /// Returns [`TrustGrantError`] when the persisted record cannot be
     /// converted back into normalized verified state.
+    #[must_use]
     pub fn try_to_verified_grant(&self) -> Result<VerifiedTrustGrant, TrustGrantError> {
         if self.record_version != VERIFIED_TRUSTGRANT_RECORD_VERSION {
             return Err(
@@ -80,6 +81,7 @@ impl VerifiedTrustGrantRecord {
     ///
     /// Returns [`TrustGrantError`] when the persisted record cannot be
     /// converted back into normalized verified state.
+    #[must_use]
     pub fn try_into_verified_grant(self) -> Result<VerifiedTrustGrant, TrustGrantError> {
         self.try_to_verified_grant()
     }

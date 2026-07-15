@@ -21,6 +21,7 @@ impl OperationName {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the name is empty after trimming.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -61,6 +62,7 @@ impl CustomOperationName {
     ///
     /// Returns [`TrustGrantError`] when the name is empty or reuses a reserved
     /// built-in capability or operation name.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let operation = OperationName::new(value)?;
 
@@ -109,6 +111,7 @@ impl ResourceTypeName {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the name is empty after trimming.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -150,6 +153,7 @@ impl KeyId {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the identifier is empty after trimming.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -212,6 +216,7 @@ impl SelectorKind {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the kind is empty after trimming.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         let value =
@@ -335,6 +340,7 @@ impl PrincipalKind {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the kind is empty after trimming.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(
@@ -376,6 +382,7 @@ impl PrincipalId {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the identifier is empty after trimming.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         let value = value.into();
         Ok(Self(

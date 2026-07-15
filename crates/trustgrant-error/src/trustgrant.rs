@@ -73,6 +73,8 @@ pub enum TrustGrantError {
     MissingTemplateId,
     #[error("resource binding is incompatible with the requested operation")]
     InvalidMutationResourceBinding,
+    #[error("mint quantity must be at least 1")]
+    InvalidMintQuantity,
     #[error("resource reference type does not match the request resource type")]
     ResourceTypeBindingMismatch,
     #[error("custom operation name must not reuse reserved built-in capability or operation names")]

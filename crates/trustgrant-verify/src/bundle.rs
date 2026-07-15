@@ -58,6 +58,7 @@ impl BundleRevocationProof {
     ///
     /// Returns [`TrustGrantError`] when the bundled proof does not match the
     /// requested grant or the freshness policy cannot be applied.
+    #[must_use]
     pub fn to_record_for(
         &self,
         trustgrant_id: TrustGrantId,
@@ -178,6 +179,7 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the document conflicts with an
     /// existing entry or would exceed bundle limits.
+    #[must_use]
     pub fn insert_discovery_document(
         &mut self,
         document: AuthorityDiscoveryDocument,
@@ -209,6 +211,7 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the document conflicts with an
     /// existing entry or would exceed bundle limits.
+    #[must_use]
     pub fn insert_delegated_principal_document(
         &mut self,
         document: DelegatedPrincipalKeyDocument,
@@ -249,6 +252,7 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the proof conflicts with an existing
     /// entry or would exceed bundle limits.
+    #[must_use]
     pub fn insert_revocation_proof(
         &mut self,
         proof: BundleRevocationProof,
@@ -281,6 +285,7 @@ impl TrustGrantProofBundle {
     ///
     /// Returns [`TrustGrantError`] when the chain conflicts with an existing
     /// entry, exceeds the per-chain limit, or would exceed bundle limits.
+    #[must_use]
     pub fn insert_ownership_transition_chain(
         &mut self,
         trustgrant_id: TrustGrantId,

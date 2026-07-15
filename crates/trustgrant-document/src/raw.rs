@@ -12,7 +12,7 @@ use trustgrant_error::limits::{MAX_TRUSTGRANT_JSON_BYTES, ensure_json_size};
 ///
 /// Fields map directly to JSON keys. Use [`RawTrustGrantDocument::parse_json_str`]
 /// or [`RawTrustGrantDocument::parse_json_bytes`] to deserialize, then convert to
-/// [`ValidatedTrustGrantDocument`] via `TryFrom`.
+/// [`crate::validated::ValidatedTrustGrantDocument`] via `TryFrom`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawTrustGrantDocument {
@@ -47,6 +47,7 @@ impl RawTrustGrantDocument {
     /// Returns [`TrustGrantError`] when the input exceeds the protocol size
     /// limit, is not valid JSON, or does not match the TrustGrant v0 wire
     /// shape.
+    #[must_use]
     pub fn parse_json_bytes(bytes: &[u8]) -> Result<Self, TrustGrantError> {
         ensure_json_size("trustgrant", bytes.len(), MAX_TRUSTGRANT_JSON_BYTES)?;
 
@@ -87,6 +88,7 @@ impl RawTrustGrantDocument {
     /// Returns [`TrustGrantError`] when the input exceeds the protocol size
     /// limit, is not valid JSON, or does not match the TrustGrant v0 wire
     /// shape.
+    #[must_use]
     pub fn parse_json_str(json: &str) -> Result<Self, TrustGrantError> {
         ensure_json_size("trustgrant", json.len(), MAX_TRUSTGRANT_JSON_BYTES)?;
 
@@ -98,6 +100,7 @@ impl RawTrustGrantDocument {
     /// # Errors
     ///
     /// Returns [`serde_json::Error`] when serialization fails.
+    #[must_use]
     pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }

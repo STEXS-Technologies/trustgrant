@@ -440,8 +440,8 @@ impl ValidatedOperationScope {
     /// and allow operations are present, or if `all` is `false` and
     /// no allow operations are provided.
     ///
-    /// Returns [`TrustGrantError::DuplicateOperation`] if duplicate
-    /// operations exist in the allow or deny lists.
+    /// Returns [`TrustGrantError::DuplicateOperationName`] if duplicate
+    /// operation names exist in the allow or deny lists.
     pub fn new(
         all: bool,
         allow: Vec<OperationName>,

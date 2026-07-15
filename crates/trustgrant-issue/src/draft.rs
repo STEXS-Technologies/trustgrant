@@ -37,6 +37,7 @@ impl TrustGrantDraftAuthorities {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the authority identifier is invalid.
+    #[must_use]
     pub fn self_owned(authority: impl Into<String>) -> Result<Self, TrustGrantError> {
         let authority = AuthorityId::new(authority)?;
 
@@ -53,6 +54,7 @@ impl TrustGrantDraftAuthorities {
     ///
     /// Returns [`TrustGrantError`] when one of the authority identifiers is
     /// invalid.
+    #[must_use]
     pub fn new(
         issuer_authority: impl Into<String>,
         origin_authority: impl Into<String>,
@@ -151,6 +153,7 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when one of the authority or key identity
     /// fields is invalid.
+    #[must_use]
     pub fn new(
         authorities: TrustGrantDraftAuthorities,
         key_id: impl Into<String>,
@@ -290,6 +293,7 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when the current draft cannot be expressed
     /// by the TrustGrant v0 wire contract.
+    #[must_use]
     pub fn signable_document(&self) -> Result<RawTrustGrantDocument, TrustGrantError> {
         let supersession_policy = match self.supersession_policy {
             SupersessionPolicy::Coexist => RawSupersessionPolicy::Coexist,
@@ -389,6 +393,7 @@ impl TrustGrantDraft {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when canonicalization fails.
+    #[must_use]
     pub fn canonical_bytes(&self) -> Result<CanonicalTrustGrantBytes, TrustGrantError> {
         canonicalize_trustgrant(&self.signable_document()?, CanonicalizationProfile::Rfc8785)
     }
@@ -399,6 +404,7 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when the provided signature is empty after
     /// trimming.
+    #[must_use]
     pub fn into_signed_document(
         self,
         signature: impl Into<CompactString>,

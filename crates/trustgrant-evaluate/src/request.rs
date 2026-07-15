@@ -65,6 +65,7 @@ impl SelectorContext {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
+    #[must_use]
     pub fn insert(
         &mut self,
         kind: impl Into<String>,
@@ -209,6 +210,7 @@ impl ResourceRef {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] if the resource type or identifier is invalid.
+    #[must_use]
     pub fn new_typed(
         origin_authority: AuthorityId,
         resource_type: impl Into<String>,
@@ -287,6 +289,7 @@ impl TemplateRef {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] if the template identifier is invalid.
+    #[must_use]
     pub fn new_typed(
         origin_authority: AuthorityId,
         template_id: impl Into<String>,
@@ -352,9 +355,9 @@ impl ResourceBinding {
 /// of resource instances this mint operation intends to create. The engine
 /// checks that `current_total_mints + requested_quantity ≤ max_total`.
 ///
-/// Only the [`AtomicInventoryExecutor`] should construct `MintContext` from
-/// its authoritative counter store. External callers must not provide their
-/// own counters.
+/// Only the [`crate::execution::AtomicInventoryExecutor`] should construct
+/// `MintContext` from its authoritative counter store. External callers must
+/// not provide their own counters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MintContext {
     current_total_mints: u64,
@@ -379,14 +382,17 @@ impl MintContext {
 
     /// Sets the requested quantity for this mint operation.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `quantity` is 0. Use 1 for single-item minting.
+    /// Returns [`TrustGrantError::EmptyStringField`] if `quantity` is 0.
+    /// Use 1 for single-item minting.
     #[must_use]
-    pub const fn with_quantity(mut self, quantity: u64) -> Self {
-        assert!(quantity > 0, "mint quantity must be at least 1");
+    pub fn with_quantity(mut self, quantity: u64) -> Result<Self, TrustGrantError> {
+        if quantity == 0 {
+            return Err(TrustGrantError::InvalidMintQuantity);
+        }
         self.requested_quantity = quantity;
-        self
+        Ok(self)
     }
 
     /// Total minted count is required for max_total checks.
@@ -427,6 +433,7 @@ impl ResourceContext {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the resource type is empty.
+    #[must_use]
     pub fn new(resource_type: impl Into<String>) -> Result<Self, TrustGrantError> {
         Ok(Self {
             resource_type: ResourceTypeName::new(resource_type)?,
@@ -439,6 +446,7 @@ impl ResourceContext {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
+    #[must_use]
     pub fn insert_selector(
         &mut self,
         kind: impl Into<String>,
@@ -513,6 +521,7 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when resource or selector inputs are invalid.
+    #[must_use]
     pub fn new(
         operation: RequestedOperation,
         resource_binding: ResourceBinding,
@@ -550,6 +559,7 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
+    #[must_use]
     pub fn insert_target_selector(
         &mut self,
         kind: impl Into<String>,
@@ -563,6 +573,7 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
+    #[must_use]
     pub fn insert_audience_selector(
         &mut self,
         kind: impl Into<String>,
@@ -576,6 +587,7 @@ impl EvaluationRequest {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the selector kind or value is empty.
+    #[must_use]
     pub fn insert_audience_principal_selector(
         &mut self,
         kind: impl Into<String>,
@@ -749,6 +761,7 @@ impl IntentId {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the identifier is empty or too large.
+    #[must_use]
     pub fn new(value: impl Into<String>) -> Result<Self, TrustGrantError> {
         Ok(Self(normalize_context_value("intent_id", &value.into())?))
     }

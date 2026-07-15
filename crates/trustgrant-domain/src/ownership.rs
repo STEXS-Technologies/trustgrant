@@ -28,6 +28,7 @@ impl OwnershipTransitionLineage {
     ///
     /// Returns [`TrustGrantError`] when revision/supersession invariants are
     /// violated.
+    #[must_use]
     pub fn new(
         transition_id: TransitionId,
         transition_series_id: TransitionSeriesId,
@@ -99,6 +100,7 @@ impl OwnershipSelector {
     ///
     /// Returns [`TrustGrantError`] when kind or values are invalid, or when
     /// duplicate values are present.
+    #[must_use]
     pub fn new(kind: impl Into<String>, values: Vec<String>) -> Result<Self, TrustGrantError> {
         if values.is_empty() {
             return Err(TrustGrantError::InvalidOwnershipTransitionScope);
@@ -152,6 +154,7 @@ impl OwnershipResourceScope {
     ///
     /// Returns [`TrustGrantError`] when the selector set is empty or contains
     /// duplicates.
+    #[must_use]
     pub fn new(selectors: Vec<OwnershipSelector>) -> Result<Self, TrustGrantError> {
         if selectors.is_empty() {
             return Err(TrustGrantError::InvalidOwnershipTransitionScope);
@@ -192,6 +195,7 @@ impl OwnershipTimeWindow {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the time window is inverted.
+    #[must_use]
     pub fn new(
         not_before: DateTime<Utc>,
         not_after: DateTime<Utc>,
@@ -240,6 +244,7 @@ impl OwnershipTransitionParties {
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when predecessor and successor are equal.
+    #[must_use]
     pub fn new(
         origin_authority: AuthorityId,
         predecessor_authority: AuthorityId,
@@ -295,6 +300,7 @@ impl OwnershipTransitionRecord {
     ///
     /// Returns [`TrustGrantError`] when participant, scope, or time-window
     /// invariants are violated.
+    #[must_use]
     pub fn new(
         lineage: OwnershipTransitionLineage,
         parties: OwnershipTransitionParties,

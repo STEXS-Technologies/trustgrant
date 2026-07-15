@@ -81,6 +81,7 @@ with the same inputs will never succeed.
 | `InvalidTimeWindow` | The time window has `not_before` after `not_after`. | The grant's time window end precedes its start. |
 | `InvalidKeyValidityWindow` | The key validity window has `not_before` after `not_after`. | The key's validity end precedes its start. |
 | `ZeroRevision` | The revision number is zero. | A document was created with `revision: 0` but revision must be ≥ 1. |
+| `InvalidMintQuantity` | The mint quantity is zero. | A mint context was created with `with_quantity(0)` but quantity must be at least 1. |
 
 ## Recoverable errors (safe to retry)
 
