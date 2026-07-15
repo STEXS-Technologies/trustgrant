@@ -567,10 +567,10 @@ fn rehydrated_grant_with_block_minting_only_allows_recognize() {
     );
 
     // 4. Mint should be denied with Revoked
-    let outcome = engine.evaluate(&rehydrated, &mint_request(5, 0));
-    assert!(!outcome.decision().is_allowed());
+    let second_outcome = engine.evaluate(&rehydrated, &mint_request(5, 0));
+    assert!(!second_outcome.decision().is_allowed());
     assert_eq!(
-        outcome.decision().deny_reason(),
+        second_outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::Revoked),
         "mint should be denied due to revocation with block_minting_only after rehydration"
     );

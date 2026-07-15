@@ -712,10 +712,10 @@ fn revoked_grant_with_block_minting_only_allows_recognize() {
 
     // Mint should be denied (revoked with block_minting_only)
     let mint_req = mint_request().with_mint_context_for_testing(MintContext::new(5, 0));
-    let outcome = engine.evaluate(verified_grant, &mint_req);
-    assert!(!outcome.decision().is_allowed());
+    let second_outcome = engine.evaluate(verified_grant, &mint_req);
+    assert!(!second_outcome.decision().is_allowed());
     assert_eq!(
-        outcome.decision().deny_reason(),
+        second_outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::Revoked),
         "mint should be denied due to revocation with block_minting_only",
     );

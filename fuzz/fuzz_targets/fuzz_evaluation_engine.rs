@@ -443,12 +443,11 @@ fuzz_target!(|data: &[u8]| {
             .filter(|c| c.is_ascii_graphic() || *c == ' ' || *c == '-')
             .take(32)
             .collect();
-        if !custom_name_bytes.is_empty() {
-            if let Some(request) =
+        if !custom_name_bytes.is_empty()
+            && let Some(request) =
                 build_custom_request(&raw_for_metadata, evaluated_at, &custom_name_bytes)
-            {
-                evaluate_and_check(&grant, &request);
-            }
+        {
+            evaluate_and_check(&grant, &request);
         }
     }
 });

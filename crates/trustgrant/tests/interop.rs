@@ -73,8 +73,12 @@ fn make_revocation_record(
                 RevocationStatus::Active,
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
-                evaluated_at - chrono::Duration::days(30),
-                evaluated_at - chrono::Duration::seconds(1),
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::days(-30))
+                    .unwrap(),
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::seconds(-1))
+                    .unwrap(),
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),
@@ -83,8 +87,12 @@ fn make_revocation_record(
                 RevocationStatus::Revoked,
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
-                evaluated_at - chrono::Duration::days(30),
-                evaluated_at - chrono::Duration::seconds(1),
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::days(-30))
+                    .unwrap(),
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::seconds(-1))
+                    .unwrap(),
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),
@@ -230,13 +238,11 @@ fn run_evaluation(
             mc_val["total_minted"].as_u64().unwrap_or(0),
             mc_val["user_minted"].as_u64().unwrap_or(0),
         );
-        let mint_ctx = if let Some(qty) = mc_val.get("quantity").and_then(|v| v.as_u64()) {
+        let mint_ctx = mc_val.get("quantity").and_then(|v| v.as_u64()).map_or(base_ctx, |qty| {
             base_ctx
                 .with_quantity(qty)
-                .unwrap_or_else(|_| base_ctx.clone())
-        } else {
-            base_ctx
-        };
+                .unwrap_or(base_ctx)
+        });
         request = request.with_mint_context_for_testing(mint_ctx);
     }
 

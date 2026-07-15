@@ -1780,9 +1780,9 @@ fn full_ownership_transfer_workflow() {
     // ═══════════════════════════════════════════════════════════════════
     // Phase 2 step 3: Evaluate the same recognize request → still Allowed
     // ═══════════════════════════════════════════════════════════════════
-    let outcome = engine.evaluate(transferred_grant, &request);
+    let second_outcome = engine.evaluate(transferred_grant, &request);
     assert!(
-        outcome.decision().is_allowed(),
+        second_outcome.decision().is_allowed(),
         "transferred grant should still allow matching request",
     );
 }

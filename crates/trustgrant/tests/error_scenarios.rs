@@ -913,10 +913,10 @@ fn block_minting_only_survives_verification_and_denies_mint() {
         .verify_selectors();
 
     // Mint should be denied with Revoked
-    let outcome = engine.evaluate(grant, &mint_req);
-    assert!(!outcome.decision().is_allowed());
+    let second_outcome = engine.evaluate(grant, &mint_req);
+    assert!(!second_outcome.decision().is_allowed());
     assert_eq!(
-        outcome.decision().deny_reason(),
+        second_outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::Revoked),
         "mint should be denied due to revocation with block_minting_only",
     );

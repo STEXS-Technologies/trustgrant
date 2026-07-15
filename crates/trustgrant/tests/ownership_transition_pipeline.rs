@@ -144,6 +144,7 @@ fn authority(value: &str) -> AuthorityId {
 }
 
 /// Helper: construct an [`OwnershipTransitionRecord`] for a single-hop transfer.
+#[allow(clippy::too_many_arguments)]
 fn make_transition_record(
     transition_id: &str,
     series_id: &str,
@@ -738,7 +739,7 @@ fn ownership_transition_rejects_invalid_selector_shapes() {
 
     // Selector with all=false, empty allow list, and null deny — valid at the
     // raw JSON level, but rejected during validation.
-    let result = OwnershipTransitionVerifier::new().verify_json_str(
+    let second_result = OwnershipTransitionVerifier::new().verify_json_str(
         r#"{"transition_id":"tgt_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","version":0,"transition_series_id":"tgts_bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{"item":{"all":false,"allow":[],"deny":null}}},"effective_at":"2026-04-07T12:00:00Z","predecessor_signature":{"key_id":"k","signature":"s"},"successor_acceptance":{"accepted_at":"2026-04-07T11:30:00Z","key_id":"k","signature":"s"}}"#,
         &FakeSignatureVerifier,
         &UnreachableDiscoverySource,
@@ -748,7 +749,7 @@ fn ownership_transition_rejects_invalid_selector_shapes() {
         ),
     );
     assert_eq!(
-        result.map(|_| ()),
+        second_result.map(|_| ()),
         Err(TrustGrantError::InvalidOwnershipTransitionScope),
     );
 }
@@ -771,7 +772,7 @@ fn ownership_transition_rejects_invalid_authority_format() {
     );
 
     // to_authority is not a valid URI
-    let result = OwnershipTransitionVerifier::new().verify_json_str(
+    let second_result = OwnershipTransitionVerifier::new().verify_json_str(
         r#"{"transition_id":"tgt_dddddddd-dddd-4ddd-8ddd-dddddddddddd","version":0,"transition_series_id":"tgts_dddddddd-dddd-4ddd-8ddd-dddddddddddd","revision":1,"origin_authority":"https://o.example.com","from_authority":"https://o.example.com","to_authority":"bad!authority","canonical_resource_scope":{"types":{}},"effective_at":"2026-04-07T12:00:00Z","predecessor_signature":{"key_id":"k","signature":"s"},"successor_acceptance":{"accepted_at":"2026-04-07T11:30:00Z","key_id":"k","signature":"s"}}"#,
         &FakeSignatureVerifier,
         &UnreachableDiscoverySource,
@@ -781,12 +782,12 @@ fn ownership_transition_rejects_invalid_authority_format() {
         ),
     );
     assert_eq!(
-        result.map(|_| ()),
+        second_result.map(|_| ()),
         Err(TrustGrantError::InvalidAuthorityIdMissingScheme),
     );
 
     // origin_authority is an empty string
-    let result = OwnershipTransitionVerifier::new().verify_json_str(
+    let third_result = OwnershipTransitionVerifier::new().verify_json_str(
         r#"{"transition_id":"tgt_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","version":0,"transition_series_id":"tgts_eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","revision":1,"origin_authority":"","from_authority":"https://o.example.com","to_authority":"https://t.example.com","canonical_resource_scope":{"types":{}},"effective_at":"2026-04-07T12:00:00Z","predecessor_signature":{"key_id":"k","signature":"s"},"successor_acceptance":{"accepted_at":"2026-04-07T11:30:00Z","key_id":"k","signature":"s"}}"#,
         &FakeSignatureVerifier,
         &UnreachableDiscoverySource,
@@ -795,5 +796,5 @@ fn ownership_transition_rejects_invalid_authority_format() {
             VerificationPosture::Online,
         ),
     );
-    assert_eq!(result.map(|_| ()), Err(TrustGrantError::EmptyAuthorityId),);
+    assert_eq!(third_result.map(|_| ()), Err(TrustGrantError::EmptyAuthorityId),);
 }

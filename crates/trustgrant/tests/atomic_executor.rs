@@ -216,7 +216,12 @@ fn successful_mutation_execution() {
                 "decision must be allowed"
             );
         }
-        other => panic!("expected Applied, got {other:?}"),
+        other @ (AtomicExecutionResult::Denied { .. }
+        | AtomicExecutionResult::Duplicate { .. }
+        | AtomicExecutionResult::Stale { .. }
+        | AtomicExecutionResult::IntentConflict { .. }) => {
+            panic!("expected Applied, got {other:?}")
+        }
     }
 
     // The resource version should have advanced from 1 to 2
@@ -266,7 +271,12 @@ fn idempotent_replay_returns_duplicate() {
                 "duplicate authorization should still reflect allowed decision"
             );
         }
-        other => panic!("expected Duplicate, got {other:?}"),
+        other @ (AtomicExecutionResult::Applied { .. }
+        | AtomicExecutionResult::Denied { .. }
+        | AtomicExecutionResult::Stale { .. }
+        | AtomicExecutionResult::IntentConflict { .. }) => {
+            panic!("expected Duplicate, got {other:?}")
+        }
     }
 }
 
@@ -309,7 +319,12 @@ fn stale_state_detected_when_version_mismatch() {
                 "current version should be 6 after one mutation"
             );
         }
-        other => panic!("expected Stale, got {other:?}"),
+        other @ (AtomicExecutionResult::Applied { .. }
+        | AtomicExecutionResult::Denied { .. }
+        | AtomicExecutionResult::Duplicate { .. }
+        | AtomicExecutionResult::IntentConflict { .. }) => {
+            panic!("expected Stale, got {other:?}")
+        }
     }
 }
 
@@ -395,7 +410,12 @@ fn mint_mutation_creates_new_resource() {
                 "mint decision must be allowed"
             );
         }
-        other => panic!("expected Applied, got {other:?}"),
+        other @ (AtomicExecutionResult::Denied { .. }
+        | AtomicExecutionResult::Duplicate { .. }
+        | AtomicExecutionResult::Stale { .. }
+        | AtomicExecutionResult::IntentConflict { .. }) => {
+            panic!("expected Applied, got {other:?}")
+        }
     }
 }
 
@@ -425,7 +445,12 @@ fn mint_mutation_respects_quota_limit() {
                 "deny reason should be MintTotalLimitReached"
             );
         }
-        other => panic!("expected Denied, got {other:?}"),
+        other @ (AtomicExecutionResult::Applied { .. }
+        | AtomicExecutionResult::Duplicate { .. }
+        | AtomicExecutionResult::Stale { .. }
+        | AtomicExecutionResult::IntentConflict { .. }) => {
+            panic!("expected Denied, got {other:?}")
+        }
     }
 }
 
@@ -520,7 +545,7 @@ fn concurrent_execution_is_thread_safe() {
             let resource = ResourceRef::new_typed(
                 authority("https://issuer.example.com"),
                 "item",
-                &format!("concurrent-resource-{i}"),
+                format!("concurrent-resource-{i}"),
             )
             .unwrap_or_else(|error| panic!("resource ref should be valid: {error}"));
             exec.register_resource(&resource, 1)
@@ -810,7 +835,12 @@ fn mint_mutation_denied_when_capability_disabled() {
         AtomicExecutionResult::Denied { authorization } => {
             authorization.outcome().decision().deny_reason()
         }
-        _ => panic!("expected Denied, got {result:?}"),
+        AtomicExecutionResult::Applied { .. }
+        | AtomicExecutionResult::Duplicate { .. }
+        | AtomicExecutionResult::Stale { .. }
+        | AtomicExecutionResult::IntentConflict { .. } => {
+            panic!("expected Denied, got {result:?}")
+        }
     };
     assert_eq!(deny_reason, Some(EvaluationDenyReason::CapabilityDisabled));
 }
@@ -905,7 +935,12 @@ fn mint_mutation_with_quantity_exceeds_limit() {
                 "deny reason should be MintTotalLimitReached",
             );
         }
-        other => panic!("expected Denied, got {other:?}"),
+        other @ (AtomicExecutionResult::Applied { .. }
+        | AtomicExecutionResult::Duplicate { .. }
+        | AtomicExecutionResult::Stale { .. }
+        | AtomicExecutionResult::IntentConflict { .. }) => {
+            panic!("expected Denied, got {other:?}")
+        }
     }
 }
 
@@ -1016,7 +1051,12 @@ fn mint_mutation_respects_quantity_in_quota() {
         AtomicExecutionResult::Applied { .. } => {
             // Quantity 1 within quota → allowed
         }
-        other => panic!("expected Applied, got {other:?}"),
+        other @ (AtomicExecutionResult::Denied { .. }
+        | AtomicExecutionResult::Duplicate { .. }
+        | AtomicExecutionResult::Stale { .. }
+        | AtomicExecutionResult::IntentConflict { .. }) => {
+            panic!("expected Applied, got {other:?}")
+        }
     }
 }
 
