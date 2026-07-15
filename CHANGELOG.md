@@ -30,11 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mint constraints (max total, max per user)
 - Compact string storage for optimized heap allocation (`compact-str`)
 - UTF-16 code-unit ordering for canonical map keys (`Utf16Key`)
-- 29 interop test vectors covering all 19 evaluation outcomes
-- 37 conformance test vectors covering spec validation rules (§2.5–§12)
+- 41 interop test vectors covering all 21 evaluation outcomes
+- 47 conformance test vectors covering spec validation rules (§2.5–§12)
 - 54 Rust conformance tests (spec sections)
-- 14 formal property-based tests (deny subtractive, allow explicit, fail-closed, etc.)
-- 2 Kani proof harnesses verifying selector matching core algorithm
+- 16 fuzz targets covering all parse/verify/evaluate paths (including bundle proof assembly, draft serialization)
+- 3 Kani proof harnesses verifying selector matching and full-pipeline invariants
 - End-to-end test with real ed25519 signatures (full pipeline: draft → canonicalize → sign → verify → evaluate)
 - 12 integration tests covering P1/P2/P3 gaps (capabilities, origin authority, edge cases, boundaries)
 - Real signature verification e2e test
@@ -66,10 +66,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Spec canonical example: `"authority_id"` → `"authority"` in target scope selector
-- EvaluationDenyReason Display impl: all 20 variants now tested
+- EvaluationDenyReason Display impl: all 21 variants now tested
 - Pre-existing clippy violations: 69 violations fixed across workspace
 - Epoch timestamp test: multi-line JSON parsing quirk fixed
 - All doc-tests: `rust,ignore` blocks made compilable or replaced with text
+- `#[must_use]` added to 43 public Result-returning functions across 11 crates
+- 4 broken intra-doc links fixed (`ValidatedTrustGrantDocument`, `with_actor`, `with_envelope_expiry`, `AtomicInventoryExecutor`)
+- `MintContext::with_quantity` changed from `assert!` to `Result<Self, TrustGrantError>` (security hardening)
+- `InvalidMintQuantity` error variant added
+- Interop harness extended: stale/stale_revoked revocation overrides, `verified_at` override, `quantity` field in mint_context, `unverified_selectors` flag
 
 ### Removed
 
@@ -85,3 +90,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AUDIT.md` — deep audit report (local-only)
 - 17 Markdown documents and 2 schemas covering the specification, architecture,
   integration, and interoperability
+- `LICENSE-MIT` and `LICENSE-APACHE` added at repository root

@@ -3578,7 +3578,7 @@ mod tests {
             ),
         );
 
-        let mut request = recognize_request();
+        let request = recognize_request();
         let outcome = engine.evaluate(&grant, &request);
 
         // First entry has all=true → all allowed → ALLOW
@@ -3712,6 +3712,7 @@ mod tests {
 
     // ── Mint-without-constraints (line 293 coverage) ──────────────────
 
+    #[allow(dead_code)]
     fn mint_grant_without_constraints() -> VerifiedTrustGrant {
         let raw = RawTrustGrantDocument {
             trustgrant_id: "tg_e0000000-0000-1000-a000-000000000008".into(),

@@ -613,7 +613,7 @@ mod tests {
 
     use super::{CanonicalizationProfile, canonicalize_trustgrant};
     use trustgrant_document::raw::{
-        PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+        RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
         RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
         RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
         RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,

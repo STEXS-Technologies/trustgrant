@@ -10,10 +10,10 @@ use trustgrant::{
     },
 };
 
-/// Fuzz the TrustGrantDraft builder and serialization paths.
-///
-/// Constructs drafts from raw-parsed components and exercises all builder
-/// methods to ensure none panic on valid or invalid inputs.
+// Fuzz the TrustGrantDraft builder and serialization paths.
+//
+// Constructs drafts from raw-parsed components and exercises all builder
+// methods to ensure none panic on valid or invalid inputs.
 fuzz_target!(|data: &[u8]| {
     let json_str = match std::str::from_utf8(data) {
         Ok(s) => s,

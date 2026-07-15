@@ -8,9 +8,9 @@ use trustgrant::{
     parse_revocation_status_proof,
 };
 
-/// Fuzz the proof bundle assembly path by parsing random bytes as each
-/// supported document type and inserting into the bundle. Ensures that
-/// the builder methods never panic on any input.
+// Fuzz the proof bundle assembly path by parsing random bytes as each
+// supported document type and inserting into the bundle. Ensures that
+// the builder methods never panic on any input.
 fuzz_target!(|data: &[u8]| {
     let json_str = match std::str::from_utf8(data) {
         Ok(s) => s,
