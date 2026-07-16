@@ -72,6 +72,9 @@ impl AuthorityId {
         }
 
         let lowercased = trimmed.to_lowercase();
+
+        ensure_string_limit("authority_id", &lowercased, MAX_AUTHORITY_ID_BYTES)?;
+
         let scheme_end = lowercased
             .find(':')
             .ok_or(TrustGrantError::InvalidAuthorityIdMissingScheme)?;

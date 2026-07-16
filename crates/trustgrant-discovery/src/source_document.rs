@@ -342,6 +342,9 @@ impl TryFrom<RawAuthorityDiscoveryDocument> for AuthorityDiscoveryDocument {
 
     fn try_from(raw: RawAuthorityDiscoveryDocument) -> Result<Self, Self::Error> {
         ensure_collection_limit("discovery.keys", raw.keys.len(), MAX_DISCOVERY_KEYS)?;
+        if raw.keys.is_empty() {
+            return Err(TrustGrantError::InvalidDiscoveryDocument);
+        }
         let authority_id = AuthorityId::new(raw.authority_id)?;
         let keys = collect_unique_key_records(raw.keys)?;
         let signature_profile = SignatureProfile::new(

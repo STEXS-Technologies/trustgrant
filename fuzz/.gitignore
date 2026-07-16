@@ -1,0 +1,5 @@
+# Fuzzer-generated files — never commit these
+corpus/
+artifacts/
+coverage/
+target/
