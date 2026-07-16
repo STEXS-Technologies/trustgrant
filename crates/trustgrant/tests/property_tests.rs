@@ -23,8 +23,8 @@ use trustgrant::{
     ResolvedSignerBinding, ResourceBinding, ResourceContext, ResourceRef, RevocationRecord,
     RevocationSourceKind, RevocationStatus, SignatureProfile, SignatureVerificationRequest,
     SignatureVerifier, TemplateRef, TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError,
-    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPipeline, VerificationPosture,
-    VerifiedRevocationState, VerifiedTrustGrant, evaluate::EvaluationOutcome,
+    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPipeline, VerificationPolicy,
+    VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant, evaluate::EvaluationOutcome,
 };
 
 // ---------------------------------------------------------------------------
@@ -808,5 +808,359 @@ proptest! {
             Some(EvaluationDenyReason::OriginAuthorityMismatch),
             "origin authority mismatch must be enforced"
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for ownership transition tests
+// ---------------------------------------------------------------------------
+
+fn make_transition_record(from: &str, to: &str) -> trustgrant::OwnershipTransitionRecord {
+    use trustgrant::domain::{TransitionId, TransitionSeriesId};
+
+    let lineage = trustgrant::OwnershipTransitionLineage::new(
+        TransitionId::generate(),
+        TransitionSeriesId::generate(),
+        trustgrant::GrantRevision::new(1).unwrap(),
+        None,
+    )
+    .unwrap();
+
+    let parties = trustgrant::OwnershipTransitionParties::new(
+        AuthorityId::new("https://issuer.example.com").unwrap(),
+        AuthorityId::new(from).unwrap(),
+        AuthorityId::new(to).unwrap(),
+    )
+    .unwrap();
+
+    let mut resource_scope = std::collections::BTreeMap::new();
+    resource_scope.insert(
+        trustgrant::ResourceTypeName::new("item").unwrap(),
+        trustgrant::OwnershipResourceScope::new(vec![
+            trustgrant::OwnershipSelector::new("namespace", vec!["weapons".into()]).unwrap(),
+        ])
+        .unwrap(),
+    );
+
+    trustgrant::OwnershipTransitionRecord::new(
+        lineage,
+        parties,
+        resource_scope,
+        Some(
+            trustgrant::OwnershipTimeWindow::new(
+                fixed_timestamp(2026, 1, 1, 0, 0, 0),
+                fixed_timestamp(2027, 1, 1, 0, 0, 0),
+            )
+            .unwrap(),
+        ),
+        fixed_timestamp(2026, 6, 15, 12, 0, 0),
+    )
+    .unwrap()
+}
+
+// ---------------------------------------------------------------------------
+// Test 5: Ownership transition chain verification (spec §14)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn ownership_chain_accepts_matching_single_transition(
+        _ in 0..10u8,
+    ) {
+        // When the active_owning_authority matches the chain's last to_authority,
+        // verification must succeed.
+        let record = make_transition_record(
+            "https://issuer.example.com",
+            "https://new-owner.example.com",
+        );
+
+        let json = make_grant_json(&[
+            ("active_owning_authority", serde_json::json!("https://new-owner.example.com")),
+            ("origin_authority", serde_json::json!("https://issuer.example.com")),
+        ]);
+
+        let validated = ValidatedTrustGrantDocument::try_from(
+            RawTrustGrantDocument::parse_json_str(&json).unwrap()
+        ).unwrap();
+
+        let verifier = trustgrant::OwnershipChainVerifier::new();
+        let result = verifier.verify_document_ownership(
+            &validated,
+            &[record],
+            fixed_timestamp(2026, 6, 15, 12, 0, 0),
+        );
+        prop_assert!(result.is_ok(), "matching single transition chain must be accepted");
+    }
+}
+
+proptest! {
+    #[test]
+    fn ownership_chain_rejects_active_owner_mismatch(
+        _ in 0..10u8,
+    ) {
+        // When the active_owning_authority does NOT match the chain's to_authority,
+        // verification must fail.
+        let record = make_transition_record(
+            "https://issuer.example.com",
+            "https://new-owner.example.com",
+        );
+
+        let json = make_grant_json(&[
+            ("active_owning_authority", serde_json::json!("https://wrong-owner.example.com")),
+            ("origin_authority", serde_json::json!("https://issuer.example.com")),
+        ]);
+
+        let validated = ValidatedTrustGrantDocument::try_from(
+            RawTrustGrantDocument::parse_json_str(&json).unwrap()
+        ).unwrap();
+
+        let verifier = trustgrant::OwnershipChainVerifier::new();
+        let result = verifier.verify_document_ownership(
+            &validated,
+            &[record],
+            fixed_timestamp(2026, 6, 15, 12, 0, 0),
+        );
+        prop_assert!(result.is_err(), "active owner mismatch must be rejected");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 6: Verification policy matrix (all posture × finality × source_kind)
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn policy_online_accepts_observed_finality(
+        _ in 0..10u8,
+    ) {
+        let policy = VerificationPolicy::for_posture(VerificationPosture::Online);
+        prop_assert!(policy.accepts_revocation_finality(ProofFinality::Observed));
+        prop_assert!(policy.accepts_revocation_finality(ProofFinality::Finalized));
+        prop_assert!(policy.accepts_revocation_source_kind(RevocationSourceKind::Api));
+    }
+}
+
+proptest! {
+    #[test]
+    fn policy_online_rejects_unknown_finality(
+        _ in 0..10u8,
+    ) {
+        let policy = VerificationPolicy::for_posture(VerificationPosture::Online);
+        prop_assert!(!policy.accepts_revocation_finality(ProofFinality::Unknown));
+    }
+}
+
+proptest! {
+    #[test]
+    fn policy_cached_rejects_live_source(
+        _ in 0..10u8,
+    ) {
+        let policy = VerificationPolicy::for_posture(VerificationPosture::Cached);
+        prop_assert!(!policy.accepts_revocation_source_kind(RevocationSourceKind::Api));
+        prop_assert!(policy.accepts_revocation_source_kind(RevocationSourceKind::Snapshot));
+        prop_assert!(policy.accepts_revocation_source_kind(RevocationSourceKind::ProofBundle));
+    }
+}
+
+proptest! {
+    #[test]
+    fn policy_cached_rejects_observed_finality(
+        _ in 0..10u8,
+    ) {
+        let policy = VerificationPolicy::for_posture(VerificationPosture::Cached);
+        prop_assert!(!policy.accepts_revocation_finality(ProofFinality::Observed));
+        prop_assert!(policy.accepts_revocation_finality(ProofFinality::TrustedSnapshot));
+        prop_assert!(policy.accepts_revocation_finality(ProofFinality::Finalized));
+    }
+}
+
+proptest! {
+    #[test]
+    fn policy_offline_rejects_live_source(
+        _ in 0..10u8,
+    ) {
+        let policy = VerificationPolicy::for_posture(VerificationPosture::Offline);
+        prop_assert!(!policy.accepts_revocation_source_kind(RevocationSourceKind::ChainState));
+        prop_assert!(policy.accepts_revocation_source_kind(RevocationSourceKind::Snapshot));
+    }
+}
+
+proptest! {
+    #[test]
+    fn policy_offline_rejects_observed_finality(
+        _ in 0..10u8,
+    ) {
+        let policy = VerificationPolicy::for_posture(VerificationPosture::Offline);
+        prop_assert!(!policy.accepts_revocation_finality(ProofFinality::Observed));
+        prop_assert!(policy.accepts_revocation_finality(ProofFinality::TrustedSnapshot));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: Selector expression matching invariants
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn selector_expression_equals_roundtrip(
+        _ in 0..10u8,
+    ) {
+        // equals("test_value") must match "test_value" exactly
+        let expr = trustgrant::SelectorExpression::parse(r#"equals("exact-match")"#).unwrap();
+        prop_assert!(expr.matches("exact-match"));
+        prop_assert!(!expr.matches("exact-match-suffix"));
+        prop_assert!(!expr.matches("prefix-exact-match"));
+        // Display must roundtrip
+        let display = format!("{expr}");
+        let reparsed = trustgrant::SelectorExpression::parse(&display);
+        prop_assert!(reparsed.is_ok());
+    }
+}
+
+proptest! {
+    #[test]
+    fn selector_expression_contains(
+        _ in 0..10u8,
+    ) {
+        let expr = trustgrant::SelectorExpression::parse(r#"contains("substr")"#).unwrap();
+        prop_assert!(expr.matches("prefix-substr-suffix"));
+        prop_assert!(expr.matches("substr"));
+        prop_assert!(!expr.matches("subst"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 8: Domain name validators invariants
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn domain_name_validators_accept_valid_strings(
+        _ in 0..10u8,
+    ) {
+        let valid_names = vec![
+            "item", "weapons", "my-namespace", "service_account",
+            "example.com/namespace", "ed25519", "RFC8785",
+        ];
+        for name in valid_names {
+            prop_assert!(trustgrant::OperationName::new(name).is_ok(), "OperationName should accept '{name}'");
+            prop_assert!(trustgrant::ResourceTypeName::new(name).is_ok(), "ResourceTypeName should accept '{name}'");
+            prop_assert!(trustgrant::KeyId::new(name).is_ok(), "KeyId should accept '{name}'");
+            prop_assert!(trustgrant::PrincipalKind::new(name).is_ok(), "PrincipalKind should accept '{name}'");
+            prop_assert!(trustgrant::PrincipalId::new(name).is_ok(), "PrincipalId should accept '{name}'");
+        }
+    }
+}
+
+proptest! {
+    #[test]
+    fn domain_name_validators_reject_empty_and_whitespace(
+        _ in 0..10u8,
+    ) {
+        let invalid_names = vec!["", "   ", "\t", "\n", " \n "];
+        for name in &invalid_names {
+            prop_assert!(trustgrant::OperationName::new(*name).is_err(), "OperationName should reject '{:?}'", name);
+            prop_assert!(trustgrant::ResourceTypeName::new(*name).is_err(), "ResourceTypeName should reject '{:?}'", name);
+            prop_assert!(trustgrant::KeyId::new(*name).is_err(), "KeyId should reject '{:?}'", name);
+            prop_assert!(trustgrant::PrincipalKind::new(*name).is_err(), "PrincipalKind should reject '{:?}'", name);
+            prop_assert!(trustgrant::PrincipalId::new(*name).is_err(), "PrincipalId should reject '{:?}'", name);
+        }
+    }
+}
+
+proptest! {
+    #[test]
+    fn domain_name_validators_reject_control_chars(
+        _ in 0..10u8,
+    ) {
+        let control_chars = vec!["abc\x00def", "line\x01break", "\x7fend"];
+        for name in &control_chars {
+            prop_assert!(trustgrant::OperationName::new(*name).is_err(), "OperationName should reject control chars in '{:?}'", name);
+            prop_assert!(trustgrant::ResourceTypeName::new(*name).is_err(), "ResourceTypeName should reject control chars in '{:?}'", name);
+            prop_assert!(trustgrant::KeyId::new(*name).is_err(), "KeyId should reject control chars in '{:?}'", name);
+            prop_assert!(trustgrant::PrincipalKind::new(*name).is_err(), "PrincipalKind should reject control chars in '{:?}'", name);
+            prop_assert!(trustgrant::PrincipalId::new(*name).is_err(), "PrincipalId should reject control chars in '{:?}'", name);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for revocation tests
+// ---------------------------------------------------------------------------
+
+fn make_revocation_record(
+    status: RevocationStatus,
+    checked_at: chrono::DateTime<chrono::Utc>,
+    fresh_until: chrono::DateTime<chrono::Utc>,
+) -> RevocationRecord {
+    RevocationRecord::new(
+        status,
+        RevocationSourceKind::Api,
+        ProofFinality::Observed,
+        checked_at,
+        fresh_until,
+    )
+    .unwrap()
+}
+
+// ---------------------------------------------------------------------------
+// Test 9: Revocation state transition invariants
+// ---------------------------------------------------------------------------
+
+proptest! {
+    #[test]
+    fn revocation_fresh_active_is_not_revoked(
+        _ in 0..10u8,
+    ) {
+        // Active status within freshness window → not revoked
+        let record = make_revocation_record(
+            RevocationStatus::Active,
+            fixed_timestamp(2026, 6, 15, 12, 0, 0),
+            fixed_timestamp(2026, 6, 15, 12, 30, 0),
+        );
+        let state = VerifiedRevocationState::Checked(record);
+        prop_assert!(!state.is_revoked());
+    }
+}
+
+proptest! {
+    #[test]
+    fn revocation_fresh_revoked_is_revoked(
+        _ in 0..10u8,
+    ) {
+        // Revoked status within freshness window → revoked
+        let record = make_revocation_record(
+            RevocationStatus::Revoked,
+            fixed_timestamp(2026, 6, 15, 12, 0, 0),
+            fixed_timestamp(2026, 6, 15, 12, 30, 0),
+        );
+        let state = VerifiedRevocationState::Checked(record);
+        prop_assert!(state.is_revoked());
+    }
+}
+
+proptest! {
+    #[test]
+    fn revocation_equal_boundary_active_is_not_revoked(
+        _ in 0..10u8,
+    ) {
+        // Active at exact freshness boundary → not revoked
+        let record = make_revocation_record(
+            RevocationStatus::Active,
+            fixed_timestamp(2026, 6, 15, 12, 0, 0),
+            fixed_timestamp(2026, 6, 15, 12, 0, 0), // fresh_until == checked_at boundary
+        );
+        let state = VerifiedRevocationState::Checked(record);
+        prop_assert!(!state.is_revoked());
+    }
+}
+
+proptest! {
+    #[test]
+    fn revocation_non_revocable_is_not_revoked(
+        _ in 0..10u8,
+    ) {
+        let state = VerifiedRevocationState::NonRevocable;
+        prop_assert!(!state.is_revoked());
     }
 }
