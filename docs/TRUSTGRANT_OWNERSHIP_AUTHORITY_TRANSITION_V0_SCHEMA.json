@@ -94,8 +94,7 @@
       "required": [
         "kind",
         "all",
-        "values",
-        "expressions"
+        "values"
       ],
       "properties": {
         "kind": {
@@ -103,8 +102,7 @@
           "minLength": 1
         },
         "all": {
-          "type": "boolean",
-          "const": false
+          "type": "boolean"
         },
         "values": {
           "type": "array",
@@ -114,10 +112,21 @@
           }
         },
         "expressions": {
-          "type": "null"
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "$comment": "Wire format. Validation rejects all=true and non-null expressions."
     },
     "transitionResourceType": {
       "type": "object",

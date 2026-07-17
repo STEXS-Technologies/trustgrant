@@ -25,7 +25,7 @@ with the same inputs will never succeed.
 | `UnsupportedSelectorExpressionPredicate` | A selector expression uses an unsupported predicate. | A selector uses `regex` or another predicate that the implementation does not support. |
 | `InvalidSelectorExpressionSyntax` | A selector expression has invalid syntax. | A selector expression string is malformed and cannot be parsed. |
 | `DocumentTooLarge` | A document exceeds the maximum allowed size. | The trust grant JSON document is larger than the implementation limit (e.g., 64 KiB). |
-| `CollectionTooLarge` | A collection exceeds the maximum allowed number of items. | The `selectors` array contains more entries than the maximum allowed. |
+| `CollectionTooLarge` | A collection exceeds the maximum allowed number of items. | A collection field (selectors, audience entries, discovery keys, revocation endpoints, operation names, etc.) contains more entries than the maximum allowed. |
 | `StringTooLong` | A string field exceeds the maximum allowed size in bytes. | A `key_id` or `operation` value is longer than the implementation limit (e.g., 256 bytes). |
 | `DuplicateSelector` | A duplicate selector is present in the document. | The same field selector appears twice in the `selectors` array. |
 | `DuplicateKeyId` | A duplicate key ID is present in the discovery material. | The same `key_id` appears in multiple keys within an authority discovery document. |
@@ -82,6 +82,12 @@ with the same inputs will never succeed.
 | `InvalidKeyValidityWindow` | The key validity window has `not_before` after `not_after`. | The key's validity end precedes its start. |
 | `ZeroRevision` | The revision number is zero. | A document was created with `revision: 0` but revision must be ≥ 1. |
 | `InvalidMintQuantity` | The mint quantity is zero. | A mint context was created with `with_quantity(0)` but quantity must be at least 1. |
+| `MissingMutationIntentId` | A state-changing execution request requires an intent ID. | A `MutationRequest` was submitted without an `intent_id`. |
+| `MissingExpectedResourceVersion` | A state-changing existing-resource request requires an expected resource version. | An existing-resource mutation was submitted without `expected_version`. |
+| `MissingResourceTypeBinding` | Resource reference is missing its canonical resource type. | A `ResourceRef` was submitted without a `resource_type`. |
+| `MissingTemplateId` | Mint template reference is missing its template identifier. | A `TemplateRef` was submitted without a `template_id`. |
+| `InvalidMutationResourceBinding` | Resource binding is incompatible with the requested operation. | A mint binding was used for a non-mint operation or vice versa. |
+| `ResourceTypeBindingMismatch` | Resource reference type does not match the request resource type. | The `resource_type` in the resource reference does not match the request's resource type. |
 
 ## Recoverable errors (safe to retry)
 

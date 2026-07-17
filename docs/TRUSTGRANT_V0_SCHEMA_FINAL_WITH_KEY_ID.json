@@ -181,7 +181,7 @@
       },
       "required": ["name", "version"],
       "additionalProperties": false,
-      "description": "Optional interoperability profile declaration. Without a profile, operations.all only authorizes built-in operations (recognize for v0)."
+      "description": "Optional interoperability profile declaration. Operations must be listed explicitly in allow/deny lists; operations.all is not supported."
     }
   },
   "additionalProperties": false,
@@ -189,9 +189,7 @@
     "scope": {
       "type": "object",
       "required": [
-        "all",
-        "allow",
-        "deny"
+        "all"
       ],
       "properties": {
         "all": {

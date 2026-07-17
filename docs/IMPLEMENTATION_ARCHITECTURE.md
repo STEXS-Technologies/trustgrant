@@ -26,7 +26,7 @@ The crate is intended to implement the full TrustGrant v0 suite:
 - revocation status handling
 - ownership-authority transition handling
 - normalization into verified grant records
-- evaluation of `recognize`, `mint`, and service-defined operations
+- evaluation of the built-in operations (recognize and create) and service-defined operations
 
 The crate must remain runtime-agnostic and transport-agnostic so it can later be
 extracted into its own repository and published independently.
@@ -188,12 +188,14 @@ The implementation is organized as 11 separate crates under `crates/`:
 ```text
 crates/
 ├── trustgrant-error/          — Error types and deny reasons
-│   └── src/trustgrant.rs
+│   ├── src/trustgrant.rs
+│   └── src/limits.rs
 ├── trustgrant-domain/         — Domain models (grants, scopes, capabilities)
 │   ├── src/ids.rs
 │   ├── src/names.rs
 │   ├── src/authority.rs
 │   ├── src/ownership.rs
+│   ├── src/lineage.rs
 │   ├── src/selector_expression.rs
 │   └── src/canonicalization.rs
 ├── trustgrant-revocation/     — Revocation source policy
@@ -223,6 +225,7 @@ crates/
 │   ├── src/pipeline.rs
 │   ├── src/policy.rs
 │   ├── src/record.rs
+│   ├── src/signature.rs
 │   └── src/verified_grant.rs
 ├── trustgrant-issue/          — Grant issuance
 │   └── src/draft.rs
@@ -230,7 +233,8 @@ crates/
 │   ├── src/request.rs
 │   ├── src/decision.rs
 │   ├── src/engine.rs
-│   └── src/execution.rs
+│   ├── src/execution.rs
+│   └── src/kani.rs
 └── trustgrant/                — Facade crate (re-exports everything)
     └── src/lib.rs
 ```
