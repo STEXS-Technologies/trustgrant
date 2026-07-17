@@ -167,13 +167,22 @@ jobs:
             trustgrant-evaluate trustgrant
           do
             echo "Publishing $crate..."
-            output=$(cargo publish -p "$crate" 2>&1) && continue
-            if echo "$output" | grep -q "already exists on crates.io"; then
-              echo "  $crate already published, skipping"
-              continue
-            fi
-            echo "$output"
-            exit 1
+            while true; do
+              output=$(cargo publish -p "$crate" 2>&1) && break
+              if echo "$output" | grep -q "already exists on crates.io"; then
+                echo "  $crate already published, skipping"
+                break
+              fi
+              if echo "$output" | grep -q "429"; then
+                echo "  Rate limited, waiting 60s..."
+                sleep 60
+                continue
+              fi
+              echo "$output"
+              exit 1
+            done
+            echo "  Waiting 30s before next crate..."
+            sleep 30
           done
           echo "All crates published"
         env:
