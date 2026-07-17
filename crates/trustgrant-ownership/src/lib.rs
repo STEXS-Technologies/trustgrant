@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate)]
+
 pub mod canonicalize;
 pub mod chain;
 pub mod verify;

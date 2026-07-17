@@ -21,6 +21,11 @@ use trustgrant_revocation::{
     RevocationStatusProof,
 };
 
+/// A revocation proof bundled directly into a [`TrustGrantProofBundle`].
+///
+/// Combines the raw revocation status proof with its source kind, finality
+/// level, and freshness policy so the verification pipeline can resolve it
+/// without external lookups.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BundleRevocationProof {
     proof: RevocationStatusProof,
@@ -30,7 +35,7 @@ pub struct BundleRevocationProof {
 }
 
 impl BundleRevocationProof {
-    #[must_use = "bundle revocation proof should be assembled before verification"]
+    /// Bundle revocation proof should be assembled before verification.
     pub const fn new(
         proof: RevocationStatusProof,
         source_kind: RevocationSourceKind,
@@ -65,6 +70,12 @@ impl BundleRevocationProof {
     }
 }
 
+/// An offline proof bundle that carries all verification material for one or
+/// more grants.
+///
+/// Bundles discovery documents, delegated-principal key documents,
+/// revocation proofs, and ownership-transition chains into a single
+/// self-contained source that implements all three proof-source traits.
 #[derive(Debug, Default, Clone)]
 pub struct TrustGrantProofBundle {
     discovery_documents: BTreeMap<AuthorityId, AuthorityDiscoveryDocument>,
@@ -77,12 +88,22 @@ pub struct TrustGrantProofBundle {
 }
 
 impl TrustGrantProofBundle {
-    #[must_use = "empty proof bundles may be populated incrementally"]
+    /// Creates a new empty proof bundle.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_verify::TrustGrantProofBundle;
+    ///
+    /// let bundle = TrustGrantProofBundle::new();
+    /// // Populate with fluent builders:
+    /// // let bundle = bundle.with_discovery_document(doc)?;
+    /// ```
     pub fn new() -> Self {
         Self::default()
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
     ///
     /// # Errors
     ///
@@ -96,7 +117,7 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
     ///
     /// # Errors
     ///
@@ -110,7 +131,7 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
     ///
     /// # Errors
     ///
@@ -124,7 +145,7 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "proof bundles may be assembled fluently before verification"]
+    /// Proof bundles may be assembled fluently before verification.
     ///
     /// # Errors
     ///
@@ -139,7 +160,7 @@ impl TrustGrantProofBundle {
         Ok(self)
     }
 
-    #[must_use = "shared proof bundles may act as all source types"]
+    /// Shared proof bundles may act as all source types.
     pub fn as_sources(&self) -> VerificationSources<'_> {
         VerificationSources::new(self, self, self)
     }
@@ -401,7 +422,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
 
@@ -445,7 +466,7 @@ mod tests {
                 .unwrap_or_else(|error| panic!("proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
         assert!(bundle.insert_revocation_proof(proof.clone()).is_ok());
@@ -652,7 +673,7 @@ mod tests {
                 .unwrap_or_else(|error| panic!("proof should parse: {error}")),
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
-                RevocationFreshnessPolicy::new(120, 900)
+                RevocationFreshnessPolicy::new(86400, 86400)
                     .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
             );
             bundle
@@ -667,7 +688,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("overflow proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
 
@@ -691,7 +712,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("first revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
         let second = BundleRevocationProof::new(
@@ -701,7 +722,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("second revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         );
 
@@ -1023,7 +1044,7 @@ mod tests {
       "default_audience_scope":null,
       "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
       "global_constraints":null,
-      "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+      "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
       "issued_at":"2026-04-07T12:00:00Z",
       "signature":"base64-signature",
       "issuer_principal":null
@@ -1280,7 +1301,7 @@ mod tests {
                     .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
-                RevocationFreshnessPolicy::new(120, 900)
+                RevocationFreshnessPolicy::new(86400, 86400)
                     .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
             ))
             .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));

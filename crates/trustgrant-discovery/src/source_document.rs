@@ -42,17 +42,19 @@ impl DiscoveryRevocationPolicy {
         })
     }
 
-    #[must_use = "status endpoint participates in revocation resolution"]
+    /// Status endpoint participates in revocation resolution.
     pub fn status_endpoint(&self) -> &str {
         &self.status_endpoint
     }
 
-    #[must_use = "non-revoked ttl participates in freshness normalization"]
+    /// Non-revoked ttl participates in freshness normalization.
+    #[must_use]
     pub const fn non_revoked_ttl_seconds(&self) -> u64 {
         self.non_revoked_ttl_seconds
     }
 
-    #[must_use = "max stale seconds participates in freshness normalization"]
+    /// Max stale seconds participates in freshness normalization.
+    #[must_use]
     pub const fn max_stale_seconds(&self) -> u64 {
         self.max_stale_seconds
     }
@@ -64,14 +66,16 @@ pub struct DiscoveryDelegation {
 }
 
 impl DiscoveryDelegation {
-    #[must_use = "principal key endpoint participates in delegated key resolution"]
+    /// Principal key endpoint participates in delegated key resolution.
+    #[must_use]
     pub fn new(principal_key_endpoint: impl Into<CompactString>) -> Self {
         Self {
             principal_key_endpoint: principal_key_endpoint.into(),
         }
     }
 
-    #[must_use = "principal key endpoint participates in delegated key resolution"]
+    /// Principal key endpoint participates in delegated key resolution.
+    #[must_use]
     pub fn principal_key_endpoint(&self) -> &str {
         &self.principal_key_endpoint
     }
@@ -90,6 +94,25 @@ pub struct AuthorityDiscoveryDocument {
 
 impl AuthorityDiscoveryDocument {
     /// Resolves one root-authority signer binding from discovery material.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use trustgrant_discovery::parse_authority_discovery_document;
+    /// # let doc = parse_authority_discovery_document(r#"{
+    /// #   "authority_id":"https://issuer.example.com",
+    /// #   "keys":[{"key_id":"root-key-1","algorithm":"ed25519","public_key":"base64-key","not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}],
+    /// #   "signature_profile":{"format":"jcs+ed25519","canonicalization":"RFC8785"},
+    /// #   "issued_at":"2026-04-07T12:00:00Z"
+    /// # }"#).unwrap();
+    /// use trustgrant_domain::{AuthorityId, KeyId};
+    ///
+    /// let authority = AuthorityId::new("https://issuer.example.com").unwrap();
+    /// let key_id = KeyId::new("root-key-1").unwrap();
+    /// let binding = doc.resolve_root_signer_binding(&authority, &key_id)
+    ///     .expect("root signer binding resolves");
+    /// assert_eq!(binding.issuer_authority(), &authority);
+    /// ```
     ///
     /// # Errors
     ///
@@ -119,37 +142,43 @@ impl AuthorityDiscoveryDocument {
         ))
     }
 
-    #[must_use = "authority id participates in issuer discovery validation"]
+    /// Authority id participates in issuer discovery validation.
     pub const fn authority_id(&self) -> &AuthorityId {
         &self.authority_id
     }
 
-    #[must_use = "keys participate in signing-key lookup"]
+    /// Keys participate in signing-key lookup.
+    #[must_use]
     pub fn keys(&self) -> &[AuthorityKeyRecord] {
         &self.keys
     }
 
-    #[must_use = "signature profile participates in canonical verification"]
+    /// Signature profile participates in canonical verification.
+    #[must_use]
     pub const fn signature_profile(&self) -> &SignatureProfile {
         &self.signature_profile
     }
 
-    #[must_use = "revocation policy participates in proof-source defaults"]
+    /// Revocation policy participates in proof-source defaults.
+    #[must_use]
     pub const fn revocation_policy(&self) -> Option<&DiscoveryRevocationPolicy> {
         self.revocation_policy.as_ref()
     }
 
-    #[must_use = "revocation endpoints participate in source-specific resolution"]
+    /// Revocation endpoints participate in source-specific resolution.
+    #[must_use]
     pub fn revocation_endpoints(&self) -> &[CompactString] {
         &self.revocation_endpoints
     }
 
-    #[must_use = "issued_at participates in discovery audit"]
+    /// Issued_at participates in discovery audit.
+    #[must_use]
     pub const fn issued_at(&self) -> DateTime<Utc> {
         self.issued_at
     }
 
-    #[must_use = "delegation metadata participates in delegated-key routing"]
+    /// Delegation metadata participates in delegated-key routing.
+    #[must_use]
     pub const fn delegation(&self) -> Option<&DiscoveryDelegation> {
         self.delegation.as_ref()
     }
@@ -201,17 +230,19 @@ impl DelegatedPrincipalKeyDocument {
         ))
     }
 
-    #[must_use = "authority id participates in delegated-key routing"]
+    /// Authority id participates in delegated-key routing.
     pub const fn authority_id(&self) -> &AuthorityId {
         &self.authority_id
     }
 
-    #[must_use = "principal participates in delegated-key routing"]
+    /// Principal participates in delegated-key routing.
+    #[must_use]
     pub const fn principal(&self) -> &DelegatedPrincipalRef {
         &self.principal
     }
 
-    #[must_use = "keys participate in delegated key lookup"]
+    /// Keys participate in delegated key lookup.
+    #[must_use]
     pub fn keys(&self) -> &[AuthorityKeyRecord] {
         &self.keys
     }
@@ -311,6 +342,9 @@ impl TryFrom<RawAuthorityDiscoveryDocument> for AuthorityDiscoveryDocument {
 
     fn try_from(raw: RawAuthorityDiscoveryDocument) -> Result<Self, Self::Error> {
         ensure_collection_limit("discovery.keys", raw.keys.len(), MAX_DISCOVERY_KEYS)?;
+        if raw.keys.is_empty() {
+            return Err(TrustGrantError::InvalidDiscoveryDocument);
+        }
         let authority_id = AuthorityId::new(raw.authority_id)?;
         let keys = collect_unique_key_records(raw.keys)?;
         let signature_profile = SignatureProfile::new(
@@ -377,6 +411,23 @@ impl TryFrom<RawDelegatedPrincipalKeyDocument> for DelegatedPrincipalKeyDocument
 
 /// Parses and normalizes one authority discovery document.
 ///
+/// # Examples
+///
+/// ```rust
+/// use trustgrant_discovery::parse_authority_discovery_document;
+///
+/// let json = r#"{
+///   "authority_id":"https://issuer.example.com",
+///   "keys":[{"key_id":"root-key-1","algorithm":"ed25519","public_key":"base64-key","not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}],
+///   "signature_profile":{"format":"jcs+ed25519","canonicalization":"RFC8785"},
+///   "issued_at":"2026-04-07T12:00:00Z"
+/// }"#;
+///
+/// let doc = parse_authority_discovery_document(json)
+///     .expect("valid discovery document");
+/// assert_eq!(doc.authority_id().as_str(), "https://issuer.example.com");
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`TrustGrantError`] when the JSON or normalized discovery state is
@@ -388,6 +439,22 @@ pub fn parse_authority_discovery_document(
 }
 
 /// Parses and normalizes one delegated-principal key document.
+///
+/// # Examples
+///
+/// ```rust
+/// use trustgrant_discovery::parse_delegated_principal_key_document;
+///
+/// let json = r#"{
+///   "authority_id":"https://issuer.example.com",
+///   "principal":{"kind":"service","id":"issuer-worker"},
+///   "keys":[{"key_id":"delegated-key","algorithm":"ed25519","public_key":"base64-key","not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z","revoked":false}]
+/// }"#;
+///
+/// let doc = parse_delegated_principal_key_document(json)
+///     .expect("valid delegated principal document");
+/// assert_eq!(doc.principal().id().as_str(), "issuer-worker");
+/// ```
 ///
 /// # Errors
 ///

@@ -2,7 +2,11 @@
 name = "trustgrant"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Facade crate re-exporting all TrustGrant protocol types for convenience"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-discovery = { path = "../trustgrant-discovery" }
@@ -17,12 +21,12 @@ trustgrant-revocation = { path = "../trustgrant-revocation" }
 trustgrant-verify = { path = "../trustgrant-verify" }
 
 [dev-dependencies]
-chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
+chrono.workspace = true
 criterion = { version = "0.5.1", default-features = false, features = ["cargo_bench_support"] }
 proptest = "1.4"
-serde_json = "1.0.147"
-thiserror = { version = "2.0.18", default-features = false }
-url = "2"
+serde_json.workspace = true
+thiserror.workspace = true
+url.workspace = true
 ed25519-dalek = { version = "2", features = ["pem"] }
 hex = "0.4"
 rand = "0.8"

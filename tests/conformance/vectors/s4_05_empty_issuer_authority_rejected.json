@@ -1,0 +1,6 @@
+{
+  "spec_section": "4",
+  "description": "empty issuer_authority should be rejected",
+  "overrides": { "issuer_authority": "" },
+  "assert": { "validation": "rejected" }
+}

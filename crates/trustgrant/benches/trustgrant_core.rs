@@ -16,8 +16,8 @@ use trustgrant::{
     OwnershipTransitionParties, OwnershipTransitionRecord, OwnershipTransitionVerifier,
     OwnershipVerificationRecord, ProofFinality, RawOwnershipTransitionDocument,
     RawTrustGrantDocument, RequestedCapability, RequestedOperation, ResolvedSignerBinding,
-    ResourceContext, ResourceTypeName, RevocationFreshnessPolicy, RevocationRecord,
-    RevocationSourceKind, RevocationStatus, SelectorExpression, SignatureProfile,
+    ResourceBinding, ResourceContext, ResourceRef, ResourceTypeName, RevocationFreshnessPolicy,
+    RevocationRecord, RevocationSourceKind, RevocationStatus, SelectorExpression, SignatureProfile,
     SignatureVerificationRequest, SignatureVerifier, TransitionId, TransitionSeriesId,
     TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError, TrustGrantProofBundle,
     ValidatedTrustGrantDocument, VerificationContext, VerificationMetadata, VerificationPipeline,
@@ -42,7 +42,7 @@ const VALID_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}],
   "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -148,7 +148,7 @@ const SUCCESSOR_OWNERSHIP_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"id","all":false,"values":["canonical_item_1"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["custom:use"],"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":null
@@ -352,10 +352,10 @@ fn trustgrant_benchmarks(criterion: &mut Criterion) {
         let engine = EvaluationEngine::new();
 
         bench.iter(|| {
-            engine.evaluate(
+            black_box(engine.evaluate(
                 black_box(&verified_for_evaluation),
                 black_box(&evaluation_request),
-            )
+            ))
         });
     });
     evaluation_group.finish();
@@ -622,7 +622,7 @@ fn delegated_proof_bundle() -> TrustGrantProofBundle {
             RevocationSourceKind::Api,
             ProofFinality::Observed,
             must(
-                RevocationFreshnessPolicy::new(120, 900),
+                RevocationFreshnessPolicy::new(86400, 86400),
                 "freshness policy should be valid",
             ),
         )),
@@ -670,7 +670,7 @@ fn ownership_proof_bundle() -> TrustGrantProofBundle {
             RevocationSourceKind::Api,
             ProofFinality::Observed,
             must(
-                RevocationFreshnessPolicy::new(120, 900),
+                RevocationFreshnessPolicy::new(86400, 86400),
                 "freshness policy should be valid",
             ),
         )),
@@ -697,6 +697,13 @@ fn recognize_request() -> EvaluationRequest {
     must(
         EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(
+                must(
+                    AuthorityId::new("https://issuer.example.com"),
+                    "origin authority should be valid",
+                ),
+                "resource-42".to_owned(),
+            )),
             must(
                 AuthorityId::new("https://target.example.com"),
                 "target authority should be valid",

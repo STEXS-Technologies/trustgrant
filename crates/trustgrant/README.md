@@ -9,6 +9,9 @@ constraints. Grants are revocable, time-bound, and verifiable offline.
 
 ## Quick example
 
+This is a conceptual excerpt, not a complete signed v0 document. The full required wire
+shape is in the [protocol spec](../../docs/TRUSTGRANT_V0_SPEC.md).
+
 ```json
 {
   "trustgrant_id": "tg_550e8400-e29b-41d4-a716-446655440000",
@@ -34,10 +37,10 @@ It does not own:
 
 ## Documentation
 
-- [Protocol spec](docs/TRUSTGRANT_V0_SPEC.md) — full specification
-- [Use cases](docs/USE_CASES.md) — what problems TrustGrant solves
-- [Implementation guide](docs/IMPLEMENTATION_ARCHITECTURE.md) — crate architecture
-- [Integration guide](docs/INTEGRATION_GUIDE.md) — how to use the Rust crate
-- [Error boundaries](docs/ERROR_BOUNDARIES.md) — which errors are retryable
-- [Tracing guide](docs/TRACING_GUIDE.md) — observability with tracing
-- [Cross-impl interop](../interop/IMPLEMENTATION_GUIDE.md) — implementing in Go, TS, etc.
+- [Protocol spec](../../docs/TRUSTGRANT_V0_SPEC.md) — full specification
+- [Use cases](../../docs/USE_CASES.md) — what problems TrustGrant solves
+- [Implementation guide](../../docs/IMPLEMENTATION_ARCHITECTURE.md) — crate architecture
+- [Integration guide](../../docs/INTEGRATION_GUIDE.md) — how to use the Rust crate
+- [Error boundaries](../../docs/ERROR_BOUNDARIES.md) — which errors are retryable
+- [Tracing guide](../../docs/TRACING_GUIDE.md) — observability with tracing
+- [Cross-impl interop](../../docs/IMPLEMENTATION_GUIDE.md) — implementing in Go, TS, etc.

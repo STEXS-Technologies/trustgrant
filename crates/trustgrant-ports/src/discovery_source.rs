@@ -11,18 +11,18 @@ use crate::VerificationContext;
 /// You do NOT need to implement this trait if you already have the discovery
 /// documents as structured domain types. The protocol core works with
 /// [`AuthorityDiscoveryDocument`] and [`DelegatedPrincipalKeyDocument`] directly
-/// via [`TrustGrantProofBundle`].
+/// via `TrustGrantProofBundle`.
 ///
 /// Implement this trait only when your application fetches raw JSON from
 /// authority endpoints and needs a standard contract for that transport layer.
 ///
-/// # Relationship to [`AuthorityDiscoverySource`]
+/// # Relationship to `AuthorityDiscoverySource`
 ///
-/// - [`DiscoverySource`] — fetches raw JSON documents from authority endpoints.
+/// - `DiscoverySource` — fetches raw JSON documents from authority endpoints.
 ///   Optional. Used by the **application** to assemble proof bundles.
-/// - [`AuthorityDiscoverySource`](crate::AuthorityDiscoverySource) — resolves
-///   signer bindings from already-fetched documents. Used by the **verification
-///   pipeline** via [`VerificationSources`](crate::VerificationSources).
+/// - `AuthorityDiscoverySource` — resolves
+///   signer bindings from already-fetched documents. Used by the **verification**
+///   pipeline via `VerificationSources`.
 ///
 /// # Example (mock)
 ///

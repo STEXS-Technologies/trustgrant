@@ -133,12 +133,13 @@ pub struct OwnershipTransitionSignature {
 }
 
 impl OwnershipTransitionSignature {
-    #[must_use = "transition signature key id is required for verification"]
+    /// Transition signature key id is required for verification.
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
 
-    #[must_use = "transition signature bytes are required for verification"]
+    /// Transition signature bytes are required for verification.
+    #[must_use]
     pub fn signature(&self) -> &str {
         &self.signature
     }
@@ -152,17 +153,20 @@ pub struct OwnershipTransitionAcceptance {
 }
 
 impl OwnershipTransitionAcceptance {
-    #[must_use = "acceptance timestamp is required for validity checks"]
+    /// Acceptance timestamp is required for validity checks.
+    #[must_use]
     pub const fn accepted_at(&self) -> DateTime<Utc> {
         self.accepted_at
     }
 
-    #[must_use = "acceptance key id is required for signature verification"]
+    /// Acceptance key id is required for signature verification.
+    #[must_use]
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
 
-    #[must_use = "acceptance signature bytes are required for verification"]
+    /// Acceptance signature bytes are required for verification.
+    #[must_use]
     pub fn signature(&self) -> &str {
         &self.signature
     }
@@ -180,37 +184,44 @@ pub struct ValidatedOwnershipTransitionDocument {
 }
 
 impl ValidatedOwnershipTransitionDocument {
-    #[must_use = "lineage is required for transition chain verification"]
+    /// Lineage is required for transition chain verification.
+    #[must_use]
     pub const fn lineage(&self) -> &OwnershipTransitionLineage {
         &self.lineage
     }
 
-    #[must_use = "parties are required for ownership verification"]
+    /// Parties are required for ownership verification.
+    #[must_use]
     pub const fn parties(&self) -> &OwnershipTransitionParties {
         &self.parties
     }
 
-    #[must_use = "resource scope is required for ownership verification"]
+    /// Resource scope is required for ownership verification.
+    #[must_use]
     pub const fn resource_scope(&self) -> &BTreeMap<ResourceTypeName, OwnershipResourceScope> {
         &self.resource_scope
     }
 
-    #[must_use = "time window participates in transition validity checks"]
+    /// Time window participates in transition validity checks.
+    #[must_use]
     pub const fn time_window(&self) -> Option<&OwnershipTimeWindow> {
         self.time_window.as_ref()
     }
 
-    #[must_use = "effective_at participates in transition ordering"]
+    /// Effective_at participates in transition ordering.
+    #[must_use]
     pub const fn effective_at(&self) -> DateTime<Utc> {
         self.effective_at
     }
 
-    #[must_use = "predecessor signature is required for proof verification"]
+    /// Predecessor signature is required for proof verification.
+    #[must_use]
     pub const fn predecessor_signature(&self) -> &OwnershipTransitionSignature {
         &self.predecessor_signature
     }
 
-    #[must_use = "successor acceptance is required for proof verification"]
+    /// Successor acceptance is required for proof verification.
+    #[must_use]
     pub const fn successor_acceptance(&self) -> &OwnershipTransitionAcceptance {
         &self.successor_acceptance
     }

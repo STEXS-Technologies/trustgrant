@@ -1,0 +1,6 @@
+{
+  "spec_section": "4",
+  "description": "empty key_id should be rejected",
+  "overrides": { "key_id": "" },
+  "assert": { "validation": "rejected" }
+}

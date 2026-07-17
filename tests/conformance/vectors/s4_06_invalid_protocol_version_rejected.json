@@ -1,0 +1,6 @@
+{
+  "spec_section": "4",
+  "description": "version other than 0 should be rejected",
+  "overrides": { "version": 1 },
+  "assert": { "validation": "rejected" }
+}

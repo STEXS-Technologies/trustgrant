@@ -24,23 +24,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Delegated principal key resolution
 - Backend-agnostic port traits: `DiscoverySource`, `RevocationSource`, `StorageSource`
 - `tracing` instrumentation at key verification and evaluation decision points
-- Selector-based matching with built-in kinds (authority, namespace, player_id)
+- Selector-based matching with built-in kinds (authority, namespace, actor)
 - Custom operation scope with allow/deny lists
 - Audience scope with authority and principal constraints
 - Mint constraints (max total, max per user)
 - Compact string storage for optimized heap allocation (`compact-str`)
 - UTF-16 code-unit ordering for canonical map keys (`Utf16Key`)
-- 29 interop test vectors covering all 19 evaluation outcomes
-- 37 conformance test vectors covering spec validation rules (§2.5–§12)
+- 41 interop test vectors covering all 21 evaluation outcomes
+- 47 conformance test vectors covering spec validation rules (§2.5–§12)
 - 54 Rust conformance tests (spec sections)
-- 14 formal property-based tests (deny subtractive, allow explicit, fail-closed, etc.)
-- 2 Kani proof harnesses verifying selector matching core algorithm
+- 16 fuzz targets covering all parse/verify/evaluate paths (including bundle proof assembly, draft serialization)
+- 3 Kani proof harnesses verifying selector matching and full-pipeline invariants
+- 19 atomic executor tests (idempotency, stale version, quotas, quantity>1, counter overflow, callbacks, threading)
+- 18 proof source tests (discovery, delegation, revocation, ownership chains, duplicate rejection, empty sources)
+- 16 error scenario tests (all deny reasons at integration boundary, stale data, block_minting_only)
 - End-to-end test with real ed25519 signatures (full pipeline: draft → canonicalize → sign → verify → evaluate)
 - 12 integration tests covering P1/P2/P3 gaps (capabilities, origin authority, edge cases, boundaries)
 - Real signature verification e2e test
 - Malformed vector test for runner defensive paths
 - WASM build target (`wasm32-unknown-unknown`)
-- Profiling infrastructure (frame pointers, profiling profile, flamegraph Makefile targets)
+- Profiling infrastructure (frame pointers, profiling profile, flamegraph cargo-make targets)
 - CI pipeline (check, clippy, fmt, test, bench, interop, audit, fuzz, smoke, coverage)
 
 ### Changed
@@ -51,15 +54,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance**: direct datetime buffer write (−55% canonicalize), Utf16Key newtype (−55% canonicalize), compact_str for raw documents (−33% parse)
 - **Origin authority constraint**: spec §13 step 3 now enforced in evaluation engine
 - **Docs simplified**: README now concise with quick example, all P-number jargon removed
-- **Port traits documented**: `DiscoverySource`, `RevocationSource`, `StorageSource` added to architecture docs
+- **P0 protocol hardening (all 8 items)**:
+  - Origin binding mandatory via `ResourceBinding` — every evaluation request binds to a resource
+  - Atomic execution boundary (`MutationRequest`, `intent_id`, `expected_version`, `EvaluationOutcome`)
+  - Race-safe mint quotas — authoritative counters injected by executor, `pub(crate)` API
+  - Mint idempotency + supply semantics — `MintContext.with_quantity()`, engine checks `current + quantity > max`
+  - Typed transaction envelope — `MutationRequest.actor`, `envelope_expires_at`, `intent_id` required
+  - Selector provenance — `verify_selectors()` required before engine evaluation for mint ops
+  - Post-revocation effect — `PostRevocationEffect` enum (`BlockAll`/`BlockMintingOnly`), wire-format optional
+  - Remove implicit mint authorization — `operations=null` no longer allows mint, explicit `"create"` required
+  - Remove `operations.all` wildcard — all operations must be explicitly listed in allow/deny
+  - Reject duplicate audience authorities — `DuplicateAudienceAuthority` error on duplicate `authority_id`
 
 ### Fixed
 
 - Spec canonical example: `"authority_id"` → `"authority"` in target scope selector
-- EvaluationDenyReason Display impl: all 20 variants now tested
+- EvaluationDenyReason Display impl: all 21 variants now tested
 - Pre-existing clippy violations: 69 violations fixed across workspace
 - Epoch timestamp test: multi-line JSON parsing quirk fixed
 - All doc-tests: `rust,ignore` blocks made compilable or replaced with text
+- `#[must_use]` added to 43 public Result-returning functions across 11 crates
+- 4 broken intra-doc links fixed (`ValidatedTrustGrantDocument`, `with_actor`, `with_envelope_expiry`, `AtomicInventoryExecutor`)
+- `MintContext::with_quantity` changed from `assert!` to `Result<Self, TrustGrantError>` (security hardening)
+- `InvalidMintQuantity` error variant added
+- Interop harness extended: stale/stale_revoked revocation overrides, `verified_at` override, `quantity` field in mint_context, `unverified_selectors` flag
 
 ### Removed
 
@@ -73,4 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TRACING_GUIDE.md` — spans, events, and subscriber setup
 - `IMPLEMENTATION_GUIDE.md` (interop) — cross-impl implementation order
 - `AUDIT.md` — deep audit report (local-only)
-- 16 docs total covering all spec sections, architecture, integration, interop
+- 17 Markdown documents and 2 schemas covering the specification, architecture,
+  integration, and interoperability
+- `LICENSE-MIT` and `LICENSE-APACHE` added at repository root

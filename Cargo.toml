@@ -8,6 +8,10 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/STEXS-Technologies/trustgrant"
 description = "A selector-based, certificate-driven protocol for decentralized delegation of authority over resources and operations across independent systems."
+homepage = "https://github.com/STEXS-Technologies/trustgrant"
+documentation = "https://docs.rs/trustgrant"
+keywords = ["authorization", "delegation", "cryptography", "authority", "grants"]
+categories = ["authentication", "cryptography", "rust-patterns"]
 
 [profile.release]
 opt-level = 3
@@ -32,6 +36,18 @@ overflow-checks = true
 incremental = false
 panic = "unwind"
 lto = false
+
+[workspace.dependencies]
+chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
+compact_str = { version = "0.9", features = ["serde"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
+url = { version = "2.5.7", features = ["serde"] }
+uuid = { version = "1.18.1", default-features = false, features = ["v4"] }
+itoa = { version = "1.0.15", default-features = false }
+serde_jcs = { version = "0.2.0", default-features = false }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+thiserror = { version = "2.0.18", default-features = false }
 
 [workspace.lints.rust]
 rust_2024_prelude_collisions = "warn"

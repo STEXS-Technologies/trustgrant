@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate)]
+
 //! Backend-agnostic port traits for the TrustGrant protocol.
 //!
 //! # Architecture
@@ -12,7 +14,7 @@
 //!
 //! - **Already have the data?** Skip the traits entirely. Construct
 //!   `AuthorityDiscoveryDocument`, `RevocationRecord`, etc. directly from your
-//!   existing data and insert them into a [`TrustGrantProofBundle`].
+//!   existing data and insert them into a `TrustGrantProofBundle`.
 //! - **Fetching from endpoints?** Implement [`DiscoverySource`],
 //!   [`RevocationSource`], or [`StorageSource`] as needed. The application
 //!   calls these, assembles the bundle, then calls the verification pipeline.

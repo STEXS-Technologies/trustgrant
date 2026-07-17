@@ -6,19 +6,19 @@ use trustgrant_revocation::RevocationRecord;
 ///
 /// You do NOT need to implement this trait if you already have the revocation
 /// record as a structured domain type. The protocol core works with
-/// [`RevocationRecord`] directly via [`TrustGrantProofBundle`].
+/// [`RevocationRecord`] directly via `TrustGrantProofBundle`.
 ///
 /// Implement this trait only when your application fetches raw revocation
 /// status from authority endpoints and needs a standard contract for that
 /// transport layer.
 ///
-/// # Relationship to [`RevocationProofSource`]
+/// # Relationship to `RevocationProofSource`
 ///
-/// - [`RevocationSource`] — fetches raw revocation status from authority
+/// - `RevocationSource` — fetches raw revocation status from authority
 ///   endpoints. Optional. Used by the **application** to assemble proof bundles.
-/// - [`RevocationProofSource`](crate::RevocationProofSource) — resolves
-///   revocation records from already-fetched proofs. Used by the **verification
-///   pipeline** via [`VerificationSources`](crate::VerificationSources).
+/// - `RevocationProofSource` — resolves
+///   revocation records from already-fetched proofs. Used by the **verification**
+///   pipeline via `VerificationSources`.
 ///
 /// # Example (mock)
 ///

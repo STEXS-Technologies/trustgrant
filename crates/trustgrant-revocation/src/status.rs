@@ -5,10 +5,27 @@ use trustgrant_error::TrustGrantError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The finality level of a revocation proof.
+///
+/// Describes how conclusive the proof is, from an unknown state through
+/// to cryptographically finalized (e.g. on-chain settlement).
 pub enum ProofFinality {
+    /// No finality information is available.
     Unknown,
+    /// The proof was observed from a live endpoint response.
+    ///
+    /// Indicates the revocation status was obtained by calling an
+    /// authority's revocation endpoint at a point in time.
     Observed,
+    /// The proof comes from a trusted snapshot.
+    ///
+    /// Suitable for offline or cached verification where the snapshot
+    /// is considered authoritative by the verifier's policy.
     TrustedSnapshot,
+    /// The proof is cryptographically finalized.
+    ///
+    /// The revocation status has been settled on a blockchain or other
+    /// finality-providing layer and cannot be reversed.
     Finalized,
 }
 
@@ -21,16 +38,26 @@ pub enum RevocationStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The kind of source that produced a revocation proof.
+///
+/// Distinguishes between live API responses, static snapshots, embedded
+/// proof bundles, on-chain state, and other sources. Used by the
+/// verification pipeline to apply posture-aware freshness policies.
 pub enum RevocationSourceKind {
+    /// Live response from an authority's revocation API endpoint.
     Api,
+    /// Static revocation snapshot (e.g. a pre-compiled list).
     Snapshot,
+    /// Revocation proof embedded in a proof bundle.
     ProofBundle,
+    /// On-chain revocation state (e.g. a smart contract).
     ChainState,
+    /// Any other source not covered by the above variants.
     Other,
 }
 
 impl RevocationSourceKind {
-    #[must_use = "verification posture policy must distinguish live from non-live evidence"]
+    /// Verification posture policy must distinguish live from non-live evidence.
     pub const fn is_non_live(self) -> bool {
         matches!(self, Self::Snapshot | Self::ProofBundle)
     }
@@ -71,32 +98,38 @@ impl RevocationRecord {
         })
     }
 
-    #[must_use = "revocation status is required for evaluation and audit"]
+    /// Revocation status is required for evaluation and audit.
+    #[must_use]
     pub const fn status(&self) -> RevocationStatus {
         self.status
     }
 
-    #[must_use = "revocation source kind is required for audit and policy"]
+    /// Revocation source kind is required for audit and policy.
+    #[must_use]
     pub const fn source_kind(&self) -> RevocationSourceKind {
         self.source_kind
     }
 
-    #[must_use = "proof finality is required for posture-aware verification"]
+    /// Proof finality is required for posture-aware verification.
+    #[must_use]
     pub const fn finality(&self) -> ProofFinality {
         self.finality
     }
 
-    #[must_use = "revocation checked_at is required for audit"]
+    /// Revocation checked_at is required for audit.
+    #[must_use]
     pub const fn checked_at(&self) -> DateTime<Utc> {
         self.checked_at
     }
 
-    #[must_use = "revocation freshness must be inspected by callers"]
+    /// Revocation freshness must be inspected by callers.
+    #[must_use]
     pub const fn fresh_until(&self) -> DateTime<Utc> {
         self.fresh_until
     }
 
-    #[must_use = "revocation freshness is required for safe cached verification"]
+    /// Revocation freshness is required for safe cached verification.
+    #[must_use]
     pub fn is_fresh_at(&self, timestamp: DateTime<Utc>) -> bool {
         timestamp <= self.fresh_until
     }
@@ -104,13 +137,21 @@ impl RevocationRecord {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The resolved revocation state after verification.
+///
+/// Indicates whether the TrustGrant is non-revocable (revocation was
+/// never configured) or has been checked against a revocation source
+/// and produced a [`RevocationRecord`].
 pub enum VerifiedRevocationState {
+    /// The grant is non-revocable — no revocation proof was required.
     NonRevocable,
+    /// The grant was checked and a revocation record was produced.
     Checked(RevocationRecord),
 }
 
 impl VerifiedRevocationState {
-    #[must_use = "verification must know whether revocation proof was required"]
+    /// Verification must know whether revocation proof was required.
+    #[must_use]
     pub const fn checked_record(self) -> Option<RevocationRecord> {
         match self {
             Self::NonRevocable => None,
@@ -118,7 +159,8 @@ impl VerifiedRevocationState {
         }
     }
 
-    #[must_use = "evaluation must know whether the checked grant was revoked"]
+    /// Evaluation must know whether the checked grant was revoked.
+    #[must_use]
     pub fn is_revoked(self) -> bool {
         match self {
             Self::NonRevocable => false,

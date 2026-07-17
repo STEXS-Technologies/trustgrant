@@ -95,13 +95,17 @@ impl Borrow<str> for Utf16Key {
     }
 }
 
+/// Identifies the JSON canonicalization algorithm used for deterministic
+/// signing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CanonicalizationProfile {
+    /// RFC 8785 JSON Canonicalization Scheme (JCS).
     Rfc8785,
 }
 
 impl CanonicalizationProfile {
-    #[must_use = "canonicalization profile names are required for discovery-profile matching"]
+    /// Canonicalization profile names are required for discovery-profile matching.
+    #[must_use]
     pub const fn discovery_name(self) -> &'static str {
         match self {
             Self::Rfc8785 => "RFC8785",

@@ -7,10 +7,10 @@ use thiserror::Error;
 use trustgrant::{
     AuthorityId, AuthorityKeyRecord, DelegatedPrincipalRef, EvaluationEngine, EvaluationRequest,
     OwnershipProofKind, OwnershipVerificationRecord, ProofFinality, RawTrustGrantDocument,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceContext,
-    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile, TrustGrantError,
-    ValidatedTrustGrantDocument, VerificationMetadata, VerificationPosture,
-    VerifiedRevocationState, VerifiedTrustGrant,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    SignatureProfile, TrustGrantError, ValidatedTrustGrantDocument, VerificationMetadata,
+    VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
 };
 
 const VALID_TRUSTGRANT_JSON: &str = r#"{
@@ -29,7 +29,7 @@ const VALID_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}],
   "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -67,10 +67,10 @@ fn run() -> Result<u64, EvaluateHotPathError> {
     let mut allowed_count = 0_u64;
 
     for _ in 0..iterations {
-        let decision =
+        let outcome =
             black_box(engine.evaluate(black_box(&verified_grant), black_box(&evaluation_request)));
 
-        if decision.is_allowed() {
+        if outcome.decision().is_allowed() {
             allowed_count = allowed_count.saturating_add(1);
         }
     }
@@ -143,6 +143,10 @@ fn recognize_request() -> Result<EvaluationRequest, EvaluateHotPathError> {
 
     Ok(EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com")?,
+            "resource-42".to_owned(),
+        )),
         AuthorityId::new("https://target.example.com")?,
         AuthorityId::new("https://audience.example.com")?,
         resource,

@@ -22,7 +22,7 @@ pub struct StoredGrantId(pub String);
 /// # Storage format
 ///
 /// The `store()` and `load()` methods work with serialized JSON strings.
-/// The expected format is a [`VerifiedTrustGrantRecord`] (the persistence
+/// The expected format is a `VerifiedTrustGrantRecord` (the persistence
 /// record from `trustgrant-verify`), which contains both the normalized
 /// document and the verification metadata.
 ///

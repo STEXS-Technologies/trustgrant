@@ -1,0 +1,6 @@
+{
+  "spec_section": "4",
+  "description": "malformed trustgrant_id should be rejected (wrong prefix)",
+  "overrides": { "trustgrant_id": "badprefix_123e4567-e89b-12d3-a456-426614174000" },
+  "assert": { "validation": "rejected" }
+}

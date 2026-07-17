@@ -9,7 +9,8 @@ pub struct VerificationPolicy {
 }
 
 impl VerificationPolicy {
-    #[must_use = "verification should use an explicit posture-derived policy"]
+    /// Verification should use an explicit posture-derived policy.
+    #[must_use]
     pub const fn for_posture(posture: VerificationPosture) -> Self {
         match posture {
             VerificationPosture::Online => Self {
@@ -23,27 +24,32 @@ impl VerificationPolicy {
         }
     }
 
-    #[must_use = "revocation finality participates in proof-policy enforcement"]
+    /// Revocation finality participates in proof-policy enforcement.
+    #[must_use]
     pub const fn minimum_revocation_finality(self) -> ProofFinality {
         self.minimum_revocation_finality
     }
 
-    #[must_use = "offline verification may require snapshot-like sources"]
+    /// Offline verification may require snapshot-like sources.
+    #[must_use]
     pub const fn require_non_live_revocation_source(self) -> bool {
         self.require_non_live_revocation_source
     }
 
-    #[must_use = "verification must reject revocation evidence with insufficient finality"]
+    /// Verification must reject revocation evidence with insufficient finality.
+    #[must_use]
     pub fn accepts_revocation_finality(self, finality: ProofFinality) -> bool {
         finality >= self.minimum_revocation_finality
     }
 
-    #[must_use = "verification must reject live revocation sources when posture forbids them"]
+    /// Verification must reject live revocation sources when posture forbids them.
+    #[must_use]
     pub const fn accepts_revocation_source_kind(self, source_kind: RevocationSourceKind) -> bool {
         !self.require_non_live_revocation_source || source_kind.is_non_live()
     }
 
-    #[must_use = "callers may need to distinguish live-source rejection from other posture checks"]
+    /// Callers may need to distinguish live-source rejection from other posture checks.
+    #[must_use]
     pub const fn requires_non_live_revocation_source(self) -> bool {
         self.require_non_live_revocation_source
     }

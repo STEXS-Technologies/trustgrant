@@ -6,9 +6,10 @@ use compact_str::CompactString;
 use trustgrant_discovery::ResolvedSignerBinding;
 use trustgrant_document::RawTrustGrantDocument;
 use trustgrant_document::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-    RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
-    RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTypeCapabilities, RawTypeConstraints,
+    InteroperabilityProfile, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+    RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
+    RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
+    RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedPrincipal, ValidatedResourceType,
@@ -23,6 +24,11 @@ use trustgrant_error::TrustGrantError;
 use trustgrant_ports::VerificationPosture;
 use trustgrant_revocation::VerifiedRevocationState;
 
+/// The normalized (validated + deserialized) trust grant document used by
+/// the evaluation engine.
+///
+/// Produced from a [`ValidatedTrustGrantDocument`] after verification.
+/// Contains all grant fields in a form optimized for fast evaluation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NormalizedTrustGrantDocument {
     lineage: GrantLineage,
@@ -37,6 +43,7 @@ pub struct NormalizedTrustGrantDocument {
     revocation: Option<ValidatedRevocation>,
     issued_at: DateTime<Utc>,
     issuer_principal: Option<ValidatedPrincipal>,
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,10 +60,12 @@ pub(crate) struct NormalizedTrustGrantDocumentParts {
     pub(crate) revocation: Option<ValidatedRevocation>,
     pub(crate) issued_at: DateTime<Utc>,
     pub(crate) issuer_principal: Option<ValidatedPrincipal>,
+    pub(crate) interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl NormalizedTrustGrantDocument {
-    #[must_use = "normalized verified state must stay valid by construction"]
+    /// Normalized verified state must stay valid by construction.
+    #[must_use]
     pub(crate) fn from_parts(parts: NormalizedTrustGrantDocumentParts) -> Self {
         Self {
             lineage: parts.lineage,
@@ -71,67 +80,86 @@ impl NormalizedTrustGrantDocument {
             revocation: parts.revocation,
             issued_at: parts.issued_at,
             issuer_principal: parts.issuer_principal,
+            interoperability_profile: parts.interoperability_profile,
         }
     }
 
-    #[must_use = "normalized lineage is required for evaluation and persistence"]
+    /// Normalized lineage is required for evaluation and persistence.
     pub const fn lineage(&self) -> &GrantLineage {
         &self.lineage
     }
 
-    #[must_use = "issuer authority is required for audit and routing"]
+    /// Issuer authority is required for audit and routing.
+    #[must_use]
     pub const fn issuer_authority(&self) -> &AuthorityId {
         &self.issuer_authority
     }
 
-    #[must_use = "ownership state is required for owner-level evaluation"]
+    /// Ownership state is required for owner-level evaluation.
+    #[must_use]
     pub const fn ownership_authority_state(&self) -> &OwnershipAuthorityState {
         &self.ownership_authority_state
     }
 
-    #[must_use = "key id remains part of normalized audit state"]
+    /// Key id remains part of normalized audit state.
+    #[must_use]
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
 
-    #[must_use = "target scope is required for evaluation"]
+    /// Target scope is required for evaluation.
+    #[must_use]
     pub const fn target_scope(&self) -> &ValidatedScope {
         &self.target_scope
     }
 
-    #[must_use = "capabilities are required for evaluation"]
+    /// Capabilities are required for evaluation.
+    #[must_use]
     pub const fn capabilities(&self) -> &ValidatedCapabilities {
         &self.capabilities
     }
 
-    #[must_use = "default audience scope is required for evaluation fallback"]
+    /// Default audience scope is required for evaluation fallback.
+    #[must_use]
     pub fn default_audience_scope(&self) -> &[ValidatedAudienceEntry] {
         &self.default_audience_scope
     }
 
-    #[must_use = "resource scope is required for evaluation"]
+    /// Resource scope is required for evaluation.
+    #[must_use]
     pub const fn resource_scope(&self) -> &BTreeMap<ResourceTypeName, ValidatedResourceType> {
         &self.resource_scope
     }
 
-    #[must_use = "global time window may constrain grant validity"]
+    /// Global time window may constrain grant validity.
+    #[must_use]
     pub const fn global_time_window(&self) -> Option<&ValidatedTimeWindow> {
         self.global_time_window.as_ref()
     }
 
-    #[must_use = "revocation policy remains part of normalized audit state"]
+    /// Revocation policy remains part of normalized audit state.
+    #[must_use]
     pub const fn revocation(&self) -> Option<&ValidatedRevocation> {
         self.revocation.as_ref()
     }
 
-    #[must_use = "issued_at remains part of normalized audit state"]
+    /// Issued_at remains part of normalized audit state.
+    #[must_use]
     pub const fn issued_at(&self) -> DateTime<Utc> {
         self.issued_at
     }
 
-    #[must_use = "issuer principal remains part of normalized audit state"]
+    /// Issuer principal remains part of normalized audit state.
+    #[must_use]
     pub const fn issuer_principal(&self) -> Option<&ValidatedPrincipal> {
         self.issuer_principal.as_ref()
+    }
+
+    /// Interoperability profile declares the operational context for custom
+    /// operations.
+    #[must_use]
+    pub const fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
+        self.interoperability_profile.as_ref()
     }
 
     pub(crate) fn into_raw_document_for_consistency_check(
@@ -205,6 +233,7 @@ impl NormalizedTrustGrantDocument {
             // document field to be present and non-empty.
             signature: CompactString::from("rehydrated-signature"),
             issuer_principal: self.issuer_principal.as_ref().map(raw_principal),
+            interoperability_profile: self.interoperability_profile.clone(),
         })
     }
 }
@@ -224,10 +253,16 @@ impl From<ValidatedTrustGrantDocument> for NormalizedTrustGrantDocument {
             revocation: document.revocation().cloned(),
             issued_at: document.issued_at(),
             issuer_principal: document.issuer_principal().cloned(),
+            interoperability_profile: document.interoperability_profile().cloned(),
         })
     }
 }
 
+/// Metadata collected during the verification of a TrustGrant document.
+///
+/// Includes the verification timestamp, posture (online/offline/cached),
+/// resolved signer binding, ownership verification record, and revocation
+/// state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerificationMetadata {
     verified_at: DateTime<Utc>,
@@ -238,7 +273,8 @@ pub struct VerificationMetadata {
 }
 
 impl VerificationMetadata {
-    #[must_use = "verification metadata should be attached to verified grants"]
+    /// Verification metadata should be attached to verified grants.
+    #[must_use]
     pub const fn new(
         verified_at: DateTime<Utc>,
         posture: VerificationPosture,
@@ -255,32 +291,41 @@ impl VerificationMetadata {
         }
     }
 
-    #[must_use = "verified_at is required for audit and cache freshness"]
+    /// Verified_at is required for audit and cache freshness.
+    #[must_use]
     pub const fn verified_at(&self) -> DateTime<Utc> {
         self.verified_at
     }
 
-    #[must_use = "verification posture is required for audit and policy"]
+    /// Verification posture is required for audit and policy.
+    #[must_use]
     pub const fn posture(&self) -> VerificationPosture {
         self.posture
     }
 
-    #[must_use = "resolved signer binding is required for audit and persistence"]
+    /// Resolved signer binding is required for audit and persistence.
+    #[must_use]
     pub const fn signer_binding(&self) -> &ResolvedSignerBinding {
         &self.signer_binding
     }
 
-    #[must_use = "ownership verification state is required for audit and lineage handling"]
+    /// Ownership verification state is required for audit and lineage handling.
+    #[must_use]
     pub const fn ownership(&self) -> &OwnershipVerificationRecord {
         &self.ownership
     }
 
-    #[must_use = "revocation state is required for evaluation and freshness policy"]
+    /// Revocation state is required for evaluation and freshness policy.
+    #[must_use]
     pub const fn revocation(&self) -> &VerifiedRevocationState {
         &self.revocation
     }
 }
 
+/// A fully verified TrustGrant ready for evaluation.
+///
+/// Combines the normalized grant document with the verification metadata
+/// (signer binding, ownership, revocation) produced by the pipeline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedTrustGrant {
     document: NormalizedTrustGrantDocument,
@@ -288,7 +333,8 @@ pub struct VerifiedTrustGrant {
 }
 
 impl VerifiedTrustGrant {
-    #[must_use = "verified grants should only be created after signature and proof checks"]
+    /// Verified grants should only be created after signature and proof checks.
+    #[must_use]
     pub fn new(
         document: impl Into<NormalizedTrustGrantDocument>,
         metadata: VerificationMetadata,
@@ -299,27 +345,32 @@ impl VerifiedTrustGrant {
         }
     }
 
-    #[must_use = "verified document state is required for evaluation and audit"]
+    /// Verified document state is required for evaluation and audit.
+    #[must_use]
     pub const fn document(&self) -> &NormalizedTrustGrantDocument {
         &self.document
     }
 
-    #[must_use = "verification metadata is required for evaluation and audit"]
+    /// Verification metadata is required for evaluation and audit.
+    #[must_use]
     pub const fn metadata(&self) -> &VerificationMetadata {
         &self.metadata
     }
 
-    #[must_use = "lineage is required for exact-grant evaluation"]
+    /// Lineage is required for exact-grant evaluation.
+    #[must_use]
     pub const fn lineage(&self) -> &GrantLineage {
         self.document.lineage()
     }
 
-    #[must_use = "issuer authority is required for audit"]
+    /// Issuer authority is required for audit.
+    #[must_use]
     pub const fn issuer_authority(&self) -> &AuthorityId {
         self.document.issuer_authority()
     }
 
-    #[must_use = "ownership state is required for owner-level evaluation"]
+    /// Ownership state is required for owner-level evaluation.
+    #[must_use]
     pub const fn ownership_authority_state(&self) -> &OwnershipAuthorityState {
         self.document.ownership_authority_state()
     }
@@ -470,6 +521,7 @@ mod tests {
             revocation: document.revocation().cloned(),
             issued_at: document.issued_at(),
             issuer_principal: document.issuer_principal().cloned(),
+            interoperability_profile: document.interoperability_profile().cloned(),
         })
     }
 

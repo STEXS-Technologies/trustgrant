@@ -8,12 +8,36 @@ use trustgrant_error::TrustGrantError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+/// The verification posture describes how proof material was obtained.
+///
+/// Used by the verification pipeline to select which proof sources to
+/// consult and how to evaluate freshness.
 pub enum VerificationPosture {
+    /// Live verification against authoritative endpoints.
+    ///
+    /// Proof material is fetched in real time from the issuing or owning
+    /// authority's online endpoint. Provides the strongest freshness
+    /// guarantee.
     Online,
+    /// Verification using previously cached proof material.
+    ///
+    /// Proof material was fetched earlier and is being reused within its
+    /// freshness window. Suitable for read-heavy or latency-sensitive paths.
     Cached,
+    /// Verification with no live or cached proof material.
+    ///
+    /// The verifier relies entirely on embedded proof bundles without
+    /// external endpoint calls. Freshness guarantees depend on the bundle's
+    /// own timestamps.
     Offline,
 }
 
+/// One signature verification request assembled by the verification pipeline.
+///
+/// Carries the canonical bytes, canonicalization profile, resolved signer
+/// binding (authority + key + algorithm + public key), and the signature
+/// string. Implementations of [`SignatureVerifier`] receive this request
+/// and must verify the signature against the public key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SignatureVerificationRequest<'request> {
     canonical_bytes: &'request [u8],
@@ -23,7 +47,7 @@ pub struct SignatureVerificationRequest<'request> {
 }
 
 impl<'request> SignatureVerificationRequest<'request> {
-    #[must_use = "signature verification requests should be built by the pipeline"]
+    /// Signature verification requests should be built by the pipeline.
     pub const fn new(
         canonical_bytes: &'request [u8],
         canonicalization_profile: CanonicalizationProfile,
@@ -38,47 +62,56 @@ impl<'request> SignatureVerificationRequest<'request> {
         }
     }
 
-    #[must_use = "signature verification needs canonical bytes"]
+    /// Signature verification needs canonical bytes.
+    #[must_use]
     pub const fn canonical_bytes(&self) -> &'request [u8] {
         self.canonical_bytes
     }
 
-    #[must_use = "signature verification needs the canonicalization profile"]
+    /// Signature verification needs the canonicalization profile.
+    #[must_use]
     pub const fn canonicalization_profile(&self) -> CanonicalizationProfile {
         self.canonicalization_profile
     }
 
-    #[must_use = "signature verification needs the resolved signer binding"]
+    /// Signature verification needs the resolved signer binding.
+    #[must_use]
     pub const fn signer_binding(&self) -> &'request ResolvedSignerBinding {
         self.signer_binding
     }
 
-    #[must_use = "signature verification needs the issuer authority"]
+    /// Signature verification needs the issuer authority.
+    #[must_use]
     pub const fn issuer_authority(&self) -> &'request AuthorityId {
         self.signer_binding.issuer_authority()
     }
 
-    #[must_use = "signature verification needs the key id"]
+    /// Signature verification needs the key id.
+    #[must_use]
     pub const fn key_id(&self) -> &'request KeyId {
         self.signer_binding.key_record().key_id()
     }
 
-    #[must_use = "signature verification needs the key algorithm"]
+    /// Signature verification needs the key algorithm.
+    #[must_use]
     pub const fn algorithm(&self) -> &'request AlgorithmName {
         self.signer_binding.key_record().algorithm()
     }
 
-    #[must_use = "signature verification needs the public key"]
+    /// Signature verification needs the public key.
+    #[must_use]
     pub const fn public_key(&self) -> &'request PublicKeyMaterial {
         self.signer_binding.key_record().public_key()
     }
 
-    #[must_use = "signature verification needs the signature profile"]
+    /// Signature verification needs the signature profile.
+    #[must_use]
     pub const fn signature_profile(&self) -> &'request SignatureProfile {
         self.signer_binding.signature_profile()
     }
 
-    #[must_use = "signature verification needs the signature bytes"]
+    /// Signature verification needs the signature bytes.
+    #[must_use]
     pub const fn signature(&self) -> &str {
         self.signature
     }

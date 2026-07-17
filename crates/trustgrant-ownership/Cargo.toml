@@ -2,7 +2,11 @@
 name = "trustgrant-ownership"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Ownership authority transition verification for the TrustGrant protocol"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-error = { path = "../trustgrant-error" }
@@ -11,16 +15,16 @@ trustgrant-document = { path = "../trustgrant-document" }
 trustgrant-discovery = { path = "../trustgrant-discovery" }
 trustgrant-ports = { path = "../trustgrant-ports" }
 trustgrant-revocation = { path = "../trustgrant-revocation" }
-chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
-compact_str = { version = "0.9", features = ["serde"] }
-itoa = { version = "1.0.15", default-features = false }
-serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
-serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
-url = { version = "2.5.7", features = ["serde"] }
-uuid = { version = "1.18.1", features = ["serde", "v4", "js"] }
+chrono.workspace = true
+compact_str.workspace = true
+itoa.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+uuid = { workspace = true, features = ["serde", "js"] }
 
 [dev-dependencies]
-serde_jcs = { version = "0.2.0", default-features = false }
+serde_jcs.workspace = true
 
 [lints]
 workspace = true

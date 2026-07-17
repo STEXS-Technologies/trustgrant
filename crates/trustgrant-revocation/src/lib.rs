@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate)]
+
 pub mod proof;
 pub mod status;
 

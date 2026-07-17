@@ -12,8 +12,8 @@ use chrono::{DateTime, TimeZone, Utc};
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use trustgrant::{
     AuthorityId, EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation,
-    ResourceContext, TrustGrantDraft, TrustGrantDraftAuthorities, TrustGrantError,
-    VerifiedRevocationState,
+    ResourceBinding, ResourceContext, ResourceRef, TrustGrantDraft, TrustGrantDraftAuthorities,
+    TrustGrantError, VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile},
     document::raw::{
         RawCapabilities, RawMintingConstraints, RawResourceScope, RawResourceType, RawScope,
@@ -166,6 +166,11 @@ fn e2e_real_signing_and_verification() {
 
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.test.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
+            "item".to_owned(),
+        )),
         AuthorityId::new("https://target.test.example.com")
             .unwrap_or_else(|e| panic!("target: {e}")),
         AuthorityId::new("https://audience.test.example.com")
@@ -175,8 +180,8 @@ fn e2e_real_signing_and_verification() {
     )
     .unwrap_or_else(|e| panic!("request: {e}"));
 
-    let decision = EvaluationEngine::new().evaluate(black_box(verified), black_box(&request));
-    assert!(decision.is_allowed(), "should allow: {decision:?}");
+    let outcome = EvaluationEngine::new().evaluate(black_box(verified), black_box(&request));
+    assert!(outcome.decision().is_allowed(), "should allow: {outcome:?}");
 
     // 8. Tampered document must fail
     let tampered_json = signed_json.replace("weapons", "armor");

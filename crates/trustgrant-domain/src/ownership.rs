@@ -8,6 +8,11 @@ use crate::{
 };
 use trustgrant_error::TrustGrantError;
 
+/// Describes the lineage of one ownership transition within a transition
+/// series.
+///
+/// Records the transition identifier, series, revision number, and optional
+/// predecessor to enable deterministic chain stitching.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipTransitionLineage {
     transition_id: TransitionId,
@@ -52,27 +57,34 @@ impl OwnershipTransitionLineage {
         })
     }
 
-    #[must_use = "transition id is required for proof-chain identity"]
+    /// Transition id is required for proof-chain identity.
     pub const fn transition_id(&self) -> TransitionId {
         self.transition_id
     }
 
-    #[must_use = "transition series id is required for lineage tracking"]
+    /// Transition series id is required for lineage tracking.
+    #[must_use]
     pub const fn transition_series_id(&self) -> TransitionSeriesId {
         self.transition_series_id
     }
 
-    #[must_use = "revision is required for transition ordering"]
+    /// Revision is required for transition ordering.
+    #[must_use]
     pub const fn revision(&self) -> GrantRevision {
         self.revision
     }
 
-    #[must_use = "supersedes transition id is required for conflict resolution"]
+    /// Supersedes transition id is required for conflict resolution.
+    #[must_use]
     pub const fn supersedes_transition_id(&self) -> Option<TransitionId> {
         self.supersedes_transition_id
     }
 }
 
+/// One explicit selector within an ownership resource scope.
+///
+/// Each selector pairs a [`SelectorKind`] with a list of values and
+/// participates in ownership-scope matching.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OwnershipSelector {
     kind: SelectorKind,
@@ -110,17 +122,22 @@ impl OwnershipSelector {
         })
     }
 
-    #[must_use = "selector kind is required for ownership-scope matching"]
+    /// Selector kind is required for ownership-scope matching.
     pub const fn kind(&self) -> &SelectorKind {
         &self.kind
     }
 
-    #[must_use = "selector values are required for ownership-scope matching"]
+    /// Selector values are required for ownership-scope matching.
+    #[must_use]
     pub fn values(&self) -> &[String] {
         &self.values
     }
 }
 
+/// The resource-scope portion of an ownership transition.
+///
+/// Contains a set of selectors that describe which resources are covered by
+/// an ownership transition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipResourceScope {
     selectors: Vec<OwnershipSelector>,
@@ -149,12 +166,17 @@ impl OwnershipResourceScope {
         Ok(Self { selectors })
     }
 
-    #[must_use = "selectors are required for ownership-scope matching"]
+    /// Selectors are required for ownership-scope matching.
     pub fn selectors(&self) -> &[OwnershipSelector] {
         &self.selectors
     }
 }
 
+/// A time window bounding when an ownership transition is valid.
+///
+/// The window is defined by a `not_before` and `not_after` pair; the
+/// transition is only valid if the evaluation timestamp falls within
+/// `[not_before, not_after]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OwnershipTimeWindow {
     not_before: DateTime<Utc>,
@@ -181,22 +203,26 @@ impl OwnershipTimeWindow {
         })
     }
 
-    #[must_use = "not_before is required for transition validity checks"]
+    /// Not_before is required for transition validity checks.
     pub const fn not_before(&self) -> DateTime<Utc> {
         self.not_before
     }
 
-    #[must_use = "not_after is required for transition validity checks"]
+    /// Not_after is required for transition validity checks.
+    #[must_use]
     pub const fn not_after(&self) -> DateTime<Utc> {
         self.not_after
     }
 
-    #[must_use = "callers must know whether a transition is valid at one time"]
+    /// Callers must know whether a transition is valid at one time.
+    #[must_use]
     pub fn contains(&self, timestamp: DateTime<Utc>) -> bool {
         timestamp >= self.not_before && timestamp <= self.not_after
     }
 }
 
+/// The three parties involved in an ownership transition: origin,
+/// predecessor, and successor authorities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipTransitionParties {
     origin_authority: AuthorityId,
@@ -226,22 +252,28 @@ impl OwnershipTransitionParties {
         })
     }
 
-    #[must_use = "origin authority is required for canonical lineage validation"]
+    /// Origin authority is required for canonical lineage validation.
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
 
-    #[must_use = "predecessor authority is required for transfer validation"]
+    /// Predecessor authority is required for transfer validation.
+    #[must_use]
     pub const fn predecessor_authority(&self) -> &AuthorityId {
         &self.predecessor_authority
     }
 
-    #[must_use = "successor authority is required for transfer validation"]
+    /// Successor authority is required for transfer validation.
+    #[must_use]
     pub const fn successor_authority(&self) -> &AuthorityId {
         &self.successor_authority
     }
 }
 
+/// A complete, validated ownership transition record.
+///
+/// Combines lineage, parties, resource scope, optional time window, and
+/// effective-at timestamp into one self-contained transition proof.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipTransitionRecord {
     lineage: OwnershipTransitionLineage,
@@ -284,54 +316,69 @@ impl OwnershipTransitionRecord {
         })
     }
 
-    #[must_use = "transition lineage is required for proof-chain identity"]
+    /// Transition lineage is required for proof-chain identity.
     pub const fn lineage(&self) -> &OwnershipTransitionLineage {
         &self.lineage
     }
 
-    #[must_use = "origin authority is required for canonical lineage validation"]
+    /// Origin authority is required for canonical lineage validation.
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         self.parties.origin_authority()
     }
 
-    #[must_use = "predecessor authority is required for predecessor validation"]
+    /// Predecessor authority is required for predecessor validation.
+    #[must_use]
     pub const fn predecessor_authority(&self) -> &AuthorityId {
         self.parties.predecessor_authority()
     }
 
-    #[must_use = "successor authority is required for successor validation"]
+    /// Successor authority is required for successor validation.
+    #[must_use]
     pub const fn successor_authority(&self) -> &AuthorityId {
         self.parties.successor_authority()
     }
 
-    #[must_use = "transition parties are required for ownership transfer validation"]
+    /// Transition parties are required for ownership transfer validation.
+    #[must_use]
     pub const fn parties(&self) -> &OwnershipTransitionParties {
         &self.parties
     }
 
-    #[must_use = "resource scope is required for transition applicability checks"]
+    /// Resource scope is required for transition applicability checks.
+    #[must_use]
     pub const fn resource_scope(&self) -> &BTreeMap<ResourceTypeName, OwnershipResourceScope> {
         &self.resource_scope
     }
 
-    #[must_use = "time window is required for temporal transition checks"]
+    /// Time window is required for temporal transition checks.
+    #[must_use]
     pub const fn time_window(&self) -> Option<&OwnershipTimeWindow> {
         self.time_window.as_ref()
     }
 
-    #[must_use = "effective_at is required for activation ordering"]
+    /// Effective_at is required for activation ordering.
+    #[must_use]
     pub const fn effective_at(&self) -> DateTime<Utc> {
         self.effective_at
     }
 }
 
+/// Classifies how ownership was proven for a verified grant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OwnershipProofKind {
+    /// The grant issuer is the static, non-transitioned owner.
     StaticOwner,
+    /// Ownership was established through a chain of transition proofs.
     TransitionChain,
 }
 
+/// Records the outcome of an ownership verification check.
+///
+/// Captures the resolved origin authority, active owning authority, when
+/// the check was performed, what kind of proof was used, and the
+/// transition-chain tip (if applicable).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipVerificationRecord {
     origin_authority: AuthorityId,
@@ -342,7 +389,8 @@ pub struct OwnershipVerificationRecord {
 }
 
 impl OwnershipVerificationRecord {
-    #[must_use = "ownership verification state should be attached to verified grants"]
+    /// Ownership verification state should be attached to verified grants.
+    #[must_use]
     pub const fn new(
         origin_authority: AuthorityId,
         active_owning_authority: AuthorityId,
@@ -359,27 +407,32 @@ impl OwnershipVerificationRecord {
         }
     }
 
-    #[must_use = "origin authority is required for canonical lineage identity"]
+    /// Origin authority is required for canonical lineage identity.
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
 
-    #[must_use = "active owning authority is required for owner-level verification"]
+    /// Active owning authority is required for owner-level verification.
+    #[must_use]
     pub const fn active_owning_authority(&self) -> &AuthorityId {
         &self.active_owning_authority
     }
 
-    #[must_use = "checked_at is required for audit and cache freshness"]
+    /// Checked_at is required for audit and cache freshness.
+    #[must_use]
     pub const fn checked_at(&self) -> DateTime<Utc> {
         self.checked_at
     }
 
-    #[must_use = "proof kind is required for audit and debugging"]
+    /// Proof kind is required for audit and debugging.
+    #[must_use]
     pub const fn proof_kind(&self) -> OwnershipProofKind {
         self.proof_kind
     }
 
-    #[must_use = "transition chain tip is required for lineage-aware audit"]
+    /// Transition chain tip is required for lineage-aware audit.
+    #[must_use]
     pub const fn transition_chain_tip(&self) -> Option<TransitionId> {
         self.transition_chain_tip
     }

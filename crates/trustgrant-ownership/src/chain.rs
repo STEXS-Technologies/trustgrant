@@ -10,17 +10,44 @@ use trustgrant_domain::{
 use trustgrant_error::TrustGrantError;
 use trustgrant_error::limits::{MAX_OWNERSHIP_CHAIN_LENGTH, ensure_collection_limit};
 
+/// Verifies the ownership-transition chain for a TrustGrant document.
+///
+/// Checks that the resolved chain of ownership transitions is consistent,
+/// covers the document's resource scope, and terminates at the document's
+/// declared active owning authority. Returns a normalized
+/// [`OwnershipVerificationRecord`] that captures the verified ownership
+/// state.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OwnershipChainVerifier;
 
 impl OwnershipChainVerifier {
-    #[must_use = "ownership chain verifier should be reused by adapters and the verification pipeline"]
+    /// Ownership chain verifier should be reused by adapters and the verification pipeline.
     pub const fn new() -> Self {
         Self
     }
 
     /// Verifies the resolved ownership-transition chain for one validated
     /// TrustGrant and returns normalized ownership state.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use chrono::Utc;
+    /// use trustgrant_document::ValidatedTrustGrantDocument;
+    /// use trustgrant_domain::OwnershipTransitionRecord;
+    /// use trustgrant_ownership::OwnershipChainVerifier;
+    ///
+    /// let document: ValidatedTrustGrantDocument = /* parse from JSON */;
+    /// let transitions: Vec<OwnershipTransitionRecord> = /* load transitions */;
+    ///
+    /// let result = OwnershipChainVerifier::new()
+    ///     .verify_document_ownership(&document, &transitions, Utc::now());
+    ///
+    /// match result {
+    ///     Ok(record) => println!("owner: {}", record.active_owning_authority().as_str()),
+    ///     Err(error) => eprintln!("ownership verification failed: {error}"),
+    /// }
+    /// ```
     ///
     /// # Errors
     ///
@@ -387,6 +414,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("validated document should be valid: {error}"));
 
@@ -470,6 +498,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("validated document should be valid: {error}"));
 
@@ -811,6 +840,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("validated document should be valid: {error}"))
     }
@@ -1300,6 +1330,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("document should be valid: {error}"));
 
@@ -1376,6 +1407,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("document should be valid: {error}"));
 
@@ -1452,6 +1484,7 @@ mod tests {
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "valid-signature".into(),
             issuer_principal: None,
+            interoperability_profile: None,
         })
         .unwrap_or_else(|error| panic!("document should be valid: {error}"));
 

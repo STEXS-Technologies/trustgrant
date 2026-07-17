@@ -16,7 +16,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - run: cargo check --workspace --all-targets -D warnings
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make check
 
   clippy:
     name: Clippy
@@ -27,7 +29,9 @@ jobs:
         with:
           toolchain: stable
           components: clippy
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make clippy
 
   fmt:
     name: Format
@@ -38,7 +42,9 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make fmt
 
   test:
     name: Tests
@@ -48,7 +54,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - run: cargo test --workspace
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make test
 
   bench:
     name: Benchmarks
@@ -58,7 +66,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - run: cargo bench --workspace --no-run
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make bench
 
   coverage:
     name: Coverage
@@ -68,24 +78,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Install tarpaulin
+      - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin --locked
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
       - name: Run tarpaulin
-        run: >
-          cargo tarpaulin
-          --packages trustgrant-domain
-          --packages trustgrant-document
-          --packages trustgrant-error
-          --packages trustgrant-issue
-          --packages trustgrant-evaluate
-          --packages trustgrant-verify
-          --packages trustgrant-ownership
-          --packages trustgrant-discovery
-          --packages trustgrant-revocation
-          --packages trustgrant-ports
-          --packages trustgrant
-          --skip-clean
-          --out lcov
+        run: cargo make coverage
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
@@ -97,7 +95,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: cargo install cargo-audit --locked && cargo audit
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make audit
 
   fuzz:
     name: Fuzz (build only)
@@ -107,10 +107,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked
-      - name: Build all fuzz targets
-        run: cargo fuzz build --all
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make fuzz
 
   interop:
     name: Interop
@@ -120,8 +119,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Interop and conformance
-        run: cargo make interop_all
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make interop_all
 
   smoke:
     name: Smoke Test
@@ -132,10 +132,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Build release
-        run: cargo build --release --workspace
-      - name: Run examples
-        run: |
-          cargo run --release --example parse_raw_document_cold_path -- 100
-          cargo run --release --example canonicalize_cold_path -- 100
-          cargo run --release --example evaluate_hot_path -- 100000
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - run: cargo make smoke_all

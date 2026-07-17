@@ -4,14 +4,31 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use trustgrant_error::TrustGrantError;
 use trustgrant_error::limits::{MAX_AUTHORITY_ID_BYTES, ensure_string_limit};
 
+/// Identifies the URI scheme of an authority identifier.
+///
+/// # Variants
+///
+/// * `Https` — `https://` scheme (web-based authority).
+/// * `Did` — `did:` scheme (decentralized identifier).
+/// * `Chain` — `chain:` scheme (blockchain/ledger authority).
+/// * `Other` — Any other explicitly-declared scheme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AuthorityScheme {
+    /// `https://` scheme (web-based authority).
     Https,
+    /// `did:` scheme (decentralized identifier).
     Did,
+    /// `chain:` scheme (blockchain/ledger authority).
     Chain,
+    /// Any other explicitly-declared scheme.
     Other,
 }
 
+/// A validated authority identifier with an explicit URI scheme.
+///
+/// Authority identifiers carry a mandatory scheme prefix (e.g. `https://`,
+/// `did:`, `chain:`) and are normalized to lowercase for equality
+/// comparisons.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AuthorityId {
     value: String,
@@ -21,6 +38,16 @@ pub struct AuthorityId {
 
 impl AuthorityId {
     /// Creates a validated authority identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_domain::AuthorityId;
+    ///
+    /// let id = AuthorityId::new("https://issuer.example.com")
+    ///     .expect("valid HTTPS authority");
+    /// assert_eq!(id.scheme_name(), "https");
+    /// ```
     ///
     /// # Errors
     ///
@@ -44,7 +71,11 @@ impl AuthorityId {
             return Err(TrustGrantError::InvalidAuthorityIdCharacter(character));
         }
 
-        let scheme_end = trimmed
+        let lowercased = trimmed.to_lowercase();
+
+        ensure_string_limit("authority_id", &lowercased, MAX_AUTHORITY_ID_BYTES)?;
+
+        let scheme_end = lowercased
             .find(':')
             .ok_or(TrustGrantError::InvalidAuthorityIdMissingScheme)?;
 
@@ -52,7 +83,7 @@ impl AuthorityId {
             return Err(TrustGrantError::InvalidAuthorityIdMissingScheme);
         }
 
-        let scheme_name = &trimmed[..scheme_end];
+        let scheme_name = &lowercased[..scheme_end];
         let scheme = if scheme_name.eq_ignore_ascii_case("https") {
             AuthorityScheme::Https
         } else if scheme_name.eq_ignore_ascii_case("did") {
@@ -64,23 +95,26 @@ impl AuthorityId {
         };
 
         Ok(Self {
-            value: trimmed.to_lowercase(),
+            value: lowercased,
             scheme_end,
             scheme,
         })
     }
 
-    #[must_use = "authority identifier should be inspected or persisted"]
+    /// Authority identifier should be inspected or persisted.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.value
     }
 
-    #[must_use = "authority scheme should be inspectable without reparsing"]
+    /// Authority scheme should be inspectable without reparsing.
+    #[must_use]
     pub const fn scheme(&self) -> AuthorityScheme {
         self.scheme
     }
 
-    #[must_use = "authority scheme name should be inspectable without reparsing"]
+    /// Authority scheme name should be inspectable without reparsing.
+    #[must_use]
     pub fn scheme_name(&self) -> &str {
         &self.value[..self.scheme_end]
     }
@@ -104,6 +138,11 @@ impl Borrow<str> for AuthorityId {
     }
 }
 
+/// Tracks ownership state across grant transitions.
+///
+/// Carries the original (origin) authority and the current active owning
+/// authority so that the evaluation engine can enforce owner-level checks
+/// after ownership transitions.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnershipAuthorityState {
     origin_authority: AuthorityId,
@@ -111,7 +150,8 @@ pub struct OwnershipAuthorityState {
 }
 
 impl OwnershipAuthorityState {
-    #[must_use = "ownership authority state should be used for evaluation or persistence"]
+    /// Ownership authority state should be used for evaluation or persistence.
+    #[must_use]
     pub const fn new(origin_authority: AuthorityId, active_owning_authority: AuthorityId) -> Self {
         Self {
             origin_authority,
@@ -119,12 +159,14 @@ impl OwnershipAuthorityState {
         }
     }
 
-    #[must_use = "origin authority is part of canonical resource identity"]
+    /// Origin authority is part of canonical resource identity.
+    #[must_use]
     pub const fn origin_authority(&self) -> &AuthorityId {
         &self.origin_authority
     }
 
-    #[must_use = "active owning authority is required for owner-level evaluation"]
+    /// Active owning authority is required for owner-level evaluation.
+    #[must_use]
     pub const fn active_owning_authority(&self) -> &AuthorityId {
         &self.active_owning_authority
     }

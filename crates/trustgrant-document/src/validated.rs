@@ -1,13 +1,12 @@
-use std::collections::{BTreeMap, HashSet};
-
 use chrono::{DateTime, Utc};
 use compact_str::CompactString;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-    RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
-    RawSelector, RawSupersessionPolicy, RawTrustGrantDocument, RawTypeCapabilities,
-    RawTypeConstraints,
+    InteroperabilityProfile, PostRevocationEffect, RawAudienceEntry, RawCapabilities,
+    RawGlobalConstraints, RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope,
+    RawResourceType, RawRevocation, RawScope, RawSelector, RawSupersessionPolicy,
+    RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_domain::{
     AuthorityId, GrantLineage, GrantRevision, GrantSeriesId, KeyId, OperationName,
@@ -22,6 +21,12 @@ use trustgrant_error::limits::{
     ensure_string_limit,
 };
 
+/// A fully validated TrustGrant document ready for evaluation.
+///
+/// Produced by converting a [`RawTrustGrantDocument`] through
+/// `TryFrom<RawTrustGrantDocument>`. All string and collection limits have
+/// been checked, identifiers have been normalized, and scope shapes have
+/// been verified.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTrustGrantDocument {
     lineage: GrantLineage,
@@ -37,75 +42,130 @@ pub struct ValidatedTrustGrantDocument {
     issued_at: DateTime<Utc>,
     signature: String,
     issuer_principal: Option<ValidatedPrincipal>,
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl ValidatedTrustGrantDocument {
-    #[must_use = "validated lineage is required for registration and lookup"]
+    /// Validated lineage is required for registration and lookup.
     pub const fn lineage(&self) -> &GrantLineage {
         &self.lineage
     }
 
-    #[must_use = "issuer authority is required for signature and trust evaluation"]
+    /// Issuer authority is required for signature and trust evaluation.
+    #[must_use]
     pub const fn issuer_authority(&self) -> &AuthorityId {
         &self.issuer_authority
     }
 
-    #[must_use = "ownership state is required for owner-level evaluation"]
+    /// Ownership state is required for owner-level evaluation.
+    #[must_use]
     pub const fn ownership_authority_state(&self) -> &OwnershipAuthorityState {
         &self.ownership_authority_state
     }
 
-    #[must_use = "signing key id is required for verification and audit"]
+    /// Signing key id is required for verification and audit.
+    #[must_use]
     pub const fn key_id(&self) -> &KeyId {
         &self.key_id
     }
 
-    #[must_use = "target scope is required for evaluation"]
+    /// Target scope is required for evaluation.
+    #[must_use]
     pub const fn target_scope(&self) -> &ValidatedScope {
         &self.target_scope
     }
 
-    #[must_use = "top-level capabilities are required for evaluation"]
+    /// Top-level capabilities are required for evaluation.
+    #[must_use]
     pub const fn capabilities(&self) -> &ValidatedCapabilities {
         &self.capabilities
     }
 
-    #[must_use = "default audience entries are used for evaluation or publication"]
+    /// Default audience entries are used for evaluation or publication.
+    #[must_use]
     pub fn default_audience_scope(&self) -> &[ValidatedAudienceEntry] {
         &self.default_audience_scope
     }
 
-    #[must_use = "resource scope is required for evaluation"]
+    /// Resource scope is required for evaluation.
+    #[must_use]
     pub const fn resource_scope(&self) -> &BTreeMap<ResourceTypeName, ValidatedResourceType> {
         &self.resource_scope
     }
 
-    #[must_use = "global time window may constrain validity"]
+    /// Global time window may constrain validity.
+    #[must_use]
     pub const fn global_time_window(&self) -> Option<&ValidatedTimeWindow> {
         self.global_time_window.as_ref()
     }
 
-    #[must_use = "revocation policy may constrain validity"]
+    /// Revocation policy may constrain validity.
+    #[must_use]
     pub const fn revocation(&self) -> Option<&ValidatedRevocation> {
         self.revocation.as_ref()
     }
 
-    #[must_use = "issued_at is part of the signed wire document"]
+    /// Issued_at is part of the signed wire document.
+    #[must_use]
     pub const fn issued_at(&self) -> DateTime<Utc> {
         self.issued_at
     }
 
-    #[must_use = "signature is required for verification"]
+    /// Signature is required for verification.
+    #[must_use]
     pub fn signature(&self) -> &str {
         &self.signature
     }
 
-    #[must_use = "issuer principal may narrow the logical signer identity"]
+    /// Issuer principal may narrow the logical signer identity.
+    #[must_use]
     pub const fn issuer_principal(&self) -> Option<&ValidatedPrincipal> {
         self.issuer_principal.as_ref()
     }
+
+    /// Interoperability profile declares the operational context for custom
+    /// operations. When set, it signals that `operations.all = true` is
+    /// intentional for custom operations.
+    #[must_use]
+    pub const fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
+        self.interoperability_profile.as_ref()
+    }
 }
 
+/// Converts a raw (unvalidated) TrustGrant document into a validated one.
+///
+/// # Examples
+///
+/// ```rust
+/// use trustgrant_document::ValidatedTrustGrantDocument;
+/// use trustgrant_document::raw::RawTrustGrantDocument;
+///
+/// let json = r#"{
+///   "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+///   "version":0,
+///   "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001",
+///   "revision":1,
+///   "supersession_policy":"coexist",
+///   "issuer_authority":"https://issuer.example.com",
+///   "origin_authority":"https://issuer.example.com",
+///   "active_owning_authority":"https://issuer.example.com",
+///   "key_id":"root-key-1",
+///   "target_scope":{"all":true,"allow":null,"deny":null},
+///   "capabilities":{"recognize":true,"mint":false},
+///   "resource_scope":{"types":{}},
+///   "issued_at":"2026-04-07T12:00:00Z",
+///   "signature":"base64-signature"
+/// }"#;
+///
+/// let raw = RawTrustGrantDocument::parse_json_str(json).expect("valid JSON");
+/// let validated = ValidatedTrustGrantDocument::try_from(raw)
+///     .expect("document validation");
+///
+/// assert_eq!(
+///     validated.lineage().trustgrant_id().to_string(),
+///     "tg_123e4567-e89b-12d3-a456-426614174000"
+/// );
+/// ```
 impl TryFrom<RawTrustGrantDocument> for ValidatedTrustGrantDocument {
     type Error = TrustGrantError;
 
@@ -178,10 +238,12 @@ impl TryFrom<RawTrustGrantDocument> for ValidatedTrustGrantDocument {
             issued_at: raw.issued_at,
             signature,
             issuer_principal,
+            interoperability_profile: raw.interoperability_profile,
         })
     }
 }
 
+/// A validated issuer principal with normalized kind and identifier.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedPrincipal {
     kind: PrincipalKind,
@@ -189,17 +251,19 @@ pub struct ValidatedPrincipal {
 }
 
 impl ValidatedPrincipal {
-    #[must_use = "persisted principal state must stay valid by construction"]
+    /// Persisted principal state must stay valid by construction.
     pub const fn new(kind: PrincipalKind, id: PrincipalId) -> Self {
         Self { kind, id }
     }
 
-    #[must_use = "principal kind is part of signer attribution"]
+    /// Principal kind is part of signer attribution.
+    #[must_use]
     pub const fn kind(&self) -> &PrincipalKind {
         &self.kind
     }
 
-    #[must_use = "principal identifier is part of signer attribution"]
+    /// Principal identifier is part of signer attribution.
+    #[must_use]
     pub const fn id(&self) -> &PrincipalId {
         &self.id
     }
@@ -216,6 +280,7 @@ impl TryFrom<RawPrincipal> for ValidatedPrincipal {
     }
 }
 
+/// Validated top-level built-in capabilities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedCapabilities {
     recognize: bool,
@@ -223,7 +288,7 @@ pub struct ValidatedCapabilities {
 }
 
 impl ValidatedCapabilities {
-    #[must_use = "capability state must stay valid by construction"]
+    /// Capability state must stay valid by construction.
     pub const fn new(recognize: bool, mint: bool) -> Self {
         Self { recognize, mint }
     }
@@ -232,17 +297,20 @@ impl ValidatedCapabilities {
         Self::new(raw.recognize, raw.mint)
     }
 
-    #[must_use = "recognize capability drives evaluation behavior"]
+    /// Recognize capability drives evaluation behavior.
+    #[must_use]
     pub const fn recognize(&self) -> bool {
         self.recognize
     }
 
-    #[must_use = "mint capability drives evaluation behavior"]
+    /// Mint capability drives evaluation behavior.
+    #[must_use]
     pub const fn mint(&self) -> bool {
         self.mint
     }
 }
 
+/// A validated selector with normalized kind, values, and expressions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ValidatedSelector {
     kind: SelectorKind,
@@ -281,27 +349,31 @@ impl ValidatedSelector {
         })
     }
 
-    #[must_use = "selector kind participates in evaluation matching"]
+    /// Selector kind participates in evaluation matching.
     pub const fn kind(&self) -> &SelectorKind {
         &self.kind
     }
 
-    #[must_use = "selector all flag participates in evaluation matching"]
+    /// Selector all flag participates in evaluation matching.
+    #[must_use]
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "selector values participate in evaluation matching"]
+    /// Selector values participate in evaluation matching.
+    #[must_use]
     pub fn values(&self) -> &[String] {
         &self.values
     }
 
-    #[must_use = "selector expressions participate in evaluation matching"]
+    /// Selector expressions participate in evaluation matching.
+    #[must_use]
     pub fn expressions(&self) -> &[SelectorExpression] {
         &self.expressions
     }
 }
 
+/// A validated scope block with allow/deny selector lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedScope {
     all: bool,
@@ -328,22 +400,25 @@ impl ValidatedScope {
         Ok(Self { all, allow, deny })
     }
 
-    #[must_use = "scope all flag participates in evaluation matching"]
+    /// Scope all flag participates in evaluation matching.
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "allow selectors participate in evaluation matching"]
+    /// Allow selectors participate in evaluation matching.
+    #[must_use]
     pub fn allow(&self) -> &[ValidatedSelector] {
         &self.allow
     }
 
-    #[must_use = "deny selectors participate in evaluation matching"]
+    /// Deny selectors participate in evaluation matching.
+    #[must_use]
     pub fn deny(&self) -> &[ValidatedSelector] {
         &self.deny
     }
 }
 
+/// A validated operation scope with allow/deny operation lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedOperationScope {
     all: bool,
@@ -360,8 +435,8 @@ impl ValidatedOperationScope {
     /// and allow operations are present, or if `all` is `false` and
     /// no allow operations are provided.
     ///
-    /// Returns [`TrustGrantError::DuplicateOperation`] if duplicate
-    /// operations exist in the allow or deny lists.
+    /// Returns [`TrustGrantError::DuplicateOperationName`] if duplicate
+    /// operation names exist in the allow or deny lists.
     pub fn new(
         all: bool,
         allow: Vec<OperationName>,
@@ -381,22 +456,26 @@ impl ValidatedOperationScope {
         Ok(Self { all, allow, deny })
     }
 
-    #[must_use = "operation scope all flag participates in evaluation matching"]
+    /// Operation scope all flag participates in evaluation matching.
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "allowed operations participate in evaluation matching"]
+    /// Allowed operations participate in evaluation matching.
+    #[must_use]
     pub fn allow(&self) -> &[OperationName] {
         &self.allow
     }
 
-    #[must_use = "denied operations participate in evaluation matching"]
+    /// Denied operations participate in evaluation matching.
+    #[must_use]
     pub fn deny(&self) -> &[OperationName] {
         &self.deny
     }
 }
 
+/// A validated audience entry with authority, scope, and optional principal
+/// scope.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedAudienceEntry {
     authority_id: AuthorityId,
@@ -405,7 +484,8 @@ pub struct ValidatedAudienceEntry {
 }
 
 impl ValidatedAudienceEntry {
-    #[must_use = "persisted audience entry state must stay valid by construction"]
+    /// Persisted audience entry state must stay valid by construction.
+    #[must_use]
     pub const fn new(
         authority_id: AuthorityId,
         scope: ValidatedScope,
@@ -418,22 +498,27 @@ impl ValidatedAudienceEntry {
         }
     }
 
-    #[must_use = "audience authority participates in evaluation matching"]
+    /// Audience authority participates in evaluation matching.
+    #[must_use]
     pub const fn authority_id(&self) -> &AuthorityId {
         &self.authority_id
     }
 
-    #[must_use = "audience scope participates in evaluation matching"]
+    /// Audience scope participates in evaluation matching.
+    #[must_use]
     pub const fn scope(&self) -> &ValidatedScope {
         &self.scope
     }
 
-    #[must_use = "principal scope may further constrain the audience"]
+    /// Principal scope may further constrain the audience.
+    #[must_use]
     pub const fn principal_scope(&self) -> Option<&ValidatedScope> {
         self.principal_scope.as_ref()
     }
 }
 
+/// A validated resource type scope with capabilities, constraints, and
+/// optional operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedResourceType {
     all: bool,
@@ -477,37 +562,43 @@ impl ValidatedResourceType {
         })
     }
 
-    #[must_use = "resource type all flag participates in evaluation matching"]
+    /// Resource type all flag participates in evaluation matching.
     pub const fn all(&self) -> bool {
         self.all
     }
 
-    #[must_use = "resource type allow selectors participate in evaluation matching"]
+    /// Resource type allow selectors participate in evaluation matching.
+    #[must_use]
     pub fn allow(&self) -> &[ValidatedSelector] {
         &self.allow
     }
 
-    #[must_use = "resource type deny selectors participate in evaluation matching"]
+    /// Resource type deny selectors participate in evaluation matching.
+    #[must_use]
     pub fn deny(&self) -> &[ValidatedSelector] {
         &self.deny
     }
 
-    #[must_use = "resource type capabilities participate in evaluation"]
+    /// Resource type capabilities participate in evaluation.
+    #[must_use]
     pub const fn capabilities(&self) -> &ValidatedTypeCapabilities {
         &self.capabilities
     }
 
-    #[must_use = "resource type constraints participate in evaluation"]
+    /// Resource type constraints participate in evaluation.
+    #[must_use]
     pub const fn constraints(&self) -> &ValidatedTypeConstraints {
         &self.constraints
     }
 
-    #[must_use = "resource type operations participate in evaluation"]
+    /// Resource type operations participate in evaluation.
+    #[must_use]
     pub const fn operations(&self) -> Option<&ValidatedOperationScope> {
         self.operations.as_ref()
     }
 }
 
+/// Validated per-type capability overrides.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTypeCapabilities {
     recognize: Option<bool>,
@@ -515,22 +606,26 @@ pub struct ValidatedTypeCapabilities {
 }
 
 impl ValidatedTypeCapabilities {
-    #[must_use = "persisted type capability state must stay valid by construction"]
+    /// Persisted type capability state must stay valid by construction.
+    #[must_use]
     pub const fn new(recognize: Option<bool>, mint: Option<bool>) -> Self {
         Self { recognize, mint }
     }
 
-    #[must_use = "resource type recognize override participates in evaluation"]
+    /// Resource type recognize override participates in evaluation.
+    #[must_use]
     pub const fn recognize(&self) -> Option<bool> {
         self.recognize
     }
 
-    #[must_use = "resource type mint override participates in evaluation"]
+    /// Resource type mint override participates in evaluation.
+    #[must_use]
     pub const fn mint(&self) -> Option<bool> {
         self.mint
     }
 }
 
+/// Validated per-type constraints (minting limits + audience scope).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTypeConstraints {
     minting: ValidatedMintingConstraints,
@@ -538,7 +633,8 @@ pub struct ValidatedTypeConstraints {
 }
 
 impl ValidatedTypeConstraints {
-    #[must_use = "persisted type constraint state must stay valid by construction"]
+    /// Persisted type constraint state must stay valid by construction.
+    #[must_use]
     pub const fn new(
         minting: ValidatedMintingConstraints,
         audience_scope: Vec<ValidatedAudienceEntry>,
@@ -549,17 +645,20 @@ impl ValidatedTypeConstraints {
         }
     }
 
-    #[must_use = "minting constraints participate in evaluation"]
+    /// Minting constraints participate in evaluation.
+    #[must_use]
     pub const fn minting(&self) -> &ValidatedMintingConstraints {
         &self.minting
     }
 
-    #[must_use = "audience constraints participate in evaluation"]
+    /// Audience constraints participate in evaluation.
+    #[must_use]
     pub fn audience_scope(&self) -> &[ValidatedAudienceEntry] {
         &self.audience_scope
     }
 }
 
+/// Validated minting constraints with optional limits.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedMintingConstraints {
     max_total: Option<u64>,
@@ -567,7 +666,8 @@ pub struct ValidatedMintingConstraints {
 }
 
 impl ValidatedMintingConstraints {
-    #[must_use = "persisted minting limits must stay valid by construction"]
+    /// Persisted minting limits must stay valid by construction.
+    #[must_use]
     pub const fn new(max_total: Option<u64>, max_per_user: Option<u64>) -> Self {
         Self {
             max_total,
@@ -575,17 +675,20 @@ impl ValidatedMintingConstraints {
         }
     }
 
-    #[must_use = "minting max_total participates in evaluation"]
+    /// Minting max_total participates in evaluation.
+    #[must_use]
     pub const fn max_total(&self) -> Option<u64> {
         self.max_total
     }
 
-    #[must_use = "minting max_per_user participates in evaluation"]
+    /// Minting max_per_user participates in evaluation.
+    #[must_use]
     pub const fn max_per_user(&self) -> Option<u64> {
         self.max_per_user
     }
 }
 
+/// A validated time window ensuring `not_before <= not_after`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTimeWindow {
     not_before: DateTime<Utc>,
@@ -613,44 +716,69 @@ impl ValidatedTimeWindow {
         })
     }
 
-    #[must_use = "not_before participates in time-based evaluation"]
+    /// Not_before participates in time-based evaluation.
     pub const fn not_before(&self) -> DateTime<Utc> {
         self.not_before
     }
 
-    #[must_use = "not_after participates in time-based evaluation"]
+    /// Not_after participates in time-based evaluation.
+    #[must_use]
     pub const fn not_after(&self) -> DateTime<Utc> {
         self.not_after
     }
 }
 
+/// Validated revocation policy with normalized endpoint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedRevocation {
     revocable: bool,
     revocation_endpoint: CompactString,
+    post_revocation_effect: PostRevocationEffect,
 }
 
 impl ValidatedRevocation {
-    #[must_use = "persisted revocation policy must stay valid by construction"]
+    /// Persisted revocation policy must stay valid by construction.
+    #[must_use]
     pub const fn new(revocable: bool, revocation_endpoint: CompactString) -> Self {
         Self {
             revocable,
             revocation_endpoint,
+            post_revocation_effect: PostRevocationEffect::BlockAll,
         }
     }
 
     fn from_raw(raw: RawRevocation) -> Self {
-        Self::new(raw.revocable, raw.revocation_endpoint)
+        Self {
+            revocable: raw.revocable,
+            revocation_endpoint: raw.revocation_endpoint,
+            post_revocation_effect: raw.post_revocation_effect,
+        }
     }
 
-    #[must_use = "revocable flag participates in revocation policy"]
+    /// Revocable flag participates in revocation policy.
+    #[must_use]
     pub const fn revocable(&self) -> bool {
         self.revocable
     }
 
-    #[must_use = "revocation endpoint participates in revocation policy"]
+    /// Revocation endpoint participates in revocation policy.
+    #[must_use]
     pub fn revocation_endpoint(&self) -> &str {
         &self.revocation_endpoint
+    }
+
+    /// What happens after this grant is revoked.
+    #[must_use]
+    pub const fn post_revocation_effect(&self) -> PostRevocationEffect {
+        self.post_revocation_effect
+    }
+
+    /// Sets the post-revocation effect. Used during rehydration from a
+    /// persisted record.
+    #[must_use]
+    pub const fn with_post_revocation_effect(mut self, effect: PostRevocationEffect) -> Self {
+        self.post_revocation_effect = effect;
+        self
     }
 }
 
@@ -738,11 +866,16 @@ fn validate_audience_entries(
     let entries = raw.unwrap_or_default();
     ensure_collection_limit(scope_name, entries.len(), MAX_AUDIENCE_ENTRIES)?;
 
+    let mut seen_authorities = HashSet::new();
     entries
         .into_iter()
         .map(|entry| {
+            let authority_id = AuthorityId::new(entry.authority_id)?;
+            if !seen_authorities.insert(authority_id.clone()) {
+                return Err(TrustGrantError::DuplicateAudienceAuthority);
+            }
             Ok(ValidatedAudienceEntry::new(
-                AuthorityId::new(entry.authority_id)?,
+                authority_id,
                 validate_scope(scope_name, entry.scope)?,
                 entry
                     .principal_scope
@@ -953,7 +1086,7 @@ mod tests {
           "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}],
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -1456,7 +1589,7 @@ mod tests {
     }
 
     #[test]
-    fn validated_document_accepts_duplicate_audience_authorities() {
+    fn validated_document_rejects_duplicate_audience_authorities() {
         let mut raw = parse_valid_raw_document();
         let entries = raw
             .default_audience_scope
@@ -1468,10 +1601,9 @@ mod tests {
             .unwrap_or_else(|| panic!("fixture must have audience entries"));
         raw.default_audience_scope = Some(vec![entry.clone(), entry]);
 
-        let validated = ValidatedTrustGrantDocument::try_from(raw)
-            .unwrap_or_else(|e| panic!("duplicate audience authorities should validate: {e}"));
+        let result = ValidatedTrustGrantDocument::try_from(raw);
 
-        assert_eq!(validated.default_audience_scope().len(), 2);
+        assert_eq!(result, Err(TrustGrantError::DuplicateAudienceAuthority));
     }
 
     // ── ValidatedSelector::new error branches ────────────────────────

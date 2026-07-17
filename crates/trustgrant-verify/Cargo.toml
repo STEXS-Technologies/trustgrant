@@ -2,7 +2,11 @@
 name = "trustgrant-verify"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Cold-path verification pipeline for the TrustGrant protocol"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-discovery = { path = "../trustgrant-discovery" }
@@ -12,14 +16,14 @@ trustgrant-error = { path = "../trustgrant-error" }
 trustgrant-ownership = { path = "../trustgrant-ownership" }
 trustgrant-ports = { path = "../trustgrant-ports" }
 trustgrant-revocation = { path = "../trustgrant-revocation" }
-chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
+chrono.workspace = true
 compact_str = "0.9"
-itoa = { version = "1.0.15", default-features = false }
-serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
-serde_jcs = { version = "0.2.0", default-features = false }
-serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
-tracing = { version = "0.1", default-features = false, features = ["std"] }
-uuid = { version = "1.18.1", features = ["serde", "v4", "js"] }
+itoa.workspace = true
+serde.workspace = true
+serde_jcs.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+uuid = { workspace = true, features = ["serde", "js"] }
 
 [lints]
 workspace = true

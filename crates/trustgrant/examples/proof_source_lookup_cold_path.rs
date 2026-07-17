@@ -71,7 +71,7 @@ const DELEGATED_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},
   "global_constraints":null,
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -135,7 +135,7 @@ const SUCCESSOR_OWNERSHIP_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"id","all":false,"values":["canonical_item_1"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["custom:use"],"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":null
@@ -281,7 +281,7 @@ fn delegated_bundle() -> Result<TrustGrantProofBundle, ProofSourceLookupColdPath
         parse_revocation_status_proof(DELEGATED_REVOCATION_JSON)?,
         RevocationSourceKind::Api,
         ProofFinality::Observed,
-        RevocationFreshnessPolicy::new(120, 900)?,
+        RevocationFreshnessPolicy::new(86400, 86400)?,
     ))?;
     Ok(bundle)
 }

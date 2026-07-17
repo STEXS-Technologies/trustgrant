@@ -5,6 +5,7 @@ default_to_workspace = false
 [tasks.check]
 command = "cargo"
 args = ["check", "--workspace", "--all-targets"]
+env = { "RUSTFLAGS" = "-D warnings" }
 
 [tasks.test]
 command = "cargo"
@@ -41,6 +42,46 @@ args = ["test", "--test", "conformance", "-p", "trustgrant", "--", "--nocapture"
 [tasks.interop_all]
 dependencies = ["interop", "conformance_vectors", "conformance_tests"]
 
+[tasks.fuzz]
+command = "cargo"
+args = ["check", "-p", "trustgrant-fuzz"]
+
+[tasks.coverage]
+command = "cargo"
+args = ["tarpaulin",
+  "--packages", "trustgrant-domain",
+  "--packages", "trustgrant-document",
+  "--packages", "trustgrant-error",
+  "--packages", "trustgrant-issue",
+  "--packages", "trustgrant-evaluate",
+  "--packages", "trustgrant-verify",
+  "--packages", "trustgrant-ownership",
+  "--packages", "trustgrant-discovery",
+  "--packages", "trustgrant-revocation",
+  "--packages", "trustgrant-ports",
+  "--packages", "trustgrant",
+  "--skip-clean",
+  "--out", "lcov"]
+
+[tasks.smoke]
+command = "cargo"
+args = ["build", "--release", "--workspace"]
+    
+[tasks.smoke_examples]
+command = "cargo"
+args = ["run", "--release", "--example", "canonicalize_cold_path", "--", "100"]
+
+[tasks.smoke_hot_path]
+command = "cargo"
+args = ["run", "--release", "--example", "evaluate_hot_path", "--", "100000"]
+
+[tasks.smoke_all]
+dependencies = ["smoke", "smoke_examples", "smoke_hot_path"]
+
+[tasks.audit]
+command = "cargo"
+args = ["audit"]
+
 [tasks.wasm]
 command = "cargo"
 args = ["check", "--target", "wasm32-unknown-unknown", "--workspace", "--exclude", "trustgrant-fuzz"]
@@ -50,4 +91,4 @@ command = "cargo"
 args = ["kani", "-p", "kani-proofs"]
 
 [tasks.ci]
-dependencies = ["check", "clippy", "fmt", "test", "bench"]
+dependencies = ["check", "clippy", "fmt", "test", "bench", "fuzz", "audit", "interop_all"]

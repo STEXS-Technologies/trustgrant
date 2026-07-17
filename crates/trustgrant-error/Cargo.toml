@@ -2,10 +2,14 @@
 name = "trustgrant-error"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Error types for the TrustGrant delegation protocol"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-thiserror = { version = "2.0.18", default-features = false }
+thiserror.workspace = true
 
 [lints]
 workspace = true

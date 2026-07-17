@@ -10,8 +10,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-serde_json = "1"
-chrono = "0.4"
+serde_json.workspace = true
+chrono.workspace = true
 
 [dependencies.trustgrant]
 path = "../crates/trustgrant"
@@ -98,5 +98,101 @@ doc = false
 [[bin]]
 name = "fuzz_evaluation_engine"
 path = "fuzz_targets/fuzz_evaluation_engine.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_bundle_proof_parse"
+path = "fuzz_targets/fuzz_bundle_proof_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_draft_serialize"
+path = "fuzz_targets/fuzz_draft_serialize.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_domain_names"
+path = "fuzz_targets/fuzz_domain_names.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_authority_scheme"
+path = "fuzz_targets/fuzz_authority_scheme.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_revocation_state"
+path = "fuzz_targets/fuzz_revocation_state.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_selector_context"
+path = "fuzz_targets/fuzz_selector_context.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_grant_lineage"
+path = "fuzz_targets/fuzz_grant_lineage.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_document_roundtrip"
+path = "fuzz_targets/fuzz_document_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_metadata_consistency"
+path = "fuzz_targets/fuzz_metadata_consistency.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_verification_policy"
+path = "fuzz_targets/fuzz_verification_policy.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_mutation_request"
+path = "fuzz_targets/fuzz_mutation_request.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_canonicalize_transition"
+path = "fuzz_targets/fuzz_canonicalize_transition.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_discovery_inner_types"
+path = "fuzz_targets/fuzz_discovery_inner_types.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_verified_record"
+path = "fuzz_targets/fuzz_verified_record.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_document_validate_options"
+path = "fuzz_targets/fuzz_document_validate_options.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_enum_serde"
+path = "fuzz_targets/fuzz_enum_serde.rs"
 test = false
 doc = false

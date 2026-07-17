@@ -1,0 +1,6 @@
+{
+  "spec_section": "2.5",
+  "description": "supersedes on revision 1 should be rejected",
+  "overrides": { "supersedes": "tg_22222222-2222-4222-8222-222222222002" },
+  "assert": { "validation": "rejected" }
+}

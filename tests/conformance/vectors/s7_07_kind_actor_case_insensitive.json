@@ -1,0 +1,6 @@
+{
+  "spec_section": "7",
+  "description": "selector kind 'actor' and 'ACTOR' are case-insensitive built-in kinds",
+  "selector_kind": { "a": "actor", "b": "ACTOR", "expect_equal": true },
+  "assert": { "validation": "accepted" }
+}

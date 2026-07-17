@@ -4,6 +4,10 @@ use trustgrant_error::TrustGrantError;
 
 use super::ids::{GrantSeriesId, TrustGrantId};
 
+/// A non-zero revision number within a grant series.
+///
+/// Revisions start at 1 and increment with each new version of a grant
+/// within the same series.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GrantRevision(NonZeroU64);
 
@@ -20,19 +24,32 @@ impl GrantRevision {
         }
     }
 
-    #[must_use = "revision value should be used for lineage ordering"]
+    /// Revision value should be used for lineage ordering.
+    #[must_use]
     pub const fn get(self) -> u64 {
         self.0.get()
     }
 }
 
+/// Determines how a new grant revision relates to previous revisions of the
+/// same series.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SupersessionPolicy {
+    /// The new revision coexists with all previous revisions; all are valid.
     Coexist,
+    /// The new revision supersedes the immediately previous revision.
     SupersedePrevious,
+    /// The new revision is valid but prior revisions remain valid until
+    /// explicitly revoked.
     ExplicitRevocationRequired,
 }
 
+/// Identifies one grant within a series and tracks its supersession
+/// relationship.
+///
+/// Combines the concrete trustgrant ID, series ID, revision number,
+/// optional superseded predecessor, and the supersession policy that
+/// governs the relationship.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GrantLineage {
     trustgrant_id: TrustGrantId,
@@ -43,7 +60,8 @@ pub struct GrantLineage {
 }
 
 impl GrantLineage {
-    #[must_use = "grant lineage should be used for registration, lookup, or evaluation"]
+    /// Grant lineage should be used for registration, lookup, or evaluation.
+    #[must_use]
     pub const fn new(
         trustgrant_id: TrustGrantId,
         grant_series_id: GrantSeriesId,
@@ -60,27 +78,32 @@ impl GrantLineage {
         }
     }
 
-    #[must_use = "document identity is part of exact-grant evaluation"]
+    /// Document identity is part of exact-grant evaluation.
+    #[must_use]
     pub const fn trustgrant_id(&self) -> TrustGrantId {
         self.trustgrant_id
     }
 
-    #[must_use = "series identity is part of lineage lookup"]
+    /// Series identity is part of lineage lookup.
+    #[must_use]
     pub const fn grant_series_id(&self) -> GrantSeriesId {
         self.grant_series_id
     }
 
-    #[must_use = "revision is part of lineage ordering"]
+    /// Revision is part of lineage ordering.
+    #[must_use]
     pub const fn revision(&self) -> GrantRevision {
         self.revision
     }
 
-    #[must_use = "superseded document is part of lineage traversal"]
+    /// Superseded document is part of lineage traversal.
+    #[must_use]
     pub const fn supersedes(&self) -> Option<TrustGrantId> {
         self.supersedes
     }
 
-    #[must_use = "supersession policy is part of lineage semantics"]
+    /// Supersession policy is part of lineage semantics.
+    #[must_use]
     pub const fn supersession_policy(&self) -> SupersessionPolicy {
         self.supersession_policy
     }

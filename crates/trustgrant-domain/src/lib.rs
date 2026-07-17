@@ -1,3 +1,5 @@
+#![allow(clippy::must_use_candidate)]
+
 pub mod authority;
 pub mod canonicalization;
 pub mod ids;

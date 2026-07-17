@@ -9,6 +9,9 @@ constraints. Grants are revocable, time-bound, and verifiable offline.
 
 ## Quick example
 
+This is a conceptual excerpt, not a complete signed v0 document. The full required wire
+shape is in the [protocol spec](docs/TRUSTGRANT_V0_SPEC.md).
+
 ```json
 {
   "trustgrant_id": "tg_550e8400-e29b-41d4-a716-446655440000",
@@ -37,7 +40,7 @@ crates/
 tests/                      — Integration tests
   interop/vectors/          — Language-agnostic test vectors (29)
   conformance/vectors/      — Spec validation vectors (37)
-interop/                    — Cross-implementation tooling
+docs/                       — Cross-implementation guide, use cases, tracing
 kani-proofs/                — Kani formal verification harnesses
 ```
 
@@ -45,11 +48,12 @@ kani-proofs/                — Kani formal verification harnesses
 
 | Doc | What it covers |
 |-----|----------------|
-| [Protocol spec](crates/trustgrant/docs/TRUSTGRANT_V0_SPEC.md) | Full specification, 14 sections |
-| [Use cases](crates/trustgrant/docs/USE_CASES.md) | What problems TrustGrant solves |
-| [Implementation guide](interop/IMPLEMENTATION_GUIDE.md) | Implementing in other languages |
-| [Error boundaries](crates/trustgrant/docs/ERROR_BOUNDARIES.md) | Fatal vs recoverable errors |
-| [Tracing guide](crates/trustgrant/docs/TRACING_GUIDE.md) | Observability setup |
+| [Protocol spec](docs/TRUSTGRANT_V0_SPEC.md) | Full specification, 14 sections |
+| [Documentation index](docs/README.md) | Complete protocol, integration, and interoperability documentation |
+| [Use cases](docs/USE_CASES.md) | What problems TrustGrant solves |
+| [Implementation guide](docs/IMPLEMENTATION_GUIDE.md) | Implementing in other languages |
+| [Error boundaries](docs/ERROR_BOUNDARIES.md) | Fatal vs recoverable errors |
+| [Tracing guide](docs/TRACING_GUIDE.md) | Observability setup |
 | [Crate README](crates/trustgrant/README.md) | Rust crate overview |
 
 ## Status

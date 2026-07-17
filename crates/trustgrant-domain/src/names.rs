@@ -8,6 +8,10 @@ use trustgrant_error::limits::{
     MAX_RESOURCE_TYPE_NAME_BYTES, MAX_SELECTOR_KIND_BYTES, ensure_string_limit,
 };
 
+/// A validated operation name used in grant capability scopes.
+///
+/// Operation names are non-empty token strings (no whitespace or control
+/// characters) subject to a maximum byte limit.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OperationName(String);
 
@@ -24,7 +28,7 @@ impl OperationName {
         ))
     }
 
-    #[must_use = "operation name should be inspected or matched"]
+    /// Operation name should be inspected or matched.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -42,6 +46,10 @@ impl Borrow<str> for OperationName {
     }
 }
 
+/// A validated custom (application-defined) operation name.
+///
+/// Custom operation names reserve the built-in capability names
+/// (`recognize`, `mint`, `create`) and reject them at construction.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CustomOperationName(OperationName);
 
@@ -62,12 +70,13 @@ impl CustomOperationName {
         Ok(Self(operation))
     }
 
-    #[must_use = "custom operation name should be inspected or matched"]
+    /// Custom operation name should be inspected or matched.
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
-    #[must_use = "wrapped operation name should be available for comparisons"]
+    /// Wrapped operation name should be available for comparisons.
+    #[must_use]
     pub const fn operation_name(&self) -> &OperationName {
         &self.0
     }
@@ -85,6 +94,10 @@ impl Borrow<str> for CustomOperationName {
     }
 }
 
+/// A validated resource type name.
+///
+/// Resource type names are non-empty token strings (no whitespace or control
+/// characters) that identify the kind of resource a grant applies to.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResourceTypeName(String);
 
@@ -102,7 +115,7 @@ impl ResourceTypeName {
         ))
     }
 
-    #[must_use = "resource type name should be inspected or matched"]
+    /// Resource type name should be inspected or matched.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -120,6 +133,11 @@ impl Borrow<str> for ResourceTypeName {
     }
 }
 
+/// A validated key identifier used to select a specific signing key.
+///
+/// Key identifiers are non-empty token strings (no whitespace or control
+/// characters) that reference a key record in an authority discovery
+/// document.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct KeyId(String);
 
@@ -136,7 +154,7 @@ impl KeyId {
         ))
     }
 
-    #[must_use = "key identifier should be inspected or matched"]
+    /// Key identifier should be inspected or matched.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -154,6 +172,12 @@ impl Borrow<str> for KeyId {
     }
 }
 
+/// A validated selector kind that classifies selector values into built-in
+/// categories or user-defined groups.
+///
+/// Built-in kinds (`authority`, `namespace`, `actor`) are recognized
+/// case-insensitively and provide fast O(1) lookup indices. User-defined
+/// kinds are treated as opaque strings with case-sensitive equality.
 #[derive(Debug, Clone)]
 pub struct SelectorKind {
     classification: SelectorKindClassification,
@@ -164,12 +188,22 @@ pub struct SelectorKind {
 enum SelectorKindClassification {
     Authority,
     Namespace,
-    PlayerId,
+    Actor,
     Other,
 }
 
 impl SelectorKind {
     /// Creates a validated selector kind.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_domain::SelectorKind;
+    ///
+    /// let authority = SelectorKind::new("authority")
+    ///     .expect("built-in authority kind");
+    /// assert_eq!(authority.kind_index(), Some(0));
+    /// ```
     ///
     /// # Errors
     ///
@@ -185,12 +219,13 @@ impl SelectorKind {
         })
     }
 
-    #[must_use = "selector kind should be inspected or matched"]
+    /// Selector kind should be inspected or matched.
     pub fn as_str(&self) -> &str {
         &self.value
     }
 
-    #[must_use = "hot-path selector lookup should avoid redundant string equality when possible"]
+    /// Hot-path selector lookup should avoid redundant string equality when possible.
+    #[must_use]
     pub fn same_kind(&self, other: &Self) -> bool {
         match (self.classification, other.classification) {
             (SelectorKindClassification::Other, SelectorKindClassification::Other) => {
@@ -207,14 +242,14 @@ impl SelectorKind {
     /// |-------------|-------|
     /// | Authority   | 0     |
     /// | Namespace   | 1     |
-    /// | PlayerId    | 2     |
+    /// | Actor       | 2     |
     /// | Other       | None  |
-    #[must_use = "selector kind index enables O(1) lookup in SelectorContext"]
+    #[must_use]
     pub const fn kind_index(&self) -> Option<usize> {
         match self.classification {
             SelectorKindClassification::Authority => Some(0),
             SelectorKindClassification::Namespace => Some(1),
-            SelectorKindClassification::PlayerId => Some(2),
+            SelectorKindClassification::Actor => Some(2),
             SelectorKindClassification::Other => None,
         }
     }
@@ -253,7 +288,7 @@ impl Ord for SelectorKind {
                 SelectorKindClassification::Other => self.value.cmp(&other.value),
                 SelectorKindClassification::Authority
                 | SelectorKindClassification::Namespace
-                | SelectorKindClassification::PlayerId => Ordering::Equal,
+                | SelectorKindClassification::Actor => Ordering::Equal,
             },
             ordering @ Ordering::Less | ordering @ Ordering::Greater => ordering,
         }
@@ -275,12 +310,17 @@ impl SelectorKindClassification {
         match value.to_lowercase().as_str() {
             "authority" => Self::Authority,
             "namespace" => Self::Namespace,
-            "player_id" => Self::PlayerId,
+            "actor" => Self::Actor,
             _ => Self::Other,
         }
     }
 }
 
+/// A validated principal kind that classifies the type of issuer principal
+/// (e.g. `service`, `user`, `bot`).
+///
+/// Principal kinds are non-empty token strings with no whitespace or
+/// control characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PrincipalKind(String);
 
@@ -298,7 +338,7 @@ impl PrincipalKind {
         ))
     }
 
-    #[must_use = "principal kind should be inspected or matched"]
+    /// Principal kind should be inspected or matched.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -316,6 +356,11 @@ impl Borrow<str> for PrincipalKind {
     }
 }
 
+/// A validated principal identifier that uniquely identifies an issuer
+/// principal within its kind.
+///
+/// Principal identifiers are non-empty token strings with no whitespace or
+/// control characters.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PrincipalId(String);
 
@@ -333,7 +378,7 @@ impl PrincipalId {
         ))
     }
 
-    #[must_use = "principal identifier should be inspected or matched"]
+    /// Principal identifier should be inspected or matched.
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -556,7 +601,7 @@ mod tests {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let player_id = match SelectorKind::new("player_id") {
+        let actor = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
@@ -577,8 +622,8 @@ mod tests {
             }
         );
         assert_eq!(
-            player_id,
-            match SelectorKind::new("player_id") {
+            actor,
+            match SelectorKind::new("actor") {
                 Ok(value) => value,
                 Err(error) => panic!("selector kind should be valid: {error}"),
             }
@@ -594,8 +639,8 @@ mod tests {
         // different built-in kinds are not equal
         assert!(!authority.same_kind(&namespace));
         assert_ne!(authority, namespace);
-        assert_ne!(authority, player_id);
-        assert_ne!(namespace, player_id);
+        assert_ne!(authority, actor);
+        assert_ne!(namespace, actor);
     }
 
     #[test]
@@ -652,21 +697,21 @@ mod tests {
         assert_eq!(namespace, namespace_upper);
         assert_eq!(namespace, namespace_mixed);
 
-        // PlayerId built-in also works with case variations
-        let player_id = match SelectorKind::new("player_id") {
+        // Actor built-in also works with case variations
+        let actor = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let player_id_upper = match SelectorKind::new("PLAYER_ID") {
+        let actor_upper = match SelectorKind::new("ACTOR") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let player_id_mixed = match SelectorKind::new("Player_Id") {
+        let actor_mixed = match SelectorKind::new("Actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        assert_eq!(player_id, player_id_upper);
-        assert_eq!(player_id, player_id_mixed);
+        assert_eq!(actor, actor_upper);
+        assert_eq!(actor, actor_mixed);
     }
 
     #[test]
@@ -683,7 +728,7 @@ mod tests {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
-        let pid = match SelectorKind::new("player_id") {
+        let pid = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
@@ -694,14 +739,14 @@ mod tests {
         assert!(!hash_set.insert(a2.clone()));
         assert!(hash_set.insert(ns));
         assert!(hash_set.insert(pid));
-        assert_eq!(hash_set.len(), 3); // authority, namespace, player_id
+        assert_eq!(hash_set.len(), 3); // authority, namespace, actor
 
         // Ord: built-ins of same classification sort equal
         let mut tree_set = BTreeSet::new();
         assert!(tree_set.insert(a1));
         assert!(!tree_set.insert(a2));
 
-        // Built-in ordering is deterministic: Authority < Namespace < PlayerId
+        // Built-in ordering is deterministic: Authority < Namespace < Actor
         let authority = match SelectorKind::new("authority") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
@@ -890,8 +935,8 @@ mod tests {
     }
 
     #[test]
-    fn selector_kind_kind_index_player_id_is_two() {
-        let kind = match SelectorKind::new("player_id") {
+    fn selector_kind_kind_index_actor_is_two() {
+        let kind = match SelectorKind::new("actor") {
             Ok(value) => value,
             Err(error) => panic!("selector kind should be valid: {error}"),
         };
@@ -932,7 +977,7 @@ mod tests {
         let inputs = [
             "authority",
             "namespace",
-            "player_id",
+            "actor",
             "custom",
             "Foo",
             "shard-1",

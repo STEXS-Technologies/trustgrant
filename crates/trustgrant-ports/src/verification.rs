@@ -9,12 +9,25 @@ use trustgrant_revocation::RevocationRecord;
 
 use super::signature::VerificationPosture;
 
+/// Temporal and policy context for one verification call.
+///
+/// Carries the effective verification timestamp and the
+/// [`VerificationPosture`] that governs which proof sources to consult.
+/// All verification entry points in the TrustGrant core accept this
+/// context to ensure consistent time-based and posture-aware evaluation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VerificationContext {
     verified_at: DateTime<Utc>,
     posture: VerificationPosture,
 }
 
+/// One assembled set of proof sources for a single verification call.
+///
+/// Groups the three proof-source traits that the verification pipeline
+/// needs: authority discovery, revocation proof, and ownership transition
+/// proof. Created by the surrounding adapter after any multi-source
+/// reconciliation, then passed to the pipeline's source-driven entry
+/// points.
 #[derive(Clone, Copy)]
 pub struct VerificationSources<'source> {
     discovery_source: &'source dyn AuthorityDiscoverySource,
@@ -29,7 +42,6 @@ impl<'source> VerificationSources<'source> {
     /// The TrustGrant core does not merge mirrored sources or arbitrate
     /// conflicting proof inputs. If a deployment wants multi-source
     /// reconciliation, that must happen before constructing this value.
-    #[must_use = "verification sources must be passed into source-driven verification"]
     pub const fn new(
         discovery_source: &'source dyn AuthorityDiscoverySource,
         revocation_source: &'source dyn RevocationProofSource,
@@ -42,24 +54,28 @@ impl<'source> VerificationSources<'source> {
         }
     }
 
-    #[must_use = "discovery source is required for signer resolution"]
+    /// Discovery source is required for signer resolution.
+    #[must_use]
     pub const fn discovery_source(&self) -> &'source dyn AuthorityDiscoverySource {
         self.discovery_source
     }
 
-    #[must_use = "revocation source is required for revocation proof resolution"]
+    /// Revocation source is required for revocation proof resolution.
+    #[must_use]
     pub const fn revocation_source(&self) -> &'source dyn RevocationProofSource {
         self.revocation_source
     }
 
-    #[must_use = "ownership source is required for ownership proof resolution"]
+    /// Ownership source is required for ownership proof resolution.
+    #[must_use]
     pub const fn ownership_source(&self) -> &'source dyn OwnershipTransitionProofSource {
         self.ownership_source
     }
 }
 
 impl VerificationContext {
-    #[must_use = "verification context is required to resolve proof inputs"]
+    /// Verification context is required to resolve proof inputs.
+    #[must_use]
     pub const fn new(verified_at: DateTime<Utc>, posture: VerificationPosture) -> Self {
         Self {
             verified_at,
@@ -67,12 +83,14 @@ impl VerificationContext {
         }
     }
 
-    #[must_use = "verified_at is required for key and proof freshness checks"]
+    /// Verified_at is required for key and proof freshness checks.
+    #[must_use]
     pub const fn verified_at(&self) -> DateTime<Utc> {
         self.verified_at
     }
 
-    #[must_use = "posture is required for proof-source policy"]
+    /// Posture is required for proof-source policy.
+    #[must_use]
     pub const fn posture(&self) -> VerificationPosture {
         self.posture
     }

@@ -1,3 +1,4 @@
+#![allow(clippy::must_use_candidate)]
 #![forbid(unsafe_code)]
 
 //! Core TrustGrant protocol crate - umbrella re-exports.
@@ -25,14 +26,14 @@ pub use discovery::{
     SignatureProfile, parse_authority_discovery_document, parse_delegated_principal_key_document,
 };
 pub use document::{
-    OwnershipTransitionAcceptance, OwnershipTransitionSignature, RawOwnershipTransitionAcceptance,
-    RawOwnershipTransitionDocument, RawOwnershipTransitionGlobalConstraints,
-    RawOwnershipTransitionResourceScope, RawOwnershipTransitionResourceType,
-    RawOwnershipTransitionSelector, RawOwnershipTransitionSignature,
-    RawOwnershipTransitionTimeWindow, RawTrustGrantDocument, ValidatedAudienceEntry,
-    ValidatedCapabilities, ValidatedOperationScope, ValidatedOwnershipTransitionDocument,
-    ValidatedPrincipal, ValidatedResourceType, ValidatedScope, ValidatedSelector,
-    ValidatedTrustGrantDocument,
+    InteroperabilityProfile, OwnershipTransitionAcceptance, OwnershipTransitionSignature,
+    RawOwnershipTransitionAcceptance, RawOwnershipTransitionDocument,
+    RawOwnershipTransitionGlobalConstraints, RawOwnershipTransitionResourceScope,
+    RawOwnershipTransitionResourceType, RawOwnershipTransitionSelector,
+    RawOwnershipTransitionSignature, RawOwnershipTransitionTimeWindow, RawTrustGrantDocument,
+    ValidatedAudienceEntry, ValidatedCapabilities, ValidatedOperationScope,
+    ValidatedOwnershipTransitionDocument, ValidatedPrincipal, ValidatedResourceType,
+    ValidatedScope, ValidatedSelector, ValidatedTrustGrantDocument,
 };
 pub use domain::{
     AuthorityId, AuthorityScheme, CanonicalizationProfile, CustomOperationName, GrantLineage,
@@ -45,8 +46,11 @@ pub use domain::{
 };
 pub use error::TrustGrantError;
 pub use evaluate::{
-    EvaluationDecision, EvaluationDenyReason, EvaluationEngine, EvaluationRequest, MintContext,
-    RequestedCapability, RequestedOperation, ResourceContext, SelectorContext,
+    AtomicExecutionResult, AtomicInventoryExecutor, EvaluationDecision, EvaluationDenyReason,
+    EvaluationEngine, EvaluationOutcome, EvaluationRequest, InMemoryAtomicInventoryExecutor,
+    InMemoryExecutionError, InMemoryExecutionTransaction, IntentId, MintContext,
+    MutationAuthorization, MutationRequest, RequestedCapability, RequestedOperation,
+    ResourceBinding, ResourceContext, ResourceRef, SelectorContext, TemplateRef,
 };
 pub use issue::{TrustGrantDraft, TrustGrantDraftAuthorities};
 pub use ownership::{

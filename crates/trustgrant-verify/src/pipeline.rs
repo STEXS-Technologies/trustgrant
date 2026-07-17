@@ -16,6 +16,11 @@ use super::signature::{SignatureVerificationRequest, SignatureVerifier};
 use super::{VerificationMetadata, VerifiedTrustGrant};
 use trustgrant_domain::CanonicalizationProfile;
 
+/// The output of a successful verification pipeline.
+///
+/// Contains both the [`VerifiedTrustGrant`] (validated document +
+/// verification metadata) and the canonical signable bytes that were used
+/// for signature verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerificationArtifacts {
     verified_grant: VerifiedTrustGrant,
@@ -23,28 +28,48 @@ pub struct VerificationArtifacts {
 }
 
 impl VerificationArtifacts {
-    #[must_use = "verified grant is required for registration and evaluation"]
+    /// Verified grant is required for registration and evaluation.
     pub const fn verified_grant(&self) -> &VerifiedTrustGrant {
         &self.verified_grant
     }
 
-    #[must_use = "canonical bytes may be retained for audit or debugging"]
+    /// Canonical bytes may be retained for audit or debugging.
+    #[must_use]
     pub const fn canonical_bytes(&self) -> &CanonicalTrustGrantBytes {
         &self.canonical_bytes
     }
 }
 
+/// End-to-end verification pipeline for TrustGrant documents.
+///
+/// The pipeline orchestrates parsing, validation, canonicalization,
+/// signer-binding resolution, revocation checks, ownership verification,
+/// and signature verification in a single pass. Use the stateless
+/// `VerificationPipeline::new()` entrypoints for each grant.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct VerificationPipeline;
 
 impl VerificationPipeline {
-    #[must_use = "verification pipeline should be reused by adapters"]
+    /// Verification pipeline should be reused by adapters.
+    #[must_use]
     pub const fn new() -> Self {
         Self
     }
 
     /// Parses, validates, canonicalizes, verifies, and normalizes one
     /// TrustGrant into verified runtime state.
+    ///
+    /// Use this when you already have resolved [`VerificationMetadata`]
+    /// (signer binding, ownership, revocation state) from external sources
+    /// and want a single-call verify.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_verify::VerificationPipeline;
+    /// # // Full example requires a SignatureVerifier and VerificationMetadata.
+    /// # // See integration tests for end-to-end usage.
+    /// ```
     ///
     /// # Errors
     ///
@@ -65,6 +90,9 @@ impl VerificationPipeline {
     /// Parses, validates, canonicalizes, verifies, and normalizes one
     /// TrustGrant from JSON bytes.
     ///
+    /// Use this when the source is already in bytes (e.g. from a file or
+    /// network buffer) and you have pre-resolved [`VerificationMetadata`].
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, canonicalization,
@@ -83,6 +111,9 @@ impl VerificationPipeline {
 
     /// Parses, validates, resolves proof inputs, verifies, and normalizes one
     /// TrustGrant into verified runtime state.
+    ///
+    /// Use this when you have adapter-facing [`VerificationSources`] to resolve
+    /// signer binding, ownership, and revocation proofs on the fly.
     ///
     /// # Errors
     ///
@@ -104,6 +135,9 @@ impl VerificationPipeline {
     /// Parses, validates, resolves proof inputs, verifies, and normalizes one
     /// TrustGrant from JSON bytes using adapter-facing proof sources.
     ///
+    /// Use this when the source is in bytes and you have adapter-facing
+    /// [`VerificationSources`] for proof resolution.
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, proof resolution,
@@ -124,6 +158,17 @@ impl VerificationPipeline {
     /// Verifies one JSON TrustGrant using one shared proof bundle as the
     /// discovery, revocation, and ownership proof source.
     ///
+    /// Use this when all proof material has been assembled into a
+    /// [`TrustGrantProofBundle`] (e.g. for offline or cached verification).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_verify::VerificationPipeline;
+    /// # // Full example requires a SignatureVerifier, TrustGrantProofBundle,
+    /// # // and VerificationContext. See integration tests.
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, proof resolution,
@@ -142,6 +187,9 @@ impl VerificationPipeline {
     /// Verifies one JSON-byte TrustGrant using one shared proof bundle as the
     /// discovery, revocation, and ownership proof source.
     ///
+    /// Use this when source is bytes and proof material is in a
+    /// [`TrustGrantProofBundle`].
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when parsing, validation, proof resolution,
@@ -158,6 +206,9 @@ impl VerificationPipeline {
     }
 
     /// Verifies one already-parsed raw TrustGrant document.
+    ///
+    /// Use this when you already have a [`RawTrustGrantDocument`] and
+    /// pre-resolved [`VerificationMetadata`], avoiding a JSON re-parse.
     ///
     /// # Errors
     ///
@@ -176,6 +227,9 @@ impl VerificationPipeline {
 
     /// Verifies one already-parsed raw TrustGrant document using adapter-facing
     /// proof sources.
+    ///
+    /// Use this when you have a pre-parsed [`RawTrustGrantDocument`] and
+    /// adapter-facing [`VerificationSources`], avoiding a JSON re-parse.
     ///
     /// # Errors
     ///
@@ -462,7 +516,7 @@ mod tests {
               "capabilities":{{"recognize":true,"mint":false}},
               "default_audience_scope":null,
               "resource_scope":{{"types":{{"item":{{"all":true,"allow":null,"deny":null,"capabilities":{{"recognize":null,"mint":false}},"constraints":{{"minting":{{"max_total":null,"max_per_user":null}},"audience_scope":null}},"operations":null}}}}}},
-              "revocation":{{"revocable":{revocable},"revocation_endpoint":"https://issuer.example.com/revocation"}},
+              "revocation":{{"revocable":{revocable},"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"}},
               "issued_at":"2026-04-07T12:00:00Z",
               "signature":"{signature}"
             }}"#
@@ -742,7 +796,7 @@ mod tests {
             },
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            match RevocationFreshnessPolicy::new(120, 900) {
+            match RevocationFreshnessPolicy::new(86400, 86400) {
                 Ok(policy) => policy,
                 Err(error) => panic!("freshness policy should be valid: {error}"),
             },
@@ -933,7 +987,7 @@ mod tests {
         // Grant with not_before at Unix epoch (1970-01-01T00:00:00Z),
         // not_after far in the future → should verify successfully.
         let pipeline = VerificationPipeline::new();
-        let json = r#"{"trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000","version":0,"grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001","revision":1,"supersedes":null,"supersession_policy":"coexist","issuer_authority":"https://issuer.example.com","origin_authority":"https://issuer.example.com","active_owning_authority":"https://issuer.example.com","key_id":"root-key-1","target_scope":{"all":true,"allow":null,"deny":null},"capabilities":{"recognize":true,"mint":false},"default_audience_scope":null,"resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},"global_constraints":{"time":{"not_before":"1970-01-01T00:00:00Z","not_after":"2099-12-31T23:59:59Z"}},"revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},"issued_at":"1970-01-01T00:00:00Z","signature":"valid-signature"}"#;
+        let json = r#"{"trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000","version":0,"grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001","revision":1,"supersedes":null,"supersession_policy":"coexist","issuer_authority":"https://issuer.example.com","origin_authority":"https://issuer.example.com","active_owning_authority":"https://issuer.example.com","key_id":"root-key-1","target_scope":{"all":true,"allow":null,"deny":null},"capabilities":{"recognize":true,"mint":false},"default_audience_scope":null,"resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},"global_constraints":{"time":{"not_before":"1970-01-01T00:00:00Z","not_after":"2099-12-31T23:59:59Z"}},"revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},"issued_at":"1970-01-01T00:00:00Z","signature":"valid-signature"}"#;
 
         let artifacts = pipeline
             .verify_json_str(json, &FakeSignatureVerifier, metadata())
@@ -1104,7 +1158,7 @@ mod tests {
               "capabilities":{{"recognize":true,"mint":false}},
               "default_audience_scope":null,
               "resource_scope":{{"types":{{"item":{{"all":true,"allow":null,"deny":null,"capabilities":{{"recognize":null,"mint":false}},"constraints":{{"minting":{{"max_total":null,"max_per_user":null}},"audience_scope":null}},"operations":null}}}}}},
-              "revocation":{{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"}},
+              "revocation":{{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"}},
               "issued_at":"2026-04-07T12:00:00Z",
               "signature":"{signature}"
             }}"#

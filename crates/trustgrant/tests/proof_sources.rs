@@ -1,13 +1,21 @@
 #![allow(clippy::panic)]
 
 use chrono::{TimeZone, Utc};
+use std::collections::HashMap;
+
 use trustgrant::{
-    AuthorityId, BundleRevocationProof, EvaluationEngine, EvaluationRequest, ProofFinality,
-    RawOwnershipTransitionDocument, RequestedCapability, RequestedOperation, ResourceContext,
-    RevocationFreshnessPolicy, RevocationSourceKind, SignatureVerificationRequest,
-    SignatureVerifier, TrustGrantError, TrustGrantProofBundle, VerificationContext,
-    VerificationPipeline, VerificationPosture, parse_authority_discovery_document,
-    parse_delegated_principal_key_document, parse_revocation_status_proof,
+    AuthorityDiscoveryDocument, AuthorityDiscoverySource, AuthorityId, AuthorityKeyRecord,
+    BundleRevocationProof, DelegatedPrincipalKeyDocument, DelegatedPrincipalRef, DiscoverySource,
+    EvaluationEngine, EvaluationRequest, KeyId, OwnershipProofKind, OwnershipTransitionProofSource,
+    OwnershipVerificationRecord, ProofFinality, RawOwnershipTransitionDocument,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationFreshnessPolicy, RevocationProofSource,
+    RevocationRecord, RevocationSourceKind, SignatureProfile, SignatureVerificationRequest,
+    SignatureVerifier, TrustGrantError, TrustGrantProofBundle, ValidatedPrincipal,
+    ValidatedTrustGrantDocument, VerificationContext, VerificationMetadata, VerificationPipeline,
+    VerificationPosture, VerificationSources, VerifiedRevocationState,
+    parse_authority_discovery_document, parse_delegated_principal_key_document,
+    parse_revocation_status_proof,
 };
 
 #[derive(Debug, Default)]
@@ -51,7 +59,7 @@ fn source_driven_verification_resolves_delegated_principal_from_parsed_discovery
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -99,7 +107,7 @@ fn source_driven_verification_accepts_verified_transition_chain() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -167,7 +175,7 @@ fn offline_verification_accepts_trusted_snapshot_revocation_from_bundle() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ProofBundle,
             ProofFinality::TrustedSnapshot,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -206,7 +214,7 @@ fn offline_verification_rejects_live_api_revocation_evidence() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -248,7 +256,7 @@ fn cached_verification_rejects_live_api_revocation_evidence() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -290,7 +298,7 @@ fn cached_verification_rejects_live_chain_state_revocation_evidence() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ChainState,
             ProofFinality::Finalized,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -332,7 +340,7 @@ fn cached_verification_accepts_trusted_snapshot_revocation_from_bundle() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::ProofBundle,
             ProofFinality::TrustedSnapshot,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -395,7 +403,7 @@ fn source_driven_verification_rejects_delegated_signer_when_authority_does_not_s
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -434,7 +442,7 @@ fn source_driven_verification_and_evaluation_allow_matching_request() {
                 .unwrap_or_else(|error| panic!("revocation proof should parse: {error}")),
             RevocationSourceKind::Api,
             ProofFinality::Observed,
-            RevocationFreshnessPolicy::new(120, 900)
+            RevocationFreshnessPolicy::new(86400, 86400)
                 .unwrap_or_else(|error| panic!("policy should be valid: {error}")),
         ))
         .unwrap_or_else(|error| panic!("revocation proof should insert: {error}"));
@@ -450,10 +458,256 @@ fn source_driven_verification_and_evaluation_allow_matching_request() {
             ),
         )
         .unwrap_or_else(|error| panic!("source-driven verification should succeed: {error}"));
-    let decision =
-        EvaluationEngine::new().evaluate(artifacts.verified_grant(), &matching_request());
+    let outcome = EvaluationEngine::new().evaluate(artifacts.verified_grant(), &matching_request());
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
+}
+
+// ---------------------------------------------------------------------------
+// G6: Custom DiscoverySource backed by a static HashMap
+// ---------------------------------------------------------------------------
+
+/// A custom `DiscoverySource` that returns pre-parsed documents from a
+/// HashMap, simulating what an application-level endpoint fetcher would do.
+struct HashMapDiscoverySource {
+    discovery_docs: HashMap<AuthorityId, AuthorityDiscoveryDocument>,
+    delegated_docs: HashMap<AuthorityId, HashMap<(String, String), DelegatedPrincipalKeyDocument>>,
+}
+
+impl HashMapDiscoverySource {
+    fn new() -> Self {
+        Self {
+            discovery_docs: HashMap::new(),
+            delegated_docs: HashMap::new(),
+        }
+    }
+
+    fn insert_discovery(&mut self, authority: AuthorityId, doc: AuthorityDiscoveryDocument) {
+        self.discovery_docs.insert(authority, doc);
+    }
+
+    fn insert_delegated(
+        &mut self,
+        authority: AuthorityId,
+        principal_kind: &str,
+        principal_id: &str,
+        doc: DelegatedPrincipalKeyDocument,
+    ) {
+        self.delegated_docs
+            .entry(authority)
+            .or_default()
+            .insert((principal_kind.to_owned(), principal_id.to_owned()), doc);
+    }
+}
+
+impl DiscoverySource for HashMapDiscoverySource {
+    fn fetch_authority_discovery(
+        &self,
+        authority: &AuthorityId,
+        _context: VerificationContext,
+    ) -> Result<AuthorityDiscoveryDocument, TrustGrantError> {
+        self.discovery_docs
+            .get(authority)
+            .cloned()
+            .ok_or(TrustGrantError::MissingAuthorityDiscoveryDocument)
+    }
+
+    fn fetch_delegated_principal(
+        &self,
+        authority: &AuthorityId,
+        principal: &DelegatedPrincipalRef,
+        _context: VerificationContext,
+    ) -> Result<DelegatedPrincipalKeyDocument, TrustGrantError> {
+        self.delegated_docs
+            .get(authority)
+            .and_then(|map| {
+                map.get(&(
+                    principal.kind().as_str().to_owned(),
+                    principal.id().as_str().to_owned(),
+                ))
+            })
+            .cloned()
+            .ok_or(TrustGrantError::MissingDelegatedPrincipalDocument)
+    }
+}
+
+/// Verify that documents fetched from a custom `DiscoverySource` flow into
+/// the verification pipeline via `TrustGrantProofBundle` and
+/// `verify_json_str_with_sources()`.
+#[test]
+fn custom_discovery_source_feeds_into_pipeline() {
+    // Arrange: build a HashMapDiscoverySource with pre-parsed docs
+    let mut source = HashMapDiscoverySource::new();
+    let root_discovery = parse_authority_discovery_document(DELEGATED_ROOT_DISCOVERY_JSON)
+        .unwrap_or_else(|e| panic!("root discovery should parse: {e}"));
+    let delegated_keys = parse_delegated_principal_key_document(DELEGATED_PRINCIPAL_KEYS_JSON)
+        .unwrap_or_else(|e| panic!("delegated keys should parse: {e}"));
+
+    let auth = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|e| panic!("AuthorityId: {e}"));
+    source.insert_discovery(auth.clone(), root_discovery);
+    source.insert_delegated(auth.clone(), "service", "issuer-worker", delegated_keys);
+
+    // Act: use DiscoverySource to fetch docs and build a proof bundle
+    let ctx = VerificationContext::new(
+        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+        VerificationPosture::Online,
+    );
+    let fetched_discovery = source
+        .fetch_authority_discovery(&auth, ctx)
+        .unwrap_or_else(|e| panic!("should fetch discovery: {e}"));
+    let fetched_delegated = source
+        .fetch_delegated_principal(
+            &auth,
+            &DelegatedPrincipalRef::new("service", "issuer-worker")
+                .unwrap_or_else(|e| panic!("DelegatedPrincipalRef: {e}")),
+            ctx,
+        )
+        .unwrap_or_else(|e| panic!("should fetch delegated: {e}"));
+
+    let mut bundle = TrustGrantProofBundle::new();
+    bundle
+        .insert_discovery_document(fetched_discovery)
+        .unwrap_or_else(|e| panic!("insert discovery: {e}"));
+    bundle
+        .insert_delegated_principal_document(fetched_delegated)
+        .unwrap_or_else(|e| panic!("insert delegated: {e}"));
+    bundle
+        .insert_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(DELEGATED_REVOCATION_JSON)
+                .unwrap_or_else(|e| panic!("revocation proof: {e}")),
+            RevocationSourceKind::Api,
+            ProofFinality::Observed,
+            RevocationFreshnessPolicy::new(86400, 86400).unwrap_or_else(|e| panic!("policy: {e}")),
+        ))
+        .unwrap_or_else(|e| panic!("insert revocation: {e}"));
+
+    // Assert: verification succeeds through the pipeline
+    let result = VerificationPipeline::new().verify_json_str_with_sources(
+        DELEGATED_TRUSTGRANT_JSON,
+        &FakeSignatureVerifier,
+        bundle.as_sources(),
+        ctx,
+    );
+
+    assert!(result.is_ok());
+}
+
+/// Verify that fetching a missing discovery document returns an error.
+#[test]
+fn custom_discovery_source_returns_error_for_unknown_authority() {
+    let source = HashMapDiscoverySource::new();
+    let unknown_auth = AuthorityId::new("https://unknown.example.com")
+        .unwrap_or_else(|e| panic!("AuthorityId: {e}"));
+    let ctx = VerificationContext::new(
+        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+        VerificationPosture::Online,
+    );
+
+    let result = source.fetch_authority_discovery(&unknown_auth, ctx);
+    assert_eq!(
+        result,
+        Err(TrustGrantError::MissingAuthorityDiscoveryDocument)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// G10: ensure_metadata_matches_document error — key_id mismatch
+// ---------------------------------------------------------------------------
+
+/// Grant JSON with `issuer_principal: null` and a specific key_id so we can
+/// craft metadata with a *different* key_id and observe `KeyIdMismatch`.
+const G10_GRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_a0000000-0000-0000-0000-000000000010",
+  "version":0,
+  "grant_series_id":"tgs_a0000000-0000-0000-0000-000000000010",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"grant-key-id",
+  "target_scope":{"all":true,"allow":null,"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{}},
+  "global_constraints":null,
+  "revocation":{"revocable":false,"revocation_endpoint":"","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":null
+}"#;
+
+#[test]
+fn ensure_metadata_matches_document_rejects_key_id_mismatch() {
+    // Build metadata whose signer binding carries a key_id different from
+    // the grant document's "grant-key-id".  ensure_metadata_matches_document
+    // should fail with KeyIdMismatch before checking issuer principal, etc.
+    let mismatched_metadata = VerificationMetadata::new(
+        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+        VerificationPosture::Online,
+        ResolvedSignerBinding::new(
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("authority: {e}")),
+            AuthorityKeyRecord::new(
+                "different-key-id",
+                "ed25519",
+                "base64-public-key",
+                fixed_timestamp(2026, 1, 1, 0, 0, 0),
+                fixed_timestamp(2027, 1, 1, 0, 0, 0),
+            )
+            .unwrap_or_else(|e| panic!("key record: {e}")),
+            SignatureProfile::new("jcs+ed25519", "RFC8785")
+                .unwrap_or_else(|e| panic!("sig profile: {e}")),
+            None,
+        ),
+        OwnershipVerificationRecord::new(
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("origin: {e}")),
+            AuthorityId::new("https://issuer.example.com")
+                .unwrap_or_else(|e| panic!("owning: {e}")),
+            fixed_timestamp(2026, 4, 7, 12, 0, 0),
+            OwnershipProofKind::StaticOwner,
+            None,
+        ),
+        VerifiedRevocationState::NonRevocable,
+    );
+
+    let result = VerificationPipeline::new().verify_json_str(
+        G10_GRANT_JSON,
+        &FakeSignatureVerifier,
+        mismatched_metadata,
+    );
+
+    assert_eq!(result, Err(TrustGrantError::KeyIdMismatch));
+}
+
+// ---------------------------------------------------------------------------
+// G13: parse_delegated_principal_key_document rejects malformed JSON
+// ---------------------------------------------------------------------------
+
+#[test]
+fn parse_delegated_principal_key_document_rejects_malformed_json() {
+    // Not valid JSON at all
+    assert_eq!(
+        parse_delegated_principal_key_document("this is not json"),
+        Err(TrustGrantError::InvalidDelegatedPrincipalDocument),
+    );
+
+    // Valid JSON but missing required fields
+    assert_eq!(
+        parse_delegated_principal_key_document(r#"{"foo":"bar"}"#),
+        Err(TrustGrantError::InvalidDelegatedPrincipalDocument),
+    );
+
+    // Valid JSON but wrong types for fields
+    assert_eq!(
+        parse_delegated_principal_key_document(
+            r#"{"authority_id":123,"principal":{"kind":"x","id":"y"},"keys":[]}"#
+        ),
+        Err(TrustGrantError::InvalidDelegatedPrincipalDocument),
+    );
 }
 
 const DELEGATED_ROOT_DISCOVERY_JSON: &str = r#"{
@@ -527,7 +781,7 @@ const DELEGATED_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -549,7 +803,7 @@ const NON_REVOCABLE_DELEGATED_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":false,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":false,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -613,7 +867,7 @@ const SUCCESSOR_OWNERSHIP_TRUSTGRANT_JSON: &str = r#"{
   "default_audience_scope":null,
   "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"id","all":false,"values":["canonical_item_1"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["custom:use"],"deny":null}}}},
   "global_constraints":null,
-  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":null
@@ -654,12 +908,214 @@ fn fixed_timestamp(
         .unwrap_or_else(|| panic!("fixed timestamp should be valid"))
 }
 
+// ---------------------------------------------------------------------------
+// Duplicate / conflict tests for proof bundles
+// ---------------------------------------------------------------------------
+
+#[test]
+fn bundle_rejects_duplicate_discovery_document() {
+    // Insert the same discovery document twice is idempotent (same content),
+    // but a *different* document for the same authority_id is a conflict.
+    let mut bundle = TrustGrantProofBundle::new();
+
+    // First insert succeeds
+    bundle
+        .insert_discovery_document(
+            parse_authority_discovery_document(DELEGATED_ROOT_DISCOVERY_JSON)
+                .unwrap_or_else(|e| panic!("first discovery should parse: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("first discovery should insert: {e}"));
+
+    // Second insert with *different* content but same authority_id → conflict
+    let err = bundle.insert_discovery_document(
+        parse_authority_discovery_document(NO_DELEGATION_ROOT_DISCOVERY_JSON)
+            .unwrap_or_else(|e| panic!("second discovery should parse: {e}")),
+    );
+
+    assert!(
+        matches!(err, Err(TrustGrantError::ConflictingProofBundleEntry(_))),
+        "expected ConflictingProofBundleEntry, got {err:?}",
+    );
+}
+
+#[test]
+fn bundle_rejects_duplicate_revocation_proof() {
+    let mut bundle = TrustGrantProofBundle::new();
+
+    let policy = RevocationFreshnessPolicy::new(86400, 86400)
+        .unwrap_or_else(|e| panic!("policy should be valid: {e}"));
+
+    // First insert succeeds
+    bundle
+        .insert_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(DELEGATED_REVOCATION_JSON)
+                .unwrap_or_else(|e| panic!("first revocation should parse: {e}")),
+            RevocationSourceKind::Api,
+            ProofFinality::Observed,
+            policy,
+        ))
+        .unwrap_or_else(|e| panic!("first revocation should insert: {e}"));
+
+    // Second insert with *different* content (revoked vs active) for same
+    // trustgrant_id → conflict
+    let conflicting_revocation_json = r#"{
+      "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+      "status":"revoked",
+      "checked_at":"2026-04-07T12:05:00Z"
+    }"#;
+    let err = bundle.insert_revocation_proof(BundleRevocationProof::new(
+        parse_revocation_status_proof(conflicting_revocation_json)
+            .unwrap_or_else(|e| panic!("conflicting revocation should parse: {e}")),
+        RevocationSourceKind::Api,
+        ProofFinality::Observed,
+        RevocationFreshnessPolicy::new(86400, 86400)
+            .unwrap_or_else(|e| panic!("policy should be valid: {e}")),
+    ));
+
+    assert!(
+        matches!(err, Err(TrustGrantError::ConflictingProofBundleEntry(_))),
+        "expected ConflictingProofBundleEntry, got {err:?}",
+    );
+}
+
+#[test]
+fn bundle_with_all_four_document_types_verifies_successfully() {
+    // Build a bundle containing all four document types and verify a grant.
+    let mut bundle = TrustGrantProofBundle::new();
+
+    bundle
+        .insert_discovery_document(
+            parse_authority_discovery_document(DELEGATED_ROOT_DISCOVERY_JSON)
+                .unwrap_or_else(|e| panic!("discovery should parse: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("discovery should insert: {e}"));
+
+    bundle
+        .insert_delegated_principal_document(
+            parse_delegated_principal_key_document(DELEGATED_PRINCIPAL_KEYS_JSON)
+                .unwrap_or_else(|e| panic!("delegated keys should parse: {e}")),
+        )
+        .unwrap_or_else(|e| panic!("delegated keys should insert: {e}"));
+
+    bundle
+        .insert_revocation_proof(BundleRevocationProof::new(
+            parse_revocation_status_proof(DELEGATED_REVOCATION_JSON)
+                .unwrap_or_else(|e| panic!("revocation should parse: {e}")),
+            RevocationSourceKind::Api,
+            ProofFinality::Observed,
+            RevocationFreshnessPolicy::new(86400, 86400)
+                .unwrap_or_else(|e| panic!("policy should be valid: {e}")),
+        ))
+        .unwrap_or_else(|e| panic!("revocation should insert: {e}"));
+
+    // Insert an ownership transition chain for a different grant ID to
+    // exercise the fourth document type without affecting verification.
+    bundle
+        .insert_ownership_transition_chain(
+            "tg_123e4567-e89b-12d3-a456-426614174100"
+                .parse()
+                .unwrap_or_else(|e| panic!("trustgrant id should parse: {e}")),
+            vec![
+                RawOwnershipTransitionDocument::parse_json_str(OWNERSHIP_TRANSITION_JSON)
+                    .unwrap_or_else(|e| panic!("ownership transition should parse: {e}")),
+            ],
+        )
+        .unwrap_or_else(|e| panic!("ownership chain should insert: {e}"));
+
+    // Verify DELEGATED_TRUSTGRANT_JSON using all four types in the bundle
+    let result = VerificationPipeline::new().verify_json_str_with_sources(
+        DELEGATED_TRUSTGRANT_JSON,
+        &FakeSignatureVerifier,
+        bundle.as_sources(),
+        VerificationContext::new(
+            fixed_timestamp(2026, 4, 7, 12, 0, 0),
+            VerificationPosture::Online,
+        ),
+    );
+
+    result
+        .as_ref()
+        .unwrap_or_else(|e| panic!("verification should succeed: {e}"));
+}
+
+// ---------------------------------------------------------------------------
+// Error sources for empty-sources test
+// ---------------------------------------------------------------------------
+
+struct FailingDiscoverySource;
+
+impl AuthorityDiscoverySource for FailingDiscoverySource {
+    fn resolve_signer_binding(
+        &self,
+        _: &AuthorityId,
+        _: &KeyId,
+        _: Option<&ValidatedPrincipal>,
+        _: VerificationContext,
+    ) -> Result<ResolvedSignerBinding, TrustGrantError> {
+        Err(TrustGrantError::MissingAuthorityDiscoveryDocument)
+    }
+}
+
+struct FailingRevocationSource;
+
+impl RevocationProofSource for FailingRevocationSource {
+    fn resolve_revocation_record(
+        &self,
+        _: &ValidatedTrustGrantDocument,
+        _: &ResolvedSignerBinding,
+        _: VerificationContext,
+    ) -> Result<RevocationRecord, TrustGrantError> {
+        Err(TrustGrantError::MissingRevocationProof)
+    }
+}
+
+struct FailingOwnershipSource;
+
+impl OwnershipTransitionProofSource for FailingOwnershipSource {
+    fn resolve_ownership_transition_chain(
+        &self,
+        _: &ValidatedTrustGrantDocument,
+        _: VerificationContext,
+    ) -> Result<Vec<RawOwnershipTransitionDocument>, TrustGrantError> {
+        Err(TrustGrantError::MissingOwnershipTransitionChain)
+    }
+}
+
+#[test]
+fn pipeline_rejects_empty_sources() {
+    let failing_discovery = FailingDiscoverySource;
+    let failing_revocation = FailingRevocationSource;
+    let failing_ownership = FailingOwnershipSource;
+
+    let sources =
+        VerificationSources::new(&failing_discovery, &failing_revocation, &failing_ownership);
+
+    let result = VerificationPipeline::new().verify_json_str_with_sources(
+        DELEGATED_TRUSTGRANT_JSON,
+        &FakeSignatureVerifier,
+        sources,
+        VerificationContext::new(
+            fixed_timestamp(2026, 4, 7, 12, 0, 0),
+            VerificationPosture::Online,
+        ),
+    );
+
+    assert_eq!(
+        result,
+        Err(TrustGrantError::MissingAuthorityDiscoveryDocument),
+    );
+}
+
 fn matching_request() -> EvaluationRequest {
     let resource = ResourceContext::new("item")
         .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")

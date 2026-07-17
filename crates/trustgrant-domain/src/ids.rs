@@ -25,24 +25,28 @@ fn parse_prefixed_uuid(
 }
 
 macro_rules! prefixed_uuid_newtype {
-    ($name:ident, $prefix:literal) => {
+    ($(#[$attr:meta])* $name:ident, $prefix:literal) => {
+        $(#[$attr])*
         #[derive(
             Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
         )]
         pub struct $name(Uuid);
 
         impl $name {
-            #[must_use = "generated protocol ID should be used in a signable document"]
+            /// Generated protocol ID should be used in a signable document.
+            #[must_use]
             pub fn generate() -> Self {
                 Self(Uuid::new_v4())
             }
 
-            #[must_use = "UUID-backed protocol ID should be used for storage or comparison"]
+            /// UUID-backed protocol ID should be used for storage or comparison.
+            #[must_use]
             pub const fn from_uuid(value: Uuid) -> Self {
                 Self(value)
             }
 
-            #[must_use = "UUID should be used for storage or comparison"]
+            /// UUID should be used for storage or comparison.
+            #[must_use]
             pub const fn as_uuid(&self) -> Uuid {
                 self.0
             }
@@ -64,10 +68,28 @@ macro_rules! prefixed_uuid_newtype {
     };
 }
 
-prefixed_uuid_newtype!(TrustGrantId, "tg");
-prefixed_uuid_newtype!(GrantSeriesId, "tgs");
-prefixed_uuid_newtype!(TransitionId, "tgt");
-prefixed_uuid_newtype!(TransitionSeriesId, "tgts");
+prefixed_uuid_newtype!(
+    /// A protocol-level identifier for one TrustGrant document.
+    ///
+    /// Uses a UUIDv4 with the `tg_` prefix (e.g. `tg_123e4567-e89b-12d3-a456-426614174000`).
+    TrustGrantId, "tg");
+prefixed_uuid_newtype!(
+    /// Identifies a grant series — all revisions of a grant share the same
+    /// series ID.
+    ///
+    /// Uses a UUIDv4 with the `tgs_` prefix (e.g. `tgs_123e4567-e89b-12d3-a456-426614174001`).
+    GrantSeriesId, "tgs");
+prefixed_uuid_newtype!(
+    /// Identifies one ownership transition document.
+    ///
+    /// Uses a UUIDv4 with the `tgt_` prefix (e.g. `tgt_123e4567-e89b-12d3-a456-426614174002`).
+    TransitionId, "tgt");
+prefixed_uuid_newtype!(
+    /// Identifies a transition series — all revisions of an ownership
+    /// transition share the same series ID.
+    ///
+    /// Uses a UUIDv4 with the `tgts_` prefix.
+    TransitionSeriesId, "tgts");
 
 #[cfg(test)]
 #[allow(clippy::panic)]

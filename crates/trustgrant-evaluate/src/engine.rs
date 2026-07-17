@@ -1,28 +1,53 @@
 use std::collections::HashSet;
 
-use super::decision::{EvaluationDecision, EvaluationDenyReason};
+use super::decision::{EvaluationDecision, EvaluationDenyReason, EvaluationOutcome};
 use super::request::{EvaluationRequest, RequestedCapability, RequestedOperation, SelectorContext};
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
     ValidatedResourceType, ValidatedScope, ValidatedSelector,
 };
+use trustgrant_domain::TrustGrantId;
 use trustgrant_verify::{NormalizedTrustGrantDocument, VerifiedTrustGrant};
 
+/// The core authorization engine that evaluates a verified grant against an
+/// evaluation request.
+///
+/// The engine is stateless and implements the TrustGrant evaluation spec
+/// (§13). It checks revocation status, time windows, origin authority,
+/// target scope, resource scope, capabilities, operations, audience, and
+/// minting constraints.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct EvaluationEngine;
 
 impl EvaluationEngine {
-    #[must_use = "evaluation engine should be reused for repeated authorization checks"]
+    /// Evaluation engine should be reused for repeated authorization checks.
     pub const fn new() -> Self {
         Self
     }
 
-    #[must_use = "evaluation result is required to authorize or deny work"]
+    /// Evaluates one verified grant against one request.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use trustgrant_evaluate::{
+    ///     EvaluationEngine, EvaluationRequest, RequestedCapability,
+    ///     RequestedOperation, ResourceContext,
+    /// };
+    /// use trustgrant_domain::AuthorityId;
+    /// # // Minimum skeleton — full evaluation requires a verified grant fixture.
+    /// # // See integration tests for complete examples.
+    /// ```
+    ///
+    /// The caller is responsible for providing a [`VerifiedTrustGrant`] obtained
+    /// through the verification pipeline and a properly populated
+    /// [`EvaluationRequest`].
+    #[must_use]
     pub fn evaluate(
         self,
         grant: &VerifiedTrustGrant,
         request: &EvaluationRequest,
-    ) -> EvaluationDecision {
+    ) -> EvaluationOutcome {
         let _span = tracing::info_span!("evaluate",
             trustgrant_id = %grant.lineage().trustgrant_id(),
             operation = ?request.operation(),
@@ -30,13 +55,83 @@ impl EvaluationEngine {
         .entered();
         let trustgrant_id = grant.lineage().trustgrant_id();
 
-        if grant.metadata().revocation().is_revoked() {
+        let decision = self.evaluate_inner(grant, request, trustgrant_id);
+
+        EvaluationOutcome::new(decision, request.clone())
+    }
+
+    fn evaluate_inner(
+        self,
+        grant: &VerifiedTrustGrant,
+        request: &EvaluationRequest,
+        trustgrant_id: TrustGrantId,
+    ) -> EvaluationDecision {
+        // Spec §13 step 0: Reject unverified selectors for mint operations.
+        // Caller-self-asserted selectors must not authorize minting.
+        if matches!(
+            request.operation(),
+            RequestedOperation::Capability(RequestedCapability::Mint)
+        ) && !request.selectors_verified()
+        {
             tracing::debug!(
                 trustgrant_id = %trustgrant_id,
                 operation = ?request.operation(),
-                reason = ?EvaluationDenyReason::Revoked,
+                reason = ?EvaluationDenyReason::UnverifiedSelectors,
             );
-            return EvaluationDecision::deny(trustgrant_id, EvaluationDenyReason::Revoked);
+            return EvaluationDecision::deny(
+                trustgrant_id,
+                EvaluationDenyReason::UnverifiedSelectors,
+            );
+        }
+
+        // Spec §13 step 1: Check revocation status and freshness.
+        // The revocation record's freshness window is computed from the
+        // issuer's declared policy — if the data is stale, deny regardless
+        // of whether the status says Active or Revoked.
+        match grant.metadata().revocation() {
+            trustgrant_revocation::VerifiedRevocationState::Checked(record) => {
+                if !record.is_fresh_at(request.evaluated_at()) {
+                    tracing::debug!(
+                        trustgrant_id = %trustgrant_id,
+                        operation = ?request.operation(),
+                        reason = ?EvaluationDenyReason::StaleRevocationData,
+                        checked_at = %record.checked_at(),
+                        fresh_until = %record.fresh_until(),
+                    );
+                    return EvaluationDecision::deny(
+                        trustgrant_id,
+                        EvaluationDenyReason::StaleRevocationData,
+                    );
+                }
+                if record.status() == trustgrant_revocation::RevocationStatus::Revoked {
+                    // Check post-revocation effect: if the grant only blocks minting
+                    // and this is a recognize or custom operation, allow it.
+                    let should_deny = match grant.document().revocation() {
+                Some(rev) if rev.post_revocation_effect()
+                    == trustgrant_document::raw::PostRevocationEffect::BlockMintingOnly =>
+                {
+                    matches!(
+                        request.operation(),
+                        RequestedOperation::Capability(RequestedCapability::Mint)
+                    )
+                }
+                _ => true,
+            };
+                    if should_deny {
+                        tracing::debug!(
+                            trustgrant_id = %trustgrant_id,
+                            operation = ?request.operation(),
+                            reason = ?EvaluationDenyReason::Revoked,
+                        );
+                        return EvaluationDecision::deny(
+                            trustgrant_id,
+                            EvaluationDenyReason::Revoked,
+                        );
+                    }
+                    // BlockMintingOnly + non-mint operation → allow through
+                }
+            }
+            trustgrant_revocation::VerifiedRevocationState::NonRevocable => {}
         }
 
         if let Some(time_window) = grant.document().global_time_window() {
@@ -60,7 +155,9 @@ impl EvaluationEngine {
         }
 
         // Spec §13 step 3: Check origin authority
-        if let Some(request_origin) = request.origin_authority() {
+        // The binding is mandatory — failure is not optional.
+        {
+            let request_origin = request.origin_authority();
             let grant_origin = grant
                 .document()
                 .ownership_authority_state()
@@ -167,8 +264,8 @@ fn evaluate_resource_type(
     }
 
     // Spec step 7: check operation matches operations if present
-    if !is_operation_allowed(resource_type, request.operation()) {
-        return ResourceEvaluation::Denied(EvaluationDenyReason::OperationDenied);
+    if let Err(reason) = is_operation_allowed(resource_type, request.operation()) {
+        return ResourceEvaluation::Denied(reason);
     }
 
     // Spec step 8: check audience matches audience_scope
@@ -306,16 +403,19 @@ fn is_capability_enabled(
 fn is_operation_allowed(
     resource_type: &ValidatedResourceType,
     operation: &RequestedOperation,
-) -> bool {
+) -> Result<(), EvaluationDenyReason> {
     let Some(operation_scope) = resource_type.operations() else {
-        // v0 compatibility mode (spec Section 6.1):
-        // operations=null → implicit recognize and create allowed
-        // Custom operations still need explicit operations scope
-        return matches!(
+        // operations=null → implicit recognize allowed for v0 compat.
+        // Mint and custom operations require an explicit operations scope
+        // that includes "create" or the custom operation name.
+        return if matches!(
             operation,
             RequestedOperation::Capability(RequestedCapability::Recognize)
-                | RequestedOperation::Capability(RequestedCapability::Mint)
-        );
+        ) {
+            Ok(())
+        } else {
+            Err(EvaluationDenyReason::OperationDenied)
+        };
     };
 
     let requested_name = match operation {
@@ -329,17 +429,22 @@ fn is_operation_allowed(
         .iter()
         .any(|denied_operation| denied_operation.as_str() == requested_name)
     {
-        return false;
+        return Err(EvaluationDenyReason::OperationDenied);
     }
 
-    if operation_scope.all() {
-        return true;
-    }
+    // operations.all is not supported — every operation must be listed
+    // explicitly in the allow list. If not in allow or deny, the fallback
+    // below returns OperationDenied.
 
-    operation_scope
+    if operation_scope
         .allow()
         .iter()
         .any(|allowed_operation| allowed_operation.as_str() == requested_name)
+    {
+        Ok(())
+    } else {
+        Err(EvaluationDenyReason::OperationDenied)
+    }
 }
 
 const fn evaluate_minting_constraints(
@@ -361,10 +466,14 @@ const fn evaluate_minting_constraints(
         };
     };
 
-    if let Some(max_total) = constraints.max_total()
-        && mint_context.current_total_mints() >= max_total
-    {
-        return Err(EvaluationDenyReason::MintTotalLimitReached);
+    if let Some(max_total) = constraints.max_total() {
+        let total = mint_context.current_total_mints();
+        let quantity = mint_context.requested_quantity();
+        // Requested quantity must be at least 1 (enforced by MintContext).
+        // Check: current + quantity > max → denied.
+        if total.saturating_add(quantity) > max_total {
+            return Err(EvaluationDenyReason::MintTotalLimitReached);
+        }
     }
 
     if let Some(max_per_user) = constraints.max_per_user() {
@@ -372,7 +481,9 @@ const fn evaluate_minting_constraints(
             return Err(EvaluationDenyReason::MissingAudiencePrincipalContext);
         }
 
-        if mint_context.current_mints_for_audience() >= max_per_user {
+        let per_user = mint_context.current_mints_for_audience();
+        let quantity = mint_context.requested_quantity();
+        if per_user.saturating_add(quantity) > max_per_user {
             return Err(EvaluationDenyReason::MintPerUserLimitReached);
         }
     }
@@ -440,22 +551,23 @@ fn selector_matches_context(
 #[cfg(test)]
 #[allow(clippy::panic)]
 mod tests {
-    use chrono::{TimeZone, Utc};
+    use chrono::{DateTime, TimeZone, Utc};
 
     use super::EvaluationEngine;
     use crate::{
         EvaluationDenyReason, EvaluationRequest, MintContext, RequestedCapability,
-        RequestedOperation, ResourceContext,
+        RequestedOperation, ResourceBinding, ResourceContext, ResourceRef, TemplateRef,
     };
     use trustgrant_discovery::{
         AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
     };
     use trustgrant_document::ValidatedTrustGrantDocument;
     use trustgrant_document::raw::{
-        RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-        RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation,
-        RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument,
-        RawTypeCapabilities, RawTypeConstraints,
+        InteroperabilityProfile, PostRevocationEffect, RawAudienceEntry, RawCapabilities,
+        RawGlobalConstraints, RawMintingConstraints, RawOperationScope, RawPrincipal,
+        RawResourceScope, RawResourceType, RawRevocation, RawScope, RawSelector,
+        RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument, RawTypeCapabilities,
+        RawTypeConstraints,
     };
     use trustgrant_domain::AuthorityId;
     use trustgrant_domain::{
@@ -482,9 +594,9 @@ mod tests {
           "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
           "capabilities":{"recognize":true,"mint":false},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -512,7 +624,72 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        )
+    }
+
+    fn verified_grant_with_effect(
+        effect: trustgrant_document::raw::PostRevocationEffect,
+    ) -> VerifiedTrustGrant {
+        let effect_str = match effect {
+            trustgrant_document::raw::PostRevocationEffect::BlockMintingOnly => {
+                r#","post_revocation_effect":"block_minting_only""#
+            }
+            trustgrant_document::raw::PostRevocationEffect::BlockAll => {
+                r#","post_revocation_effect":"block_all""#
+            }
+        };
+        let json = format!(
+            r#"{{
+              "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",
+              "version":0,
+              "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174001",
+              "revision":1,
+              "supersedes":null,
+              "supersession_policy":"coexist",
+              "issuer_authority":"https://issuer.example.com",
+              "origin_authority":"https://issuer.example.com",
+              "active_owning_authority":"https://issuer.example.com",
+              "key_id":"root-key-1",
+              "target_scope":{{"all":false,"allow":[{{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}}],"deny":null}},
+              "capabilities":{{"recognize":true,"mint":false}},
+              "default_audience_scope":null,
+              "resource_scope":{{"types":{{"item":{{"all":false,"allow":[{{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}}],"deny":null,"capabilities":{{"recognize":true,"mint":false}},"constraints":{{"minting":{{"max_total":10,"max_per_user":1}},"audience_scope":[{{"authority_id":"https://audience.example.com","scope":{{"all":true,"allow":null,"deny":null}},"principal_scope":{{"all":false,"allow":[{{"kind":"actor","all":false,"values":["player-123"],"expressions":null}}],"deny":null}}}}]}},"operations":{{"all":false,"allow":["recognize"],"deny":null}}}}}}}},
+              "global_constraints":{{"time":{{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}}}},
+              "revocation":{{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"{effect_str}}},
+              "issued_at":"2026-04-07T12:00:00Z",
+              "signature":"base64-signature",
+              "issuer_principal":{{"kind":"service","id":"issuer-worker"}}
+            }}"#,
+        );
+
+        let raw = match RawTrustGrantDocument::parse_json_str(&json) {
+            Ok(document) => document,
+            Err(error) => panic!("raw document should parse: {error}"),
+        };
+        let validated = match ValidatedTrustGrantDocument::try_from(raw) {
+            Ok(document) => document,
+            Err(error) => panic!("validated document should succeed: {error}"),
+        };
+
+        VerifiedTrustGrant::new(
+            validated,
+            VerificationMetadata::new(
+                fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                VerificationPosture::Online,
+                signer_binding(),
+                ownership_record(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -535,9 +712,9 @@ mod tests {
           "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
           "capabilities":{"recognize":false,"mint":true},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -565,7 +742,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -631,7 +808,7 @@ mod tests {
                                 principal_scope: Some(RawScope {
                                     all: false,
                                     allow: Some(vec![RawSelector {
-                                        kind: "player_id".into(),
+                                        kind: "actor".into(),
                                         all: false,
                                         values: Some(vec!["player-123".into()]),
                                         expressions: None,
@@ -653,6 +830,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -660,6 +838,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -680,7 +859,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -763,6 +942,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -770,6 +950,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -792,7 +973,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -867,6 +1048,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -874,6 +1056,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -894,7 +1077,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -902,12 +1085,15 @@ mod tests {
         )
     }
 
+    fn origin() -> AuthorityId {
+        AuthorityId::new("https://issuer.example.com")
+            .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"))
+    }
+
     fn ownership_record() -> OwnershipVerificationRecord {
         OwnershipVerificationRecord::new(
-            AuthorityId::new("https://issuer.example.com")
-                .unwrap_or_else(|error| panic!("origin authority should be valid: {error}")),
-            AuthorityId::new("https://issuer.example.com")
-                .unwrap_or_else(|error| panic!("active owner should be valid: {error}")),
+            origin(),
+            origin(),
             fixed_timestamp(2026, 4, 7, 12, 0, 0),
             OwnershipProofKind::StaticOwner,
             None,
@@ -944,8 +1130,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -961,7 +1149,42 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        if let Err(error) = request.insert_audience_principal_selector("player_id", "player-123") {
+        if let Err(error) = request.insert_audience_principal_selector("actor", "player-123") {
+            panic!("audience principal selector should be valid: {error}");
+        }
+
+        request
+    }
+
+    fn recognize_request_at(timestamp: DateTime<Utc>) -> EvaluationRequest {
+        let mut resource = match ResourceContext::new("item") {
+            Ok(resource) => resource,
+            Err(error) => panic!("resource context should be valid: {error}"),
+        };
+        if let Err(error) = resource.insert_selector("namespace", "weapons") {
+            panic!("resource selector should be valid: {error}");
+        }
+
+        let origin = origin();
+        let mut request = match EvaluationRequest::new(
+            RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
+            match AuthorityId::new("https://target.example.com") {
+                Ok(authority) => authority,
+                Err(error) => panic!("valid target authority: {error}"),
+            },
+            match AuthorityId::new("https://audience.example.com") {
+                Ok(authority) => authority,
+                Err(error) => panic!("valid audience authority: {error}"),
+            },
+            resource,
+            timestamp,
+        ) {
+            Ok(request) => request,
+            Err(error) => panic!("evaluation request should be valid: {error}"),
+        };
+
+        if let Err(error) = request.insert_audience_principal_selector("actor", "player-123") {
             panic!("audience principal selector should be valid: {error}");
         }
 
@@ -977,8 +1200,10 @@ mod tests {
             panic!("mint resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(TemplateRef::new(origin)),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -994,11 +1219,11 @@ mod tests {
             Err(error) => panic!("mint evaluation request should be valid: {error}"),
         };
 
-        if let Err(error) = request.insert_audience_principal_selector("player_id", "player-123") {
+        if let Err(error) = request.insert_audience_principal_selector("actor", "player-123") {
             panic!("mint audience principal selector should be valid: {error}");
         }
 
-        request
+        request.verify_selectors()
     }
 
     fn expression_request(namespace: &str) -> EvaluationRequest {
@@ -1010,8 +1235,10 @@ mod tests {
             panic!("expression resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1031,10 +1258,10 @@ mod tests {
     #[test]
     fn evaluation_allows_matching_recognize_request() {
         let engine = EvaluationEngine::new();
-        let decision = engine.evaluate(&verified_grant(), &recognize_request());
+        let outcome = engine.evaluate(&verified_grant(), &recognize_request());
 
-        assert!(decision.is_allowed());
-        assert_eq!(decision.deny_reason(), None);
+        assert!(outcome.decision().is_allowed());
+        assert_eq!(outcome.decision().deny_reason(), None);
     }
 
     #[test]
@@ -1066,9 +1293,271 @@ mod tests {
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
-        assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Revoked));
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Revoked)
+        );
+    }
+
+    #[test]
+    fn evaluation_denies_stale_revocation_data() {
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        let active_revocation = grant
+            .metadata()
+            .revocation()
+            .checked_record()
+            .unwrap_or_else(|| panic!("test grant should carry revocation record"));
+        // Construct a revocation record with a fresh_until in the past
+        // relative to the evaluation time (2026-04-07T13:00:00Z).
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        active_revocation.source_kind(),
+                        active_revocation.finality(),
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 12, 30, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::StaleRevocationData)
+        );
+    }
+
+    #[test]
+    fn evaluation_denies_stale_revocation_even_when_status_is_revoked() {
+        // When revocation data is stale, the engine denies with
+        // StaleRevocationData regardless of whether the recorded status
+        // says Active or Revoked. Freshness is checked first.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Revoked,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 12, 30, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        // Freshness check comes before status check — stale data always
+        // denies with StaleRevocationData, even if the record says Revoked.
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::StaleRevocationData)
+        );
+    }
+
+    #[test]
+    fn evaluation_allows_fresh_active_revocation_data() {
+        // Fresh revocation data with Active status should allow evaluation
+        // to proceed to subsequent checks.
+        let engine = EvaluationEngine::new();
+        let grant = verified_grant();
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        assert!(outcome.decision().is_allowed());
+    }
+
+    #[test]
+    fn evaluation_allows_non_revocable_grant_regardless_of_time() {
+        // Grants that are NonRevocable bypass revocation checks entirely,
+        // including freshness. Evaluation should proceed normally.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::NonRevocable,
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+
+        assert!(outcome.decision().is_allowed());
+    }
+
+    #[test]
+    fn evaluation_allows_revocation_at_exact_freshness_boundary() {
+        // evaluated_at == fresh_until is considered fresh (inclusive bound).
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        // Create a request with evaluated_at == fresh_until
+        let request = recognize_request_at(fixed_timestamp(2026, 4, 7, 13, 0, 0));
+        let outcome = engine.evaluate(&grant, &request);
+
+        assert!(outcome.decision().is_allowed());
+    }
+
+    #[test]
+    fn evaluation_denies_stale_revocation_just_past_freshness_boundary() {
+        // evaluated_at == fresh_until + 1 second is stale.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        // Create a request with evaluated_at just past fresh_until
+        let request = recognize_request_at(fixed_timestamp(2026, 4, 7, 13, 0, 1));
+        let outcome = engine.evaluate(&grant, &request);
+
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::StaleRevocationData)
+        );
+    }
+
+    #[test]
+    fn evaluation_allows_recognize_when_revoked_with_block_minting_only() {
+        // PostRevocationEffect::BlockMintingOnly means mint is denied but
+        // recognize still works after revocation.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant_with_effect(
+            trustgrant_document::raw::PostRevocationEffect::BlockMintingOnly,
+        );
+        let active_revocation = grant
+            .metadata()
+            .revocation()
+            .checked_record()
+            .unwrap_or_else(|| panic!("test grant should carry revocation record"));
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Revoked,
+                        active_revocation.source_kind(),
+                        active_revocation.finality(),
+                        active_revocation.checked_at(),
+                        active_revocation.fresh_until(),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        // Recognize should be allowed even though revoked
+        let recog_outcome = engine.evaluate(&grant, &recognize_request());
+        assert!(recog_outcome.decision().is_allowed());
+
+        // Mint should be denied
+        let mint_outcome = engine.evaluate(&grant, &mint_request());
+        assert_eq!(
+            mint_outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Revoked)
+        );
+    }
+
+    #[test]
+    fn evaluation_denies_all_operations_with_block_all_default() {
+        // Default post-revocation effect (BlockAll) denies everything.
+        let engine = EvaluationEngine::new();
+        let mut grant = verified_grant();
+        let active_revocation = grant
+            .metadata()
+            .revocation()
+            .checked_record()
+            .unwrap_or_else(|| panic!("test grant should carry revocation record"));
+        grant = VerifiedTrustGrant::new(
+            grant.document().clone(),
+            VerificationMetadata::new(
+                grant.metadata().verified_at(),
+                grant.metadata().posture(),
+                grant.metadata().signer_binding().clone(),
+                grant.metadata().ownership().clone(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Revoked,
+                        active_revocation.source_kind(),
+                        active_revocation.finality(),
+                        active_revocation.checked_at(),
+                        active_revocation.fresh_until(),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        );
+
+        let outcome = engine.evaluate(&grant, &recognize_request());
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Revoked)
+        );
     }
 
     #[test]
@@ -1077,6 +1566,7 @@ mod tests {
         let mut request = recognize_request();
         request = match EvaluationRequest::new(
             request.operation().clone(),
+            request.resource_binding().clone(),
             request.target_authority().clone(),
             request.audience_authority().clone(),
             request.resource().clone(),
@@ -1086,25 +1576,24 @@ mod tests {
             Err(error) => panic!("request rebuild should succeed: {error}"),
         };
 
-        if let Err(error) = request.insert_audience_principal_selector("player_id", "other-player")
-        {
+        if let Err(error) = request.insert_audience_principal_selector("actor", "other-player") {
             panic!("audience principal selector should be valid: {error}");
         }
 
-        let decision = engine.evaluate(&verified_grant(), &request);
+        let outcome = engine.evaluate(&verified_grant(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::AudiencePrincipalNotAllowed)
         );
     }
 
     #[test]
     fn evaluation_denies_mint_without_runtime_mint_context() {
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &mint_request());
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &mint_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MissingMintContext)
         );
     }
@@ -1133,8 +1622,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Mint),
+            ResourceBinding::Mint(TemplateRef::new(origin)),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1149,70 +1640,76 @@ mod tests {
             Ok(request) => request,
             Err(error) => panic!("mint evaluation request should be valid: {error}"),
         }
-        .with_mint_context(MintContext::new(5, 0));
+        .with_runtime_mint_context(MintContext::new(5, 0))
+        .verify_selectors();
 
-        let decision =
+        let outcome =
             EvaluationEngine::new().evaluate(&mint_grant_without_principal_scope(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MissingAudiencePrincipalContext),
         );
     }
 
     #[test]
     fn evaluation_denies_mint_when_total_limit_is_reached() {
-        let request = mint_request().with_mint_context(MintContext::new(10, 0));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &request);
+        let request = mint_request().with_runtime_mint_context(MintContext::new(10, 0));
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MintTotalLimitReached)
         );
     }
 
     #[test]
     fn evaluation_denies_mint_when_per_user_limit_is_reached() {
-        let request = mint_request().with_mint_context(MintContext::new(2, 1));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &request);
+        let request = mint_request().with_runtime_mint_context(MintContext::new(2, 1));
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::MintPerUserLimitReached)
         );
     }
 
     #[test]
     fn evaluation_allows_mint_when_constraints_are_respected() {
-        let request = mint_request().with_mint_context(MintContext::new(9, 0));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant(), &request);
+        let request = mint_request().with_runtime_mint_context(MintContext::new(9, 0));
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant(), &request);
 
-        assert!(decision.is_allowed());
+        assert!(outcome.decision().is_allowed());
     }
 
     #[test]
-    fn evaluation_allows_create_when_mint_operations_are_absent() {
-        let request = mint_request().with_mint_context(MintContext::new(9, 0));
-        let decision = EvaluationEngine::new().evaluate(&mint_grant_without_operations(), &request);
+    fn evaluation_denies_mint_when_operations_scope_is_null() {
+        // v0 compat mode is removed for mint — operations must be explicit.
+        // Grant with mint=true but operations=null → mint denied.
+        let request = mint_request().with_runtime_mint_context(MintContext::new(9, 0));
+        let outcome = EvaluationEngine::new().evaluate(&mint_grant_without_operations(), &request);
 
-        assert!(decision.is_allowed());
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::OperationDenied)
+        );
     }
 
     #[test]
     fn evaluation_allows_matching_selector_expression() {
-        let decision = EvaluationEngine::new()
+        let outcome = EvaluationEngine::new()
             .evaluate(&expression_grant(), &expression_request("weapon_epic"));
 
-        assert!(decision.is_allowed());
+        assert!(outcome.decision().is_allowed());
     }
 
     #[test]
     fn evaluation_denies_non_matching_selector_expression() {
-        let decision = EvaluationEngine::new()
+        let outcome = EvaluationEngine::new()
             .evaluate(&expression_grant(), &expression_request("armor_epic"));
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceNotAllowed)
         );
     }
@@ -1229,8 +1726,10 @@ mod tests {
         if let Err(error) = resource.insert_selector("namespace", "weapons") {
             panic!("resource selector should be valid: {error}");
         }
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1246,8 +1745,11 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
-        assert_eq!(decision.deny_reason(), Some(EvaluationDenyReason::Expired));
+        let outcome = engine.evaluate(&grant, &request);
+        assert_eq!(
+            outcome.decision().deny_reason(),
+            Some(EvaluationDenyReason::Expired)
+        );
     }
 
     #[test]
@@ -1262,8 +1764,10 @@ mod tests {
         if let Err(error) = resource.insert_selector("namespace", "weapons") {
             panic!("resource selector should be valid: {error}");
         }
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1279,9 +1783,9 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::NotYetValid)
         );
     }
@@ -1298,8 +1802,10 @@ mod tests {
         if let Err(error) = resource.insert_selector("namespace", "weapons") {
             panic!("resource selector should be valid: {error}");
         }
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "weapon".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -1314,10 +1820,9 @@ mod tests {
             Ok(request) => request,
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
-
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceTypeNotGranted)
         );
     }
@@ -1397,6 +1902,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1404,6 +1910,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -1424,16 +1931,16 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&deny_grant, &recognize_request());
+        let outcome = engine.evaluate(&deny_grant, &recognize_request());
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::TargetDenied)
         );
     }
@@ -1510,6 +2017,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1517,6 +2025,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -1537,16 +2046,16 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&deny_grant, &recognize_request());
+        let outcome = engine.evaluate(&deny_grant, &recognize_request());
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied)
         );
     }
@@ -1621,6 +2130,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1628,6 +2138,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -1648,17 +2159,17 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
         );
     }
@@ -1751,6 +2262,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1758,6 +2270,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -1778,17 +2291,17 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::AudienceDenied),
         );
     }
@@ -1871,6 +2384,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1878,6 +2392,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -1900,17 +2415,17 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::AudienceNotAllowed),
         );
     }
@@ -1985,6 +2500,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -1992,6 +2508,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2012,17 +2529,17 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
     }
@@ -2045,8 +2562,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2062,10 +2581,10 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
     }
@@ -2126,8 +2645,8 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: true,
-                            allow: None,
+                            all: false,
+                            allow: Some(vec!["transfer".into()]),
                             deny: None,
                         }),
                     },
@@ -2142,12 +2661,17 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
             issuer_principal: Some(RawPrincipal {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
+            }),
+            interoperability_profile: Some(InteroperabilityProfile {
+                name: "test_profile_v1".into(),
+                version: 1,
             }),
         };
 
@@ -2169,7 +2693,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2189,8 +2713,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2206,9 +2732,9 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
-        assert!(decision.is_allowed());
+        assert!(outcome.decision().is_allowed());
     }
 
     #[test]
@@ -2284,6 +2810,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2291,6 +2818,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2311,7 +2839,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2331,8 +2859,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2348,10 +2878,10 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
     }
@@ -2433,6 +2963,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2440,6 +2971,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2460,7 +2992,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2479,8 +3011,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2496,13 +3030,13 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         // CapabilityDisabled must come first — it is checked before resource
         // scope in the spec ordering.  If resource scope were checked first,
         // the deny reason would incorrectly be ResourceNotAllowed.
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
         );
     }
@@ -2588,6 +3122,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2595,6 +3130,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2615,7 +3151,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2624,10 +3160,10 @@ mod tests {
 
         // Request namespace "weapons" — matches both allow and deny.
         // Deny must win, and the reason must be ResourceDenied (not ResourceNotAllowed).
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceDenied),
         );
     }
@@ -2708,6 +3244,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -2715,6 +3252,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -2735,7 +3273,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -2755,8 +3293,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let request = match EvaluationRequest::new(
             RequestedOperation::Custom(custom_op),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -2772,18 +3312,18 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         // Operations scope is the sole gate for custom operations.
         // "upload" is not in the allow list ["download"], so it must be
         // OperationDenied — never CapabilityDisabled (which only applies
         // to built-in recognize/mint capabilities).
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::OperationDenied),
         );
         assert_ne!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::CapabilityDisabled),
         );
     }
@@ -2815,7 +3355,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -2843,19 +3383,19 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let outcome = engine.evaluate(&grant, &recognize_request());
 
         // Target "https://target.example.com" is in both allow and deny of
         // target_scope.  Deny must win with TargetDenied — not TargetNotAllowed.
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::TargetDenied),
         );
     }
@@ -2887,7 +3427,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -2913,7 +3453,7 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -2942,7 +3482,7 @@ mod tests {
                             RevocationSourceKind::Api,
                             ProofFinality::Observed,
                             fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                            fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                            fixed_timestamp(2026, 4, 9, 12, 0, 0),
                         )
                         .unwrap_or_else(|error| {
                             panic!("revocation record should be valid: {error}")
@@ -2956,29 +3496,31 @@ mod tests {
         let grant_b = make_grant(json_b, "tg_b");
         let request = recognize_request();
 
-        let decision_a = engine.evaluate(&grant_a, &request);
-        let decision_b = engine.evaluate(&grant_b, &request);
+        let outcome_a = engine.evaluate(&grant_a, &request);
+        let outcome_b = engine.evaluate(&grant_b, &request);
 
         // Both should allow — empty deny list and null deny are equivalent.
         assert!(
-            decision_a.is_allowed(),
+            outcome_a.decision().is_allowed(),
             "grant A (null deny) should allow, got: {:?}",
-            decision_a.deny_reason(),
+            outcome_a.decision().deny_reason(),
         );
         assert!(
-            decision_b.is_allowed(),
+            outcome_b.decision().is_allowed(),
             "grant B (empty deny) should allow, got: {:?}",
-            decision_b.deny_reason(),
+            outcome_b.decision().deny_reason(),
         );
     }
 
     #[test]
-    fn evaluation_audience_matches_first_entry_when_multiple_match() {
+    fn evaluation_audience_selects_matching_entry() {
         // When a request's audience authority matches multiple audience entries
         // in the grant, the first matching entry is used (via .find() in the
         // audience evaluation).  This test creates a grant with two audience
-        // entries for the same authority_id: the first allows, the second
-        // denies.  The result should be ALLOW (first entry wins).
+        // entries for DIFFERENT authority_ids: the first matches, so the
+        // result should be ALLOW (first matching entry wins).
+        // Duplicate authority_ids in the same scope are rejected at validation
+        // time (spec §9), so we use distinct authorities.
         let engine = EvaluationEngine::new();
 
         let json = r#"{
@@ -3000,10 +3542,10 @@ mod tests {
           "default_audience_scope":null,
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[
             {"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null},
-            {"authority_id":"https://audience.example.com","scope":{"all":false,"allow":[{"kind":"authority_id","all":false,"values":["https://audience.example.com"],"expressions":null}],"deny":[{"kind":"authority_id","all":false,"values":["https://audience.example.com"],"expressions":null}]},"principal_scope":null}
+            {"authority_id":"https://other.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}
           ]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -3017,7 +3559,6 @@ mod tests {
             Ok(document) => document,
             Err(error) => panic!("validated document should succeed: {error}"),
         };
-
         let grant = VerifiedTrustGrant::new(
             validated,
             VerificationMetadata::new(
@@ -3031,24 +3572,18 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
             ),
         );
 
-        let decision = engine.evaluate(&grant, &recognize_request());
+        let request = recognize_request();
+        let outcome = engine.evaluate(&grant, &request);
 
-        // First audience entry has scope all=true (allows everything).
-        // Second entry has all=false with no allow (denies everything).
-        // .find() returns the first match, so the first entry wins → ALLOW.
-        assert!(
-            decision.is_allowed(),
-            "first audience entry should win, got deny: {:?}",
-            decision.deny_reason(),
-        );
-        assert_eq!(decision.deny_reason(), None);
+        // First entry has all=true → all allowed → ALLOW
+        assert!(outcome.decision().is_allowed());
     }
 
     // ── Multi-resource-type evaluation ─────────────────────────────────
@@ -3075,7 +3610,7 @@ mod tests {
             "badge":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["achievements"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
           }},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
           "signature":"base64-signature",
           "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -3103,7 +3638,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -3120,8 +3655,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, resource_type.to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -3144,20 +3681,20 @@ mod tests {
         let grant = multi_type_grant();
 
         // Evaluating "item" with namespace "weapons" → allowed
-        let decision_item = engine.evaluate(&grant, &recognize_request_for("item", "weapons"));
+        let outcome_item = engine.evaluate(&grant, &recognize_request_for("item", "weapons"));
         assert!(
-            decision_item.is_allowed(),
+            outcome_item.decision().is_allowed(),
             "item recognition should be allowed, got: {:?}",
-            decision_item.deny_reason(),
+            outcome_item.decision().deny_reason(),
         );
 
         // Evaluating "badge" with namespace "achievements" → allowed
-        let decision_badge =
+        let outcome_badge =
             engine.evaluate(&grant, &recognize_request_for("badge", "achievements"));
         assert!(
-            decision_badge.is_allowed(),
+            outcome_badge.decision().is_allowed(),
             "badge recognition should be allowed, got: {:?}",
-            decision_badge.deny_reason(),
+            outcome_badge.decision().deny_reason(),
         );
     }
 
@@ -3167,15 +3704,16 @@ mod tests {
         let grant = multi_type_grant();
 
         // Requesting resource type "weapon" which is NOT in the grant → ResourceTypeNotGranted
-        let decision = engine.evaluate(&grant, &recognize_request_for("weapon", "weapons"));
+        let outcome = engine.evaluate(&grant, &recognize_request_for("weapon", "weapons"));
         assert_eq!(
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
             Some(EvaluationDenyReason::ResourceTypeNotGranted),
         );
     }
 
     // ── Mint-without-constraints (line 293 coverage) ──────────────────
 
+    #[allow(dead_code)]
     fn mint_grant_without_constraints() -> VerifiedTrustGrant {
         let raw = RawTrustGrantDocument {
             trustgrant_id: "tg_e0000000-0000-1000-a000-000000000008".into(),
@@ -3235,7 +3773,7 @@ mod tests {
                                 principal_scope: Some(RawScope {
                                     all: false,
                                     allow: Some(vec![RawSelector {
-                                        kind: "player_id".into(),
+                                        kind: "actor".into(),
                                         all: false,
                                         values: Some(vec!["player-123".into()]),
                                         expressions: None,
@@ -3257,6 +3795,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3264,6 +3803,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -3286,7 +3826,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -3299,16 +3839,73 @@ mod tests {
         // Line 293: evaluate_minting_constraints returns Ok(()) when the
         // operation IS Mint but there's no MintContext AND no max_total /
         // max_per_user constraints.
+        // Uses a grant with explicit "create" in operations scope — implicit
+        // mint authorization was removed; operations must be explicit.
         let engine = EvaluationEngine::new();
-        let grant = mint_grant_without_constraints();
-        let request = mint_request(); // No .with_mint_context()
-        let decision = engine.evaluate(&grant, &request);
+        let grant = mint_grant_with_explicit_create();
+        let request = mint_request(); // No .with_runtime_mint_context()
+        let outcome = engine.evaluate(&grant, &request);
 
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "expected allow, got deny: {:?}",
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
         );
+    }
+
+    fn mint_grant_with_explicit_create() -> VerifiedTrustGrant {
+        // Just like mint_grant() but with minting constraints set to None
+        // (no max_total / max_per_user) while keeping explicit operations.
+        let json = r#"{
+          "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174080",
+          "version":0,
+          "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174081",
+          "revision":1,
+          "supersedes":null,
+          "supersession_policy":"coexist",
+          "issuer_authority":"https://issuer.example.com",
+          "origin_authority":"https://issuer.example.com",
+          "active_owning_authority":"https://issuer.example.com",
+          "key_id":"root-key-1",
+          "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+          "capabilities":{"recognize":false,"mint":true},
+          "default_audience_scope":null,
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
+          "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+          "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+          "issued_at":"2026-04-07T12:00:00Z",
+          "signature":"base64-signature",
+          "issuer_principal":{"kind":"service","id":"issuer-worker"}
+        }"#;
+
+        let raw = match RawTrustGrantDocument::parse_json_str(json) {
+            Ok(document) => document,
+            Err(error) => panic!("raw document should parse: {error}"),
+        };
+        let validated = match ValidatedTrustGrantDocument::try_from(raw) {
+            Ok(document) => document,
+            Err(error) => panic!("validated document should succeed: {error}"),
+        };
+
+        VerifiedTrustGrant::new(
+            validated,
+            VerificationMetadata::new(
+                fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                VerificationPosture::Online,
+                signer_binding(),
+                ownership_record(),
+                VerifiedRevocationState::Checked(
+                    RevocationRecord::new(
+                        RevocationStatus::Active,
+                        RevocationSourceKind::Api,
+                        ProofFinality::Observed,
+                        fixed_timestamp(2026, 4, 7, 12, 0, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
+                    )
+                    .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
+                ),
+            ),
+        )
     }
 
     // ── Selector-level `all: true` coverage (line 327) ────────────────
@@ -3385,6 +3982,7 @@ mod tests {
             revocation: Some(RawRevocation {
                 revocable: true,
                 revocation_endpoint: "https://issuer.example.com/revocation".into(),
+                post_revocation_effect: PostRevocationEffect::BlockAll,
             }),
             issued_at: fixed_timestamp(2026, 4, 7, 12, 0, 0),
             signature: "base64-signature".into(),
@@ -3392,6 +3990,7 @@ mod tests {
                 kind: "service".into(),
                 id: "issuer-worker".into(),
             }),
+            interoperability_profile: None,
         };
 
         let validated = match ValidatedTrustGrantDocument::try_from(raw) {
@@ -3412,7 +4011,7 @@ mod tests {
                         RevocationSourceKind::Api,
                         ProofFinality::Observed,
                         fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                        fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                        fixed_timestamp(2026, 4, 9, 12, 0, 0),
                     )
                     .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
                 ),
@@ -3422,12 +4021,12 @@ mod tests {
         // Use a namespace that would NOT match a normal value-based selector
         // to prove the `all: true` on the selector makes it match anything.
         let request = recognize_request_for("item", "something_completely_different");
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
 
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "expected allow with all:true selector, got deny: {:?}",
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
         );
     }
 
@@ -3453,8 +4052,10 @@ mod tests {
             panic!("resource selector should be valid: {error}");
         }
 
+        let origin = origin();
         let mut request = match EvaluationRequest::new(
             RequestedOperation::Capability(RequestedCapability::Recognize),
+            ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
             match AuthorityId::new("https://target.example.com") {
                 Ok(authority) => authority,
                 Err(error) => panic!("valid target authority: {error}"),
@@ -3470,15 +4071,15 @@ mod tests {
             Err(error) => panic!("evaluation request should be valid: {error}"),
         };
 
-        if let Err(error) = request.insert_audience_principal_selector("player_id", "player-123") {
+        if let Err(error) = request.insert_audience_principal_selector("actor", "player-123") {
             panic!("audience principal selector should be valid: {error}");
         }
 
-        let decision = engine.evaluate(&grant, &request);
+        let outcome = engine.evaluate(&grant, &request);
         assert!(
-            decision.is_allowed(),
+            outcome.decision().is_allowed(),
             "expected allow with matching selector via HashSet path, got deny: {:?}",
-            decision.deny_reason(),
+            outcome.decision().deny_reason(),
         );
     }
 

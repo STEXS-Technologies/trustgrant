@@ -1,0 +1,10 @@
+{
+  "spec_section": "4",
+  "description": "time window with not_before after not_after should be rejected",
+  "overrides": {
+    "global_constraints": {
+      "time": { "not_before": "2027-04-08T12:00:00Z", "not_after": "2026-04-07T12:00:00Z" }
+    }
+  },
+  "assert": { "validation": "rejected" }
+}

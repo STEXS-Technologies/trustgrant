@@ -2,17 +2,21 @@
 name = "trustgrant-issue"
 version = "0.1.0"
 edition.workspace = true
-publish = false
+description = "Draft and signable TrustGrant document construction"
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 trustgrant-document = { path = "../trustgrant-document" }
 trustgrant-domain = { path = "../trustgrant-domain" }
 trustgrant-error = { path = "../trustgrant-error" }
 trustgrant-verify = { path = "../trustgrant-verify" }
-chrono = { version = "0.4.42", default-features = false, features = ["clock", "serde", "std"] }
+chrono.workspace = true
 compact_str = "0.9"
-serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
-serde_json = { version = "1.0.147", default-features = false, features = ["std"] }
+serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

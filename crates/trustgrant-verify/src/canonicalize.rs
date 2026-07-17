@@ -6,19 +6,25 @@ use compact_str::CompactString;
 use itoa::Buffer as ItoaBuffer;
 
 use trustgrant_document::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawMintingConstraints,
-    RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType, RawRevocation, RawScope,
-    RawSelector, RawSupersessionPolicy, RawTimeWindow, RawTrustGrantDocument, RawTypeCapabilities,
-    RawTypeConstraints,
+    PostRevocationEffect, RawAudienceEntry, RawCapabilities, RawGlobalConstraints,
+    RawMintingConstraints, RawOperationScope, RawPrincipal, RawResourceScope, RawResourceType,
+    RawRevocation, RawScope, RawSelector, RawSupersessionPolicy, RawTimeWindow,
+    RawTrustGrantDocument, RawTypeCapabilities, RawTypeConstraints,
 };
 use trustgrant_domain::{CanonicalizationProfile, Utf16Key};
 use trustgrant_error::TrustGrantError;
 
+/// Deterministic canonical bytes of a TrustGrant document suitable for
+/// signature verification.
+///
+/// Produced by [`canonicalize_trustgrant`] and consumed by signature verifier
+/// adapters. The canonical form omits the `signature` field itself and uses
+/// a fixed RFC 8785–equivalent key order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalTrustGrantBytes(Vec<u8>);
 
 impl CanonicalTrustGrantBytes {
-    #[must_use = "canonical bytes should be passed to signature verification"]
+    /// Canonical bytes should be passed to signature verification.
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
@@ -400,6 +406,13 @@ fn write_revocation_field(
     };
 
     write_bytes(writer, b"{")?;
+    // JCS order: "p" before "r", so post_revocation_effect comes first
+    let effect = match revocation.post_revocation_effect {
+        PostRevocationEffect::BlockAll => "block_all",
+        PostRevocationEffect::BlockMintingOnly => "block_minting_only",
+    };
+    write_json_string_field(writer, "post_revocation_effect", effect)?;
+    write_bytes(writer, b",")?;
     write_bool_field(writer, "revocable", revocation.revocable)?;
     write_bytes(writer, b",")?;
     write_json_string_field(
@@ -791,7 +804,7 @@ mod tests {
                 "https://audience.example.com",
                 RawScope::all(),
                 Some(RawScope::allow(vec![RawSelector::expressions(
-                    "player_id",
+                    "actor",
                     vec!["contains(\"player\")".into()],
                 )])),
             )]),
@@ -859,6 +872,7 @@ mod tests {
                 .with_timezone(&Utc),
             signature: "base64-signature".into(),
             issuer_principal: Some(RawPrincipal::new("service", "issuer-worker")),
+            interoperability_profile: None,
         };
 
         assert_matches_oracle(&raw_document);

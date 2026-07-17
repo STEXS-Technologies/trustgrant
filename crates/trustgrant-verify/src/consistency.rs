@@ -300,7 +300,7 @@ mod tests {
             "default_audience_scope":null,
             "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},
             "global_constraints":null,
-            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
             "issued_at":"2026-04-07T12:00:00Z",
             "signature":"rehydrated-signature",
             "issuer_principal":null
@@ -370,7 +370,7 @@ mod tests {
             "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://aud-target.example.com"],"expressions":null}],"deny":null},"principal_scope":null}],
             "resource_scope":{"types":{"credential":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["issued"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":true},"constraints":{"minting":{"max_total":1000,"max_per_user":10},"audience_scope":null},"operations":{"all":false,"allow":["recognize","mint"],"deny":["revoke"]}},"badge":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},
             "global_constraints":{"time":{"not_before":"2026-01-01T00:00:00Z","not_after":"2026-12-31T23:59:59Z"}},
-            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/v1/revoke"},
+            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/v1/revoke","post_revocation_effect":"block_all"},
             "issued_at":"2026-06-15T09:30:00Z",
             "signature":"rehydrated-signature",
             "issuer_principal":{"kind":"service","id":"grant-issuer"}
@@ -653,7 +653,7 @@ mod tests {
             "default_audience_scope":null,
             "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},
             "global_constraints":null,
-            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/v1/revoke"},
+            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/v1/revoke","post_revocation_effect":"block_all"},
             "issued_at":"2026-04-07T12:00:00Z",
             "signature":"rehydrated-signature",
             "issuer_principal":null
@@ -777,7 +777,7 @@ mod tests {
         "default_audience_scope":null,
         "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},
         "global_constraints":null,
-        "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+        "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
         "issued_at":"2026-04-07T12:00:00Z",
         "signature":"base64-signature",
         "issuer_principal":null
@@ -1134,6 +1134,7 @@ mod tests {
             revocation: validated.revocation().cloned(),
             issued_at: validated.issued_at(),
             issuer_principal: validated.issuer_principal().cloned(),
+            interoperability_profile: validated.interoperability_profile().cloned(),
         };
 
         let normalized = NormalizedTrustGrantDocument::from_parts(parts);

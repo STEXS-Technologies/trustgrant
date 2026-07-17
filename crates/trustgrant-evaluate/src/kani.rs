@@ -1,5 +1,6 @@
 use crate::{
-    EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation, ResourceContext,
+    EvaluationEngine, EvaluationRequest, RequestedCapability, RequestedOperation, ResourceBinding,
+    ResourceContext, ResourceRef,
 };
 use chrono::{TimeZone, Utc};
 use std::hint::black_box;
@@ -44,7 +45,7 @@ fn build_verified_grant() -> VerifiedTrustGrant {
         "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}],
         "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":null},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
         "global_constraints":{"time":{"not_before":"2026-01-01T00:00:00Z","not_after":"2027-01-01T00:00:00Z"}},
-        "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+        "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
         "issued_at":"2026-06-01T12:00:00Z",
         "signature":"valid-signature",
         "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -87,12 +88,16 @@ fn verify_evaluate_basic() {
     resource.insert_selector("namespace", "weapons").unwrap();
     let request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(
+            AuthorityId::new("https://issuer.example.com").unwrap(),
+            "resource-42".to_string(),
+        )),
         AuthorityId::new("https://target.example.com").unwrap(),
         AuthorityId::new("https://audience.example.com").unwrap(),
         resource,
         ts(),
     )
     .unwrap();
-    let decision = engine.evaluate(&grant, &request);
-    black_box(decision);
+    let outcome = engine.evaluate(&grant, &request);
+    black_box(outcome);
 }

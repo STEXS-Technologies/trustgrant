@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use trustgrant_discovery::{
     AuthorityKeyRecord, DelegatedPrincipalRef, ResolvedSignerBinding, SignatureProfile,
 };
+use trustgrant_document::raw::{InteroperabilityProfile, PostRevocationEffect};
 use trustgrant_document::validated::{ValidatedTypeCapabilities, ValidatedTypeConstraints};
 use trustgrant_document::{
     ValidatedAudienceEntry, ValidatedCapabilities, ValidatedMintingConstraints,
@@ -114,6 +115,8 @@ struct NormalizedTrustGrantDocumentRecord {
     revocation: Option<RevocationPolicyRecord>,
     issued_at: DateTime<Utc>,
     issuer_principal: Option<PrincipalRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl NormalizedTrustGrantDocumentRecord {
@@ -203,6 +206,7 @@ impl NormalizedTrustGrantDocumentRecord {
                     .as_ref()
                     .map(PrincipalRecord::try_to_validated_principal)
                     .transpose()?,
+                interoperability_profile: self.interoperability_profile.clone(),
             },
         ))
     }
@@ -249,6 +253,7 @@ impl From<&NormalizedTrustGrantDocument> for NormalizedTrustGrantDocumentRecord 
             revocation: value.revocation().map(RevocationPolicyRecord::from),
             issued_at: value.issued_at(),
             issuer_principal: value.issuer_principal().map(PrincipalRecord::from),
+            interoperability_profile: value.interoperability_profile().map(ToOwned::to_owned),
         }
     }
 }
@@ -620,11 +625,13 @@ impl From<&ValidatedTimeWindow> for TimeWindowRecord {
 struct RevocationPolicyRecord {
     revocable: bool,
     revocation_endpoint: String,
+    post_revocation_effect: PostRevocationEffect,
 }
 
 impl RevocationPolicyRecord {
     fn try_to_validated_revocation(&self) -> ValidatedRevocation {
         ValidatedRevocation::new(self.revocable, self.revocation_endpoint.clone().into())
+            .with_post_revocation_effect(self.post_revocation_effect)
     }
 }
 
@@ -633,6 +640,7 @@ impl From<&ValidatedRevocation> for RevocationPolicyRecord {
         Self {
             revocable: value.revocable(),
             revocation_endpoint: value.revocation_endpoint().to_owned(),
+            post_revocation_effect: value.post_revocation_effect(),
         }
     }
 }
@@ -921,7 +929,7 @@ mod tests {
             "capabilities":{"recognize":true,"mint":false},
             "default_audience_scope":null,
             "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},
-            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+            "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
             "issued_at":"2026-04-07T12:00:00Z",
             "signature":"base64-signature"
         }"#;

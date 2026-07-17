@@ -4,11 +4,12 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use trustgrant::{
-    AuthorityId, CustomOperationName, EvaluationDecision, EvaluationEngine, EvaluationRequest,
-    MintContext, RequestedCapability, RequestedOperation, ResourceContext, TrustGrantError,
-    VerifiedRevocationState,
+    AuthorityId, CustomOperationName, EvaluationEngine, EvaluationRequest, MintContext,
+    RequestedCapability, RequestedOperation, ResourceBinding, ResourceContext, ResourceRef,
+    TemplateRef, TrustGrantError, VerifiedRevocationState,
     discovery::{AuthorityKeyRecord, ResolvedSignerBinding, SignatureProfile},
     domain::OwnershipVerificationRecord,
+    evaluate::EvaluationOutcome,
     ports::{SignatureVerificationRequest, SignatureVerifier, VerificationPosture},
     revocation::{ProofFinality, RevocationRecord, RevocationSourceKind, RevocationStatus},
     verify::{VerificationMetadata, VerificationPipeline},
@@ -41,8 +42,16 @@ fn timestamp(s: &str) -> DateTime<Utc> {
 
 fn make_revocation_record(
     verified_at: DateTime<Utc>,
+    evaluated_at: DateTime<Utc>,
     override_val: Option<&str>,
 ) -> VerifiedRevocationState {
+    // Use a far-future fresh_until so the engine freshness check does not
+    // interfere with the specific vector scenario being tested. Vectors that
+    // test revocation specifically set their own override values.
+    let far_future = verified_at
+        .checked_add_days(chrono::Days::new(3650))
+        .unwrap_or(verified_at);
+
     match override_val {
         Some("revoked") => VerifiedRevocationState::Checked(
             RevocationRecord::new(
@@ -50,18 +59,50 @@ fn make_revocation_record(
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 verified_at,
-                verified_at,
+                far_future,
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),
         Some("non_revocable") => VerifiedRevocationState::NonRevocable,
+        // Stale revocation data: fresh_until is set before evaluated_at,
+        // causing the engine to deny with StaleRevocationData.
+        // checked_at must be <= fresh_until (RevocationRecord invariant), so
+        // we set checked_at well before the stale fresh_until.
+        Some("stale") => VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                RevocationStatus::Active,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::days(-30))
+                    .unwrap(),
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::seconds(-1))
+                    .unwrap(),
+            )
+            .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
+        ),
+        Some("stale_revoked") => VerifiedRevocationState::Checked(
+            RevocationRecord::new(
+                RevocationStatus::Revoked,
+                RevocationSourceKind::Api,
+                ProofFinality::Observed,
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::days(-30))
+                    .unwrap(),
+                evaluated_at
+                    .checked_add_signed(chrono::Duration::seconds(-1))
+                    .unwrap(),
+            )
+            .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
+        ),
         _ => VerifiedRevocationState::Checked(
             RevocationRecord::new(
                 RevocationStatus::Active,
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 verified_at,
-                verified_at,
+                far_future,
             )
             .unwrap_or_else(|e| panic!("invalid revocation record: {e}")),
         ),
@@ -109,7 +150,7 @@ fn make_metadata(
 fn run_evaluation(
     grant: &trustgrant::verify::VerifiedTrustGrant,
     eval: &serde_json::Value,
-) -> EvaluationDecision {
+) -> EvaluationOutcome {
     let engine = EvaluationEngine::new();
 
     let req = &eval["request"];
@@ -136,8 +177,30 @@ fn run_evaluation(
         }
     }
 
+    // Determine origin authority from request, defaulting to issuer
+    let origin_str = req
+        .get("origin_authority")
+        .and_then(|v| v.as_str())
+        .unwrap_or("https://issuer.example.com");
+    let origin =
+        AuthorityId::new(origin_str).unwrap_or_else(|e| panic!("invalid origin authority: {e}"));
+
+    // Build appropriate resource binding based on operation
+    let resource_binding = match &operation {
+        RequestedOperation::Capability(RequestedCapability::Mint) => {
+            ResourceBinding::Mint(TemplateRef::new(origin))
+        }
+        RequestedOperation::Capability(_) | RequestedOperation::Custom(_) => {
+            ResourceBinding::Existing(ResourceRef::new(
+                origin,
+                req["resource_type"].as_str().unwrap().to_owned(),
+            ))
+        }
+    };
+
     let mut request = EvaluationRequest::new(
         operation,
+        resource_binding,
         AuthorityId::new(req["target_authority"].as_str().unwrap())
             .unwrap_or_else(|e| panic!("invalid target authority: {e}")),
         AuthorityId::new(req["audience_authority"].as_str().unwrap())
@@ -146,13 +209,6 @@ fn run_evaluation(
         evaluated_at,
     )
     .unwrap_or_else(|e| panic!("invalid request: {e}"));
-
-    // Spec §13 step 3: optional origin authority enforcement
-    if let Some(origin) = req.get("origin_authority").and_then(|v| v.as_str()) {
-        request = request.with_origin_authority(
-            AuthorityId::new(origin).unwrap_or_else(|e| panic!("invalid origin authority: {e}")),
-        );
-    }
 
     // Handle evaluation setup — e.g. add audience principal selectors
     if let Some(setup) = eval.get("setup").and_then(|v| v.as_str()) {
@@ -177,21 +233,38 @@ fn run_evaluation(
         }
     }
 
-    if let Some(mc) = req.get("mint_context") {
-        request = request.with_mint_context(MintContext::new(
-            mc["total_minted"].as_u64().unwrap(),
-            mc["user_minted"].as_u64().unwrap(),
-        ));
+    if let Some(mc_val) = req.get("mint_context") {
+        let base_ctx = MintContext::new(
+            mc_val["total_minted"].as_u64().unwrap_or(0),
+            mc_val["user_minted"].as_u64().unwrap_or(0),
+        );
+        let mint_ctx = mc_val
+            .get("quantity")
+            .and_then(|v| v.as_u64())
+            .map_or(base_ctx, |qty| {
+                base_ctx.with_quantity(qty).unwrap_or(base_ctx)
+            });
+        request = request.with_mint_context_for_testing(mint_ctx);
     }
+
+    // All selectors from interop vectors are considered trusted — they
+    // come from the test fixture, not from a caller — UNLESS the
+    // evaluation explicitly requests unverified selectors to test the
+    // provenance enforcement path.
+    let request = if eval.get("unverified_selectors").and_then(|v| v.as_bool()) == Some(true) {
+        request
+    } else {
+        request.verify_selectors()
+    };
 
     engine.evaluate(grant, &request)
 }
 
-fn check_decision(decision: EvaluationDecision, expected: &serde_json::Value) -> bool {
-    if decision.is_allowed() && expected == "Allowed" {
+fn check_decision(decision: &EvaluationOutcome, expected: &serde_json::Value) -> bool {
+    if decision.decision().is_allowed() && expected == "Allowed" {
         return true;
     }
-    if let Some(deny_reason) = decision.deny_reason()
+    if let Some(deny_reason) = decision.decision().deny_reason()
         && let serde_json::Value::Object(map) = expected
         && let Some(expected_reason) = map.get("Denied").and_then(|v| v.as_str())
     {
@@ -212,9 +285,20 @@ fn run_vector(path: &Path) -> Result<(), String> {
 
     let pipeline = VerificationPipeline::new();
     let verifier = InteropSignatureVerifier;
-    let verified_at = timestamp("2026-06-15T12:00:00Z");
+    let default_verified_at = timestamp("2026-06-15T12:00:00Z");
+    let verified_at = vector
+        .get("verified_at")
+        .and_then(|v| v.as_str())
+        .map(timestamp)
+        .unwrap_or(default_verified_at);
     let revocation_override = vector.get("revocation_override").and_then(|v| v.as_str());
-    let revocation = make_revocation_record(verified_at, revocation_override);
+    // Use the evaluated_at from the first evaluation as the reference point for
+    // freshness, so stale/active revocation records can be set correctly.
+    let evaluated_at = vector["evaluations"][0]["request"]["evaluated_at"]
+        .as_str()
+        .map(timestamp)
+        .unwrap_or(verified_at);
+    let revocation = make_revocation_record(verified_at, evaluated_at, revocation_override);
     let metadata = make_metadata(verified_at, revocation);
 
     let verified = pipeline
@@ -227,11 +311,11 @@ fn run_vector(path: &Path) -> Result<(), String> {
         for eval in evaluations {
             let desc = eval["description"].as_str().unwrap_or("unnamed");
             let expected = &eval["expected"];
-            let decision = run_evaluation(grant, eval);
+            let outcome = run_evaluation(grant, eval);
 
-            if !check_decision(decision, expected) {
+            if !check_decision(&outcome, expected) {
                 return Err(format!(
-                    "{description} / {desc}: expected {expected}, got {decision:?}",
+                    "{description} / {desc}: expected {expected}, got {outcome:?}",
                 ));
             }
         }

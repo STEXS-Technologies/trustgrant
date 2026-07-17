@@ -1,4 +1,11 @@
-#![allow(clippy::panic)]
+#![allow(
+    clippy::panic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing
+)]
 
 //! Integration tests for the persistence/recovery path:
 //! create a verified grant → serialize to record → rehydrate from record → evaluate.
@@ -6,13 +13,13 @@
 use chrono::{TimeZone, Utc};
 
 use trustgrant::{
-    AuthorityId, AuthorityKeyRecord, EvaluationDenyReason, EvaluationEngine, EvaluationRequest,
-    MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
-    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceContext,
-    RevocationRecord, RevocationSourceKind, RevocationStatus, SignatureProfile,
-    SignatureVerificationRequest, SignatureVerifier, TrustGrantError, VerificationMetadata,
-    VerificationPipeline, VerificationPosture, VerifiedRevocationState, VerifiedTrustGrant,
-    VerifiedTrustGrantRecord,
+    AuthorityId, AuthorityKeyRecord, CustomOperationName, EvaluationDenyReason, EvaluationEngine,
+    EvaluationRequest, MintContext, OwnershipProofKind, OwnershipVerificationRecord, ProofFinality,
+    RequestedCapability, RequestedOperation, ResolvedSignerBinding, ResourceBinding,
+    ResourceContext, ResourceRef, RevocationRecord, RevocationSourceKind, RevocationStatus,
+    SignatureProfile, SignatureVerificationRequest, SignatureVerifier, TemplateRef,
+    TrustGrantError, VerificationMetadata, VerificationPipeline, VerificationPosture,
+    VerifiedRevocationState, VerifiedTrustGrant, VerifiedTrustGrantRecord,
 };
 
 // ---------------------------------------------------------------------------
@@ -33,9 +40,9 @@ const RECOGNIZE_TRUSTGRANT_JSON: &str = r#"{
   "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -57,9 +64,56 @@ const MINT_TRUSTGRANT_JSON: &str = r#"{
   "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
   "capabilities":{"recognize":true,"mint":true},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"player_id","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+/// Custom-operation grant: resource_scope operations.allow includes "use_item".
+const CUSTOM_OP_TRUSTGRANT_JSON: &str = r#"{
+  "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174100",
+  "version":0,
+  "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174101",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":false},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["use_item"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
+  "issued_at":"2026-04-07T12:00:00Z",
+  "signature":"base64-signature",
+  "issuer_principal":{"kind":"service","id":"issuer-worker"}
+}"#;
+
+/// Grant with post_revocation_effect = "block_minting_only", revocable,
+/// mint capability enabled, and both "recognize" and "create" operations.
+const BLOCK_MINTING_ONLY_JSON: &str = r#"{
+  "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174110",
+  "version":0,
+  "grant_series_id":"tgs_123e4567-e89b-12d3-a456-426614174111",
+  "revision":1,
+  "supersedes":null,
+  "supersession_policy":"coexist",
+  "issuer_authority":"https://issuer.example.com",
+  "origin_authority":"https://issuer.example.com",
+  "active_owning_authority":"https://issuer.example.com",
+  "key_id":"root-key-1",
+  "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
+  "capabilities":{"recognize":true,"mint":true},
+  "default_audience_scope":null,
+  "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize","create"],"deny":null}}}},
+  "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_minting_only"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -117,7 +171,7 @@ fn verification_metadata(revocation_status: RevocationStatus) -> VerificationMet
                 RevocationSourceKind::Api,
                 ProofFinality::Observed,
                 fixed_timestamp(2026, 4, 7, 12, 0, 0),
-                fixed_timestamp(2026, 4, 7, 12, 5, 0),
+                fixed_timestamp(2026, 4, 9, 12, 0, 0),
             )
             .unwrap_or_else(|error| panic!("revocation record should be valid: {error}")),
         ),
@@ -178,8 +232,12 @@ fn recognize_request() -> EvaluationRequest {
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Recognize),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -190,7 +248,7 @@ fn recognize_request() -> EvaluationRequest {
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
     request
@@ -204,8 +262,12 @@ fn mint_request(total_mints: u64, mints_for_audience: u64) -> EvaluationRequest 
         .insert_selector("namespace", "weapons")
         .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
 
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
     let mut request = EvaluationRequest::new(
         RequestedOperation::Capability(RequestedCapability::Mint),
+        ResourceBinding::Mint(TemplateRef::new(origin)),
         AuthorityId::new("https://target.example.com")
             .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
         AuthorityId::new("https://audience.example.com")
@@ -216,10 +278,12 @@ fn mint_request(total_mints: u64, mints_for_audience: u64) -> EvaluationRequest 
     .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
 
     request
-        .insert_audience_principal_selector("player_id", "player-123")
+        .insert_audience_principal_selector("actor", "player-123")
         .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
 
-    request.with_mint_context(MintContext::new(total_mints, mints_for_audience))
+    request
+        .with_mint_context_for_testing(MintContext::new(total_mints, mints_for_audience))
+        .verify_selectors()
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +307,7 @@ const AUDIENCE_SCOPE_AND_PRINCIPAL_JSON: &str = r#"{
     {"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}
   ],
   "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":null}}},
-  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"},
+  "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
   "signature":"base64-signature",
   "issuer_principal":{"kind":"service","id":"issuer-worker"}
@@ -325,9 +389,9 @@ fn rehydrated_recognize_grant_allows_matching_request() {
 
     // 5. Evaluate
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&rehydrated, &recognize_request());
+    let outcome = engine.evaluate(&rehydrated, &recognize_request());
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 // ---------------------------------------------------------------------------
@@ -351,9 +415,9 @@ fn rehydrated_mint_grant_allows_under_total_limit() {
 
     // 3. Evaluate at 9/10 → should be allowed
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&rehydrated, &mint_request(9, 0));
+    let outcome = engine.evaluate(&rehydrated, &mint_request(9, 0));
 
-    assert!(decision.is_allowed());
+    assert!(outcome.decision().is_allowed());
 }
 
 #[test]
@@ -373,10 +437,10 @@ fn rehydrated_mint_grant_denies_at_total_limit() {
 
     // 3. Evaluate at 10/10 → should deny with MintTotalLimitReached
     let engine = EvaluationEngine::new();
-    let decision = engine.evaluate(&rehydrated, &mint_request(10, 0));
+    let outcome = engine.evaluate(&rehydrated, &mint_request(10, 0));
 
     assert_eq!(
-        decision.deny_reason(),
+        outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::MintTotalLimitReached)
     );
 }
@@ -392,9 +456,9 @@ fn rehydrated_revoked_grant_preserves_deny_reason() {
 
     // 2. Evaluate before persistence → should deny for Revoked
     let engine = EvaluationEngine::new();
-    let original_decision = engine.evaluate(&verified, &recognize_request());
+    let original_outcome = engine.evaluate(&verified, &recognize_request());
     assert_eq!(
-        original_decision.deny_reason(),
+        original_outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::Revoked)
     );
 
@@ -409,9 +473,112 @@ fn rehydrated_revoked_grant_preserves_deny_reason() {
         .unwrap_or_else(|error| panic!("rehydration should succeed: {error}"));
 
     // 4. Evaluate after rehydration → same deny reason
-    let rehydrated_decision = engine.evaluate(&rehydrated, &recognize_request());
+    let rehydrated_outcome = engine.evaluate(&rehydrated, &recognize_request());
     assert_eq!(
-        rehydrated_decision.deny_reason(),
+        rehydrated_outcome.decision().deny_reason(),
         Some(EvaluationDenyReason::Revoked)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Helper: custom operation request builder
+// ---------------------------------------------------------------------------
+
+fn custom_operation_request(op_name: &str) -> EvaluationRequest {
+    let mut resource = ResourceContext::new("item")
+        .unwrap_or_else(|error| panic!("resource context should be valid: {error}"));
+    resource
+        .insert_selector("namespace", "weapons")
+        .unwrap_or_else(|error| panic!("resource selector should be valid: {error}"));
+
+    let origin = AuthorityId::new("https://issuer.example.com")
+        .unwrap_or_else(|error| panic!("origin authority should be valid: {error}"));
+
+    let mut request = EvaluationRequest::new(
+        RequestedOperation::Custom(
+            CustomOperationName::new(op_name)
+                .unwrap_or_else(|error| panic!("custom operation should be valid: {error}")),
+        ),
+        ResourceBinding::Existing(ResourceRef::new(origin, "item".to_owned())),
+        AuthorityId::new("https://target.example.com")
+            .unwrap_or_else(|error| panic!("target authority should be valid: {error}")),
+        AuthorityId::new("https://audience.example.com")
+            .unwrap_or_else(|error| panic!("audience authority should be valid: {error}")),
+        resource,
+        fixed_timestamp(2026, 4, 7, 13, 0, 0),
+    )
+    .unwrap_or_else(|error| panic!("evaluation request should be valid: {error}"));
+
+    request
+        .insert_audience_principal_selector("actor", "player-123")
+        .unwrap_or_else(|error| panic!("principal selector should be valid: {error}"));
+
+    request
+}
+
+// ---------------------------------------------------------------------------
+// Test 4: Rehydrated custom operation grant allows custom operation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn rehydrated_custom_operation_grant_allows_custom_op() {
+    // 1. Verify the custom operation grant
+    let verified = verify_grant(CUSTOM_OP_TRUSTGRANT_JSON, RevocationStatus::Active);
+
+    // 2. Convert → persist → rehydrate
+    let record = VerifiedTrustGrantRecord::from(&verified);
+    let json = serde_json::to_string(&record)
+        .unwrap_or_else(|error| panic!("record should serialize: {error}"));
+    let persisted: VerifiedTrustGrantRecord = serde_json::from_str(&json)
+        .unwrap_or_else(|error| panic!("record should deserialize: {error}"));
+    let rehydrated = persisted
+        .try_to_verified_grant()
+        .unwrap_or_else(|error| panic!("rehydration should succeed: {error}"));
+
+    // 3. Evaluate with the custom operation that the grant allows
+    let engine = EvaluationEngine::new();
+    let outcome = engine.evaluate(&rehydrated, &custom_operation_request("use_item"));
+
+    assert!(
+        outcome.decision().is_allowed(),
+        "custom operation 'use_item' should be allowed after rehydration"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 5: Rehydrated block_minting_only grant allows recognize, denies mint
+// ---------------------------------------------------------------------------
+
+#[test]
+fn rehydrated_grant_with_block_minting_only_allows_recognize() {
+    // 1. Verify with Revoked status (block_minting_only allows verification)
+    let verified = verify_grant(BLOCK_MINTING_ONLY_JSON, RevocationStatus::Revoked);
+
+    // 2. Convert → persist → rehydrate
+    let record = VerifiedTrustGrantRecord::from(&verified);
+    let json = serde_json::to_string(&record)
+        .unwrap_or_else(|error| panic!("record should serialize: {error}"));
+    let persisted: VerifiedTrustGrantRecord = serde_json::from_str(&json)
+        .unwrap_or_else(|error| panic!("record should deserialize: {error}"));
+    let rehydrated = persisted
+        .try_to_verified_grant()
+        .unwrap_or_else(|error| panic!("rehydration should succeed: {error}"));
+
+    let engine = EvaluationEngine::new();
+
+    // 3. Recognize should be allowed (block_minting_only)
+    let outcome = engine.evaluate(&rehydrated, &recognize_request());
+    assert!(
+        outcome.decision().is_allowed(),
+        "recognize should be allowed under block_minting_only after rehydration"
+    );
+
+    // 4. Mint should be denied with Revoked
+    let second_outcome = engine.evaluate(&rehydrated, &mint_request(5, 0));
+    assert!(!second_outcome.decision().is_allowed());
+    assert_eq!(
+        second_outcome.decision().deny_reason(),
+        Some(EvaluationDenyReason::Revoked),
+        "mint should be denied due to revocation with block_minting_only after rehydration"
     );
 }

@@ -37,12 +37,13 @@ impl RevocationFreshnessPolicy {
         })
     }
 
-    #[must_use = "non-revoked ttl participates in record freshness normalization"]
+    /// Non-revoked ttl participates in record freshness normalization.
     pub const fn non_revoked_ttl_seconds(&self) -> u64 {
         self.non_revoked_ttl_seconds.get()
     }
 
-    #[must_use = "max stale seconds participates in record freshness normalization"]
+    /// Max stale seconds participates in record freshness normalization.
+    #[must_use]
     pub const fn max_stale_seconds(&self) -> u64 {
         self.max_stale_seconds.get()
     }
@@ -63,6 +64,13 @@ struct RawRevocationStatusProof {
     checked_at: DateTime<Utc>,
 }
 
+/// One parsed revocation status proof from a revocation endpoint.
+///
+/// Contains the TrustGrant identifier, the revocation status (active or
+/// revoked), and the timestamp when the status was checked. Use
+/// [`into_record`](Self::into_record) to normalise this proof into a
+/// [`RevocationRecord`] with source kind, finality, and freshness policy
+/// applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RevocationStatusProof {
     trustgrant_id: TrustGrantId,
@@ -71,17 +79,20 @@ pub struct RevocationStatusProof {
 }
 
 impl RevocationStatusProof {
-    #[must_use = "trustgrant id participates in proof-to-document matching"]
+    /// Trustgrant id participates in proof-to-document matching.
+    #[must_use]
     pub const fn trustgrant_id(&self) -> TrustGrantId {
         self.trustgrant_id
     }
 
-    #[must_use = "status participates in verification and evaluation"]
+    /// Status participates in verification and evaluation.
+    #[must_use]
     pub const fn status(&self) -> RevocationStatus {
         self.status
     }
 
-    #[must_use = "checked_at participates in freshness normalization"]
+    /// Checked_at participates in freshness normalization.
+    #[must_use]
     pub const fn checked_at(&self) -> DateTime<Utc> {
         self.checked_at
     }
@@ -134,6 +145,44 @@ impl TryFrom<RawRevocationStatusProof> for RevocationStatusProof {
 }
 
 /// Parses one revocation proof payload into normalized proof input.
+///
+/// # Examples
+///
+/// Parse an active-status proof and normalise it into a revocation record:
+///
+/// ```rust
+/// # use trustgrant_revocation::{
+/// #     parse_revocation_status_proof,
+/// #     ProofFinality, RevocationFreshnessPolicy, RevocationSourceKind,
+/// #     RevocationStatus,
+/// # };
+/// let json = r#"{
+///   "trustgrant_id": "tg_123e4567-e89b-12d3-a456-426614174000",
+///   "status": "active",
+///   "checked_at": "2026-04-07T12:00:00Z"
+/// }"#;
+///
+/// let proof = parse_revocation_status_proof(json)
+///     .expect("valid revocation proof");
+///
+/// assert_eq!(proof.status(), RevocationStatus::Active);
+/// assert_eq!(
+///     proof.trustgrant_id().to_string(),
+///     "tg_123e4567-e89b-12d3-a456-426614174000",
+/// );
+///
+/// // Normalise into a record with policy
+/// let policy = RevocationFreshnessPolicy::new(120, 900)
+///     .expect("valid policy");
+/// let record = proof
+///     .into_record(
+///         RevocationSourceKind::Api,
+///         ProofFinality::Observed,
+///         policy,
+///     )
+///     .expect("valid record");
+/// assert_eq!(record.status(), RevocationStatus::Active);
+/// ```
 ///
 /// # Errors
 ///

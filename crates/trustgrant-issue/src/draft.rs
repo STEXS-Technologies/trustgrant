@@ -3,8 +3,8 @@ use compact_str::CompactString;
 
 use trustgrant_document::RawTrustGrantDocument;
 use trustgrant_document::raw::{
-    RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawPrincipal, RawResourceScope,
-    RawRevocation, RawScope, RawSupersessionPolicy, RawTimeWindow,
+    InteroperabilityProfile, RawAudienceEntry, RawCapabilities, RawGlobalConstraints, RawPrincipal,
+    RawResourceScope, RawRevocation, RawScope, RawSupersessionPolicy, RawTimeWindow,
 };
 use trustgrant_domain::{
     AuthorityId, CanonicalizationProfile, GrantRevision, GrantSeriesId, KeyId, SupersessionPolicy,
@@ -13,6 +13,13 @@ use trustgrant_domain::{
 use trustgrant_error::TrustGrantError;
 use trustgrant_verify::{CanonicalTrustGrantBytes, canonicalize_trustgrant};
 
+/// One validated set of authority identifiers for a TrustGrant draft.
+///
+/// Contains the issuer, origin, and active owning authority that together
+/// define the authority boundary for a [`TrustGrantDraft`]. Use
+/// [`Self::self_owned`] when all three authorities are the same (common
+/// for first-party issuance), or [`Self::new`] when they differ (ownership
+/// transfer scenarios).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrustGrantDraftAuthorities {
     issuer_authority: AuthorityId,
@@ -59,6 +66,23 @@ impl TrustGrantDraftAuthorities {
     }
 }
 
+/// One issuer-side TrustGrant draft before cryptographic signing.
+///
+/// A draft carries the full grant payload with auto-generated protocol
+/// identifiers ([`TrustGrantId`], [`GrantSeriesId`]). Builder-pattern
+/// methods let you refine the draft (lineage, time window, audience,
+/// revocation, principal) before producing a signable document.
+///
+/// # Lifecycle
+///
+/// 1. **Draft** — [`TrustGrantDraft::new`] creates the initial draft.
+/// 2. **Refine** — use `with_*` methods to customise the draft.
+/// 3. **Signable** — [`signable_document`](Self::signable_document)
+///    or [`canonical_bytes`](Self::canonical_bytes) produces the payload
+///    to be signed.
+/// 4. **Signed** — [`into_signed_document`](Self::into_signed_document)
+///    attaches the cryptographic signature and yields the final
+///    [`RawTrustGrantDocument`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrustGrantDraft {
     trustgrant_id: TrustGrantId,
@@ -78,10 +102,50 @@ pub struct TrustGrantDraft {
     revocation: Option<RawRevocation>,
     issued_at: DateTime<Utc>,
     issuer_principal: Option<RawPrincipal>,
+    interoperability_profile: Option<InteroperabilityProfile>,
 }
 
 impl TrustGrantDraft {
     /// Creates one issuer-side TrustGrant draft with generated protocol IDs.
+    ///
+    /// # Examples
+    ///
+    /// Basic draft → signable → signed flow:
+    ///
+    /// ```rust
+    /// # use std::collections::BTreeMap;
+    /// # use chrono::{TimeZone, Utc};
+    /// # use trustgrant_document::raw::{
+    /// #     RawCapabilities, RawResourceScope, RawScope,
+    /// # };
+    /// # use trustgrant_issue::{TrustGrantDraft, TrustGrantDraftAuthorities};
+    /// let authorities = TrustGrantDraftAuthorities::self_owned(
+    ///     "https://issuer.example.com",
+    /// )
+    /// .expect("valid authorities");
+    ///
+    /// let draft = TrustGrantDraft::new(
+    ///     authorities,
+    ///     "root-key-1",
+    ///     RawScope::all(),
+    ///     RawCapabilities::new(true, false),
+    ///     RawResourceScope::new(BTreeMap::new()),
+    ///     Utc.with_ymd_and_hms(2026, 4, 8, 12, 0, 0)
+    ///         .single()
+    ///         .expect("valid timestamp"),
+    /// )
+    /// .expect("valid draft");
+    ///
+    /// // Draft → signable document (borrows the draft)
+    /// let signable = draft.signable_document().expect("signable document");
+    /// assert!(signable.signature.is_empty());
+    ///
+    /// // Signable → signed document (consumes the draft)
+    /// let signed = draft
+    ///     .into_signed_document("valid-signature-v1")
+    ///     .expect("signed document");
+    /// assert_eq!(signed.signature, "valid-signature-v1");
+    /// ```
     ///
     /// # Errors
     ///
@@ -113,15 +177,17 @@ impl TrustGrantDraft {
             revocation: None,
             issued_at,
             issuer_principal: None,
+            interoperability_profile: None,
         })
     }
 
-    #[must_use = "generated trustgrant id should be used for publication or signing"]
+    /// Generated trustgrant id should be used for publication or signing.
     pub const fn trustgrant_id(&self) -> TrustGrantId {
         self.trustgrant_id
     }
 
-    #[must_use = "generated grant series id should be used for lineage-aware issuance"]
+    /// Generated grant series id should be used for lineage-aware issuance.
+    #[must_use]
     pub const fn grant_series_id(&self) -> GrantSeriesId {
         self.grant_series_id
     }
@@ -132,7 +198,6 @@ impl TrustGrantDraft {
     ///
     /// Returns [`TrustGrantError`] when the requested supersession policy
     /// cannot be represented by the TrustGrant v0 wire contract.
-    #[must_use = "draft updates should be chained into the final signable draft"]
     pub fn with_lineage(
         mut self,
         grant_series_id: GrantSeriesId,
@@ -162,13 +227,14 @@ impl TrustGrantDraft {
         Ok(self)
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
     pub fn with_default_audience_scope(mut self, audience_scope: Vec<RawAudienceEntry>) -> Self {
         self.default_audience_scope = audience_scope;
         self
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
+    ///
     /// # Errors
     ///
     /// Returns [`TrustGrantError`] when the provided time window is inverted.
@@ -184,15 +250,26 @@ impl TrustGrantDraft {
         Ok(self)
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
     pub fn with_revocation(mut self, revocation: RawRevocation) -> Self {
         self.revocation = Some(revocation);
         self
     }
 
-    #[must_use = "draft updates should be chained into the final signable draft"]
+    /// Draft updates should be chained into the final signable draft.
+    #[must_use]
     pub fn with_issuer_principal(mut self, issuer_principal: RawPrincipal) -> Self {
         self.issuer_principal = Some(issuer_principal);
+        self
+    }
+
+    /// Sets the interoperability profile for this draft grant.
+    #[must_use]
+    pub fn with_interoperability_profile(
+        mut self,
+        interoperability_profile: InteroperabilityProfile,
+    ) -> Self {
+        self.interoperability_profile = Some(interoperability_profile);
         self
     }
 
@@ -242,6 +319,7 @@ impl TrustGrantDraft {
             issued_at: self.issued_at,
             signature: CompactString::new(""),
             issuer_principal: self.issuer_principal.clone(),
+            interoperability_profile: self.interoperability_profile.clone(),
         })
     }
 
@@ -264,6 +342,7 @@ impl TrustGrantDraft {
             revocation,
             issued_at,
             issuer_principal,
+            interoperability_profile,
         } = self;
 
         let supersession_policy = match supersession_policy {
@@ -296,6 +375,7 @@ impl TrustGrantDraft {
             issued_at,
             signature: CompactString::new(""),
             issuer_principal,
+            interoperability_profile,
         })
     }
 
@@ -639,7 +719,8 @@ mod tests {
     fn with_revocation_sets_revocation_on_draft() {
         let revocation: RawRevocation = serde_json::from_value(serde_json::json!({
             "revocable": true,
-            "revocation_endpoint": "https://example.com/revoke"
+            "revocation_endpoint": "https://example.com/revoke",
+            "post_revocation_effect": "block_all"
         }))
         .unwrap_or_else(|error| panic!("revocation should deserialize: {error}"));
 
