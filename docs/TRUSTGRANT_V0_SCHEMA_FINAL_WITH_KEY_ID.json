@@ -166,6 +166,22 @@
       "type": "string",
       "minLength": 1,
       "description": "Identifier of the signing key used for this TrustGrant (root or delegated)."
+    },
+    "interoperability_profile": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Profile name (e.g. shared_inventory_v1)."
+        },
+        "version": {
+          "type": "integer",
+          "description": "Profile version."
+        }
+      },
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "description": "Optional interoperability profile declaration. Without a profile, operations.all only authorizes built-in operations (recognize for v0)."
     }
   },
   "additionalProperties": false,
@@ -608,8 +624,13 @@
         },
         "revocation_endpoint": {
           "type": "string",
-          "format": "uri",
-          "description": "Revocation status endpoint. v1 hardening SHOULD combine short-lived grants with cached/bounded-staleness revocation checks."
+          "description": "Revocation status endpoint. Empty string when revocable is false. v1 hardening SHOULD combine short-lived grants with cached/bounded-staleness revocation checks."
+        },
+        "post_revocation_effect": {
+          "type": "string",
+          "enum": ["block_all", "block_minting_only"],
+          "default": "block_all",
+          "description": "Defines which operations are affected after revocation. block_all blocks all operations; block_minting_only blocks only future mint operations."
         }
       },
       "additionalProperties": false

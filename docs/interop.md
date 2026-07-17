@@ -20,8 +20,8 @@ cargo make interop
 ```
 
 This runs:
-- 29 interop vectors (evaluation scenarios, full Rust verification pipeline)
-- 37 conformance vectors (spec validation rules)
+- 41 interop vectors (evaluation scenarios, full Rust verification pipeline)
+- 47 conformance vectors (spec validation rules)
 - 54 conformance tests (Rust, spec sections §2.5–§12)
 
 ## Adding a vector

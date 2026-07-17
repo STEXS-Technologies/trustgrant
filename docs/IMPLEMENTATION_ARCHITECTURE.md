@@ -183,45 +183,56 @@ This keeps the core reusable across:
 
 ## 7. Proposed Module Layout
 
-The exact filenames can evolve, but the implementation should stay close to this shape:
+The implementation is organized as 11 separate crates under `crates/`:
 
 ```text
-trustgrant/
-├── document/
-│   ├── raw.rs
-│   ├── validated.rs
-│   └── ids.rs
-├── issue/
-│   └── draft.rs
-├── ownership/
-│   ├── canonicalize.rs
-│   ├── chain.rs
-│   ├── document.rs
-│   ├── transition.rs
-│   └── verify.rs
-├── discovery/
-│   ├── document.rs
-│   └── source_document.rs
-├── revocation/
-│   ├── proof.rs
-│   └── status.rs
-├── verify/
-│   ├── bundle.rs
-│   ├── canonicalize.rs
-│   ├── policy.rs
-│   ├── signature.rs
-│   ├── pipeline.rs
-│   ├── record.rs
-│   └── verified_grant.rs
-├── evaluate/
-│   ├── request.rs
-│   ├── decision.rs
-│   └── engine.rs
-├── ports/
-│   └── verification.rs
-├── error/
-│   └── trustgrant.rs
-└── lib.rs
+crates/
+├── trustgrant-error/          — Error types and deny reasons
+│   └── src/trustgrant.rs
+├── trustgrant-domain/         — Domain models (grants, scopes, capabilities)
+│   ├── src/ids.rs
+│   ├── src/names.rs
+│   ├── src/authority.rs
+│   ├── src/ownership.rs
+│   ├── src/selector_expression.rs
+│   └── src/canonicalization.rs
+├── trustgrant-revocation/     — Revocation source policy
+│   ├── src/proof.rs
+│   └── src/status.rs
+├── trustgrant-document/       — Document parsing, validation, canonicalization
+│   ├── src/raw.rs
+│   ├── src/validated.rs
+│   └── src/ownership_transition.rs
+├── trustgrant-discovery/      — Discovery document parsing
+│   ├── src/document.rs
+│   └── src/source_document.rs
+├── trustgrant-ports/          — Backend-agnostic port traits
+│   ├── src/discovery_source.rs
+│   ├── src/revocation_source.rs
+│   ├── src/storage_source.rs
+│   ├── src/signature.rs
+│   └── src/verification.rs
+├── trustgrant-ownership/      — Ownership transitions and chain validation
+│   ├── src/canonicalize.rs
+│   ├── src/chain.rs
+│   └── src/verify.rs
+├── trustgrant-verify/         — Verification pipeline
+│   ├── src/bundle.rs
+│   ├── src/canonicalize.rs
+│   ├── src/consistency.rs
+│   ├── src/pipeline.rs
+│   ├── src/policy.rs
+│   ├── src/record.rs
+│   └── src/verified_grant.rs
+├── trustgrant-issue/          — Grant issuance
+│   └── src/draft.rs
+├── trustgrant-evaluate/       — Evaluation engine
+│   ├── src/request.rs
+│   ├── src/decision.rs
+│   ├── src/engine.rs
+│   └── src/execution.rs
+└── trustgrant/                — Facade crate (re-exports everything)
+    └── src/lib.rs
 ```
 
 The important requirement is not the exact folder names but the separation of:
@@ -329,16 +340,18 @@ verifier-profile policy for:
 The crate should model discovery documents and delegated key documents directly, but
 actual fetching should stay outside the crate.
 
-The core traits should look conceptually like:
-- `AuthorityResolutionSource`
+The current v0 core directly exposes these traits:
 - `AuthorityDiscoverySource`
-- `DelegatedPrincipalKeySource`
-- `SignerProofSource`
 - `RevocationProofSource`
 - `OwnershipTransitionProofSource`
 - `DiscoverySource` (optional, application-level)
 - `RevocationSource` (optional, application-level)
 - `StorageSource` (optional, application-level)
+
+Additional traits that may be introduced as the protocol evolves:
+- `AuthorityResolutionSource`
+- `DelegatedPrincipalKeySource`
+- `SignerProofSource`
 - `Clock`
 - `FinalityPolicy`
 

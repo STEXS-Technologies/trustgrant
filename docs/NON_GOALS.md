@@ -13,7 +13,7 @@ is allowed by the grant, but it does **not** execute the operation itself.
 - No atomic execution of mint, transfer, consume, or burn operations
 - No settlement, order books, or royalties
 - No production-capable transaction engine (`InMemoryAtomicInventoryExecutor`
-  exists only for tests)
+  is provided for testing and prototyping)
 - No `authorize-and-execute` transaction boundary (this is the integration
   layer's responsibility to implement per §15)
 
