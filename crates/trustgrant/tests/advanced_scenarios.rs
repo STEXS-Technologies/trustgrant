@@ -66,8 +66,8 @@ const MULTI_RESOURCE_TRUSTGRANT_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}},
-    "badge":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["achievements"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}},
+    "badge":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["achievements"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -92,7 +92,7 @@ const SELECTOR_EXPRESSION_TRUSTGRANT_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":null,"expressions":["startsWith(\"weapon_\")"]}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":null,"expressions":["startsWith(\"weapon_\")"]}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -117,7 +117,7 @@ const AUDIENCE_PRINCIPAL_SCOPE_TRUSTGRANT_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}],
   "resource_scope":{"types":{
-    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":null,
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -142,7 +142,7 @@ const REVOCATION_BUNDLE_TRUSTGRANT_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":null,
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -217,7 +217,7 @@ const CAP_BRANCH1_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":true},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["create"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["create"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -242,7 +242,7 @@ const CAP_BRANCH2_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":null},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["create"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":null},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["create"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -267,7 +267,7 @@ const CAP_BRANCH3_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["create"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["create"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -296,7 +296,7 @@ const OP_SCOPE_CREATE_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":true},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["create"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["create"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -321,7 +321,7 @@ const OP_SCOPE_RECOGNIZE_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":true},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -350,7 +350,7 @@ const SUPERSESSION_COEXIST_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -375,7 +375,7 @@ const SUPERSESSION_SUPERSEDE_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -906,7 +906,7 @@ const DENY_NULL_GRANT_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -931,7 +931,7 @@ const DENY_EMPTY_GRANT_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":[],"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":[],"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -987,7 +987,7 @@ const MULTI_AUDIENCE_GRANT_JSON: &str = r#"{
     {"authority_id":"https://audience-b.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}
   ],
   "resource_scope":{"types":{
-    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+    "item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
   }},
   "global_constraints":null,
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -1083,7 +1083,7 @@ const MIXED_OPS_GRANT_JSON: &str = r#"{
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
   "resource_scope":{"types":{
-    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize","custom:export"],"deny":null}}
+    "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":null,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize","custom:export"],"deny":null}}
   }},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -1266,7 +1266,7 @@ const EARLIER_GRANT_JSON: &str = r#"{
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
   "global_constraints":null,
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -1289,7 +1289,7 @@ const SUPERSEDING_GRANT_JSON: &str = r#"{
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
   "global_constraints":null,
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:30:00Z",
@@ -1371,7 +1371,7 @@ const G19_SUPERSEDES_GRANT_JSON: &str = r#"{
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
   "global_constraints":null,
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:30:00Z",
@@ -1423,7 +1423,7 @@ const DELEGATED_CAPABILITY_GRANT_JSON: &str = r#"{
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -1482,7 +1482,7 @@ const COEXIST_SERIES_GRANT_A_JSON: &str = r#"{
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:00:00Z",
@@ -1505,7 +1505,7 @@ const COEXIST_SERIES_GRANT_B_JSON: &str = r#"{
   "target_scope":{"all":true,"allow":null,"deny":null},
   "capabilities":{"recognize":true,"mint":false},
   "default_audience_scope":null,
-  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+  "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
   "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
   "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
   "issued_at":"2026-04-07T12:30:00Z",
@@ -1580,7 +1580,7 @@ fn full_ownership_transfer_workflow() {
       "target_scope":{"all":true,"allow":null,"deny":null},
       "capabilities":{"recognize":true,"mint":false},
       "default_audience_scope":null,
-      "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["general"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+      "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["general"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
       "global_constraints":null,
       "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
       "issued_at":"2026-04-07T12:00:00Z",
@@ -1605,7 +1605,7 @@ fn full_ownership_transfer_workflow() {
       "target_scope":{"all":true,"allow":null,"deny":null},
       "capabilities":{"recognize":true,"mint":false},
       "default_audience_scope":null,
-      "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["general"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+      "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["general"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
       "global_constraints":null,
       "revocation":{"revocable":true,"revocation_endpoint":"https://successor.example.com/revocation","post_revocation_effect":"block_all"},
       "issued_at":"2026-04-07T13:00:00Z",

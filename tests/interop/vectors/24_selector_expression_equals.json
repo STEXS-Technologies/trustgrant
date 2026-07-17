@@ -49,7 +49,7 @@
             "minting": { "max_total": 10, "max_per_user": 1 },
             "audience_scope": null
           },
-          "operations": { "all": false, "allow": ["recognize"], "deny": null }
+          "operations": { "allow": ["recognize"], "deny": null }
         }
       }
     },

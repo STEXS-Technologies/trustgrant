@@ -440,7 +440,6 @@ fn raw_resource_type(resource_type: &ValidatedResourceType) -> RawResourceType {
         ),
         resource_type.operations().map(|operations| {
             RawOperationScope::new(
-                operations.all(),
                 (!operations.allow().is_empty()).then(|| {
                     operations
                         .allow()

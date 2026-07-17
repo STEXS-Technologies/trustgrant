@@ -484,14 +484,10 @@
     "operationScope": {
       "type": "object",
       "required": [
-        "all",
         "allow",
         "deny"
       ],
       "properties": {
-        "all": {
-          "type": "boolean"
-        },
         "allow": {
           "anyOf": [
             {
@@ -523,41 +519,7 @@
           ]
         }
       },
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "all": {
-                "const": true
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "allow": {
-                "type": "null"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "all": {
-                "const": false
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "allow": {
-                "type": "array"
-              }
-            }
-          }
-        }
-      ]
+      "additionalProperties": false
     },
     "audienceEntry": {
       "type": "object",

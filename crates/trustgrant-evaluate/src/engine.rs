@@ -432,10 +432,6 @@ fn is_operation_allowed(
         return Err(EvaluationDenyReason::OperationDenied);
     }
 
-    // operations.all is not supported — every operation must be listed
-    // explicitly in the allow list. If not in allow or deny, the fallback
-    // below returns OperationDenied.
-
     if operation_scope
         .allow()
         .iter()
@@ -594,7 +590,7 @@ mod tests {
           "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
           "capabilities":{"recognize":true,"mint":false},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -658,7 +654,7 @@ mod tests {
               "target_scope":{{"all":false,"allow":[{{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}}],"deny":null}},
               "capabilities":{{"recognize":true,"mint":false}},
               "default_audience_scope":null,
-              "resource_scope":{{"types":{{"item":{{"all":false,"allow":[{{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}}],"deny":null,"capabilities":{{"recognize":true,"mint":false}},"constraints":{{"minting":{{"max_total":10,"max_per_user":1}},"audience_scope":[{{"authority_id":"https://audience.example.com","scope":{{"all":true,"allow":null,"deny":null}},"principal_scope":{{"all":false,"allow":[{{"kind":"actor","all":false,"values":["player-123"],"expressions":null}}],"deny":null}}}}]}},"operations":{{"all":false,"allow":["recognize"],"deny":null}}}}}}}},
+              "resource_scope":{{"types":{{"item":{{"all":false,"allow":[{{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}}],"deny":null,"capabilities":{{"recognize":true,"mint":false}},"constraints":{{"minting":{{"max_total":10,"max_per_user":1}},"audience_scope":[{{"authority_id":"https://audience.example.com","scope":{{"all":true,"allow":null,"deny":null}},"principal_scope":{{"all":false,"allow":[{{"kind":"actor","all":false,"values":["player-123"],"expressions":null}}],"deny":null}}}}]}},"operations":{{"allow":["recognize"],"deny":null}}}}}}}},
               "global_constraints":{{"time":{{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}}}},
               "revocation":{{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation"{effect_str}}},
               "issued_at":"2026-04-07T12:00:00Z",
@@ -712,7 +708,7 @@ mod tests {
           "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
           "capabilities":{"recognize":false,"mint":true},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"allow":["create"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -926,7 +922,6 @@ mod tests {
                             }]),
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["create".into()]),
                             deny: None,
                         }),
@@ -1032,7 +1027,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["recognize".into()]),
                             deny: None,
                         }),
@@ -2001,7 +1995,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["other_op".into()]),
                             deny: Some(vec!["recognize".into()]),
                         }),
@@ -2114,7 +2107,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["recognize".into()]),
                             deny: None,
                         }),
@@ -2246,7 +2238,6 @@ mod tests {
                             }]),
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["recognize".into()]),
                             deny: None,
                         }),
@@ -2368,7 +2359,6 @@ mod tests {
                             }]),
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["recognize".into()]),
                             deny: None,
                         }),
@@ -2484,8 +2474,7 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: true,
-                            allow: None,
+                            allow: Some(vec!["recognize".into(), "create".into()]),
                             deny: Some(vec!["recognize".into()]),
                         }),
                     },
@@ -2645,7 +2634,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["transfer".into()]),
                             deny: None,
                         }),
@@ -2794,7 +2782,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["download".into()]),
                             deny: None,
                         }),
@@ -2947,7 +2934,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["recognize".into()]),
                             deny: None,
                         }),
@@ -3106,7 +3092,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["recognize".into()]),
                             deny: None,
                         }),
@@ -3228,7 +3213,6 @@ mod tests {
                         },
                         // Only "download" is allowed — "upload" is not
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["download".into()]),
                             deny: None,
                         }),
@@ -3353,7 +3337,7 @@ mod tests {
           },
           "capabilities":{"recognize":true,"mint":false},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -3425,7 +3409,7 @@ mod tests {
           },
           "capabilities":{"recognize":true,"mint":false},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -3451,7 +3435,7 @@ mod tests {
           },
           "capabilities":{"recognize":true,"mint":false},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -3543,7 +3527,7 @@ mod tests {
           "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[
             {"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null},
             {"authority_id":"https://other.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}
-          ]},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+          ]},"operations":{"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -3606,8 +3590,8 @@ mod tests {
           "capabilities":{"recognize":true,"mint":false},
           "default_audience_scope":null,
           "resource_scope":{"types":{
-            "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}},
-            "badge":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["achievements"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}
+            "item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}},
+            "badge":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["achievements"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}
           }},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
@@ -3870,7 +3854,7 @@ mod tests {
           "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
           "capabilities":{"recognize":false,"mint":true},
           "default_audience_scope":null,
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"all":false,"allow":["create"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":false,"mint":true},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":{"all":false,"allow":[{"kind":"actor","all":false,"values":["player-123"],"expressions":null}],"deny":null}}]},"operations":{"allow":["create"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -3966,7 +3950,6 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
                             allow: Some(vec!["recognize".into()]),
                             deny: None,
                         }),

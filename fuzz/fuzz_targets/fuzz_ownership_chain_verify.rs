@@ -58,7 +58,6 @@ fn build_matching_document(
                     audience_scope: None,
                 },
                 operations: Some(RawOperationScope {
-                    all: false,
                     allow: Some(vec!["custom:use".into()]),
                     deny: None,
                 }),

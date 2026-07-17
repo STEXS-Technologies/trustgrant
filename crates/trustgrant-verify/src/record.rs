@@ -549,7 +549,6 @@ impl From<&ValidatedMintingConstraints> for MintingConstraintsRecord {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct OperationScopeRecord {
-    all: bool,
     allow: Vec<String>,
     deny: Vec<String>,
 }
@@ -567,7 +566,6 @@ impl OperationScopeRecord {
             MAX_OPERATIONS_PER_SCOPE,
         )?;
         ValidatedOperationScope::new(
-            self.all,
             self.allow
                 .iter()
                 .map(|operation| OperationName::new(operation.clone()))
@@ -583,7 +581,6 @@ impl OperationScopeRecord {
 impl From<&ValidatedOperationScope> for OperationScopeRecord {
     fn from(value: &ValidatedOperationScope) -> Self {
         Self {
-            all: value.all(),
             allow: value
                 .allow()
                 .iter()

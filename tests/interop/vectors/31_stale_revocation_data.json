@@ -51,7 +51,7 @@
             "minting": { "max_total": null, "max_per_user": null },
             "audience_scope": null
           },
-          "operations": { "all": false, "allow": ["recognize"], "deny": null }
+          "operations": { "allow": ["recognize"], "deny": null }
         }
       }
     },

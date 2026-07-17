@@ -176,7 +176,6 @@ fn make_recognize_draft() -> TrustGrantDraft {
                 )]),
             ),
             Some(RawOperationScope::new(
-                false,
                 Some(vec!["recognize".into()]),
                 None,
             )),
@@ -194,7 +193,6 @@ fn make_recognize_draft() -> TrustGrantDraft {
     )
     .unwrap_or_else(|error| panic!("draft should be valid: {error}"))
 }
-
 fn make_recognize_grant_json() -> String {
     let draft = make_recognize_draft();
     let signed = draft
@@ -240,7 +238,6 @@ fn make_mint_draft() -> TrustGrantDraft {
                 )]),
             ),
             Some(RawOperationScope::new(
-                false,
                 Some(vec!["create".into()]),
                 None,
             )),
@@ -333,7 +330,6 @@ fn make_recognize_and_mint_draft() -> TrustGrantDraft {
                 )]),
             ),
             Some(RawOperationScope::new(
-                false,
                 Some(vec!["recognize".into(), "create".into()]),
                 None,
             )),
@@ -404,7 +400,6 @@ fn make_custom_operation_draft() -> TrustGrantDraft {
             RawTypeCapabilities::new(Some(true), Some(false)),
             RawTypeConstraints::new(RawMintingConstraints::new(None, None), None),
             Some(RawOperationScope::new(
-                false,
                 Some(vec!["asset.download".into()]),
                 None,
             )),

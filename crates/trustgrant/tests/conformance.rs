@@ -580,7 +580,7 @@ fn conformance_s6_resource_scope_deny_is_evaluated_after_allow() {
                     "deny": [{"kind": "namespace", "all": false, "values": ["weapons"], "expressions": null}],
                     "capabilities": { "recognize": null, "mint": null },
                     "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                    "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                    "operations": { "allow": ["recognize"], "deny": null }
                 }
             }
         }),
@@ -781,11 +781,10 @@ fn conformance_s6_1_explicit_operations_allow_primary_deny_subtractive() {
                         "deny": null,
                         "capabilities": { "recognize": null, "mint": null },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": {
-                            "all": false,
-                            "allow": ["custom:op1", "custom:op2"],
-                            "deny": ["custom:op1"]
-                        }
+                    "operations": {
+                        "allow": ["custom:op1", "custom:op2"],
+                        "deny": ["custom:op1"]
+                    }
                     }
                 }
             }),
@@ -1089,7 +1088,7 @@ fn conformance_s9_audience_scope_override_replaces_default() {
                                 }
                             ]
                         },
-                        "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                        "operations": { "allow": ["recognize"], "deny": null }
                     }
                 }
             }),
@@ -1149,7 +1148,7 @@ fn conformance_s9_empty_audience_scope_on_type_uses_default() {
                             "minting": { "max_total": null, "max_per_user": null },
                             "audience_scope": []
                         },
-                        "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                        "operations": { "allow": ["recognize"], "deny": null }
                     }
                 }
             }),
@@ -1194,7 +1193,7 @@ fn conformance_s9_principal_scope_restricts_audience_does_not_grant() {
                             }
                         ]
                     },
-                    "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                    "operations": { "allow": ["recognize"], "deny": null }
                 }
             }
         }),
@@ -1261,7 +1260,7 @@ fn conformance_s9_multiple_audience_entries() {
                         "deny": null,
                         "capabilities": { "recognize": null, "mint": null },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                        "operations": { "allow": ["recognize"], "deny": null }
                     }
                 }
             }),
@@ -1446,7 +1445,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
                         "deny": null,
                         "capabilities": { "recognize": false, "mint": false },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": {"all": false, "allow": ["create"], "deny": null}
+                        "operations": { "allow": ["create"], "deny": null}
                     }
                 }
             }),
@@ -1492,7 +1491,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
                         "deny": null,
                         "capabilities": { "recognize": false, "mint": null },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": {"all": false, "allow": ["create"], "deny": null}
+                        "operations": { "allow": ["create"], "deny": null}
                     }
                 }
             }),
@@ -1538,7 +1537,7 @@ fn conformance_s11_per_type_capability_overrides_global() {
                         "deny": null,
                         "capabilities": { "recognize": false, "mint": true },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": {"all": false, "allow": ["create"], "deny": null}
+                        "operations": { "allow": ["create"], "deny": null}
                     }
                 }
             }),
@@ -1603,7 +1602,7 @@ fn conformance_s12_minting_constraints_are_per_type() {
                                 }
                             ]
                         },
-                        "operations": {"all": false, "allow": ["create"], "deny": null}
+                        "operations": { "allow": ["create"], "deny": null}
                     }
                 }
             }),
@@ -1724,7 +1723,7 @@ fn conformance_s12_audience_scope_in_constraints_replaces_default() {
                                 }
                             ]
                         },
-                        "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                        "operations": { "allow": ["recognize"], "deny": null }
                     }
                 }
             }),

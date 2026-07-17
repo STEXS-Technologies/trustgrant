@@ -124,8 +124,7 @@ impl ValidatedTrustGrantDocument {
     }
 
     /// Interoperability profile declares the operational context for custom
-    /// operations. When set, it signals that `operations.all = true` is
-    /// intentional for custom operations.
+    /// operations. Profiles constrain which custom operation names are valid.
     #[must_use]
     pub const fn interoperability_profile(&self) -> Option<&InteroperabilityProfile> {
         self.interoperability_profile.as_ref()
@@ -421,7 +420,6 @@ impl ValidatedScope {
 /// A validated operation scope with allow/deny operation lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedOperationScope {
-    all: bool,
     allow: Vec<OperationName>,
     deny: Vec<OperationName>,
 }
@@ -431,34 +429,23 @@ impl ValidatedOperationScope {
     ///
     /// # Errors
     ///
-    /// Returns [`TrustGrantError::InvalidScopeShape`] if `all` is `true`
-    /// and allow operations are present, or if `all` is `false` and
-    /// no allow operations are provided.
+    /// Returns [`TrustGrantError::InvalidScopeShape("operations")`] if no
+    /// allow operations are provided.
     ///
     /// Returns [`TrustGrantError::DuplicateOperationName`] if duplicate
     /// operation names exist in the allow or deny lists.
     pub fn new(
-        all: bool,
         allow: Vec<OperationName>,
         deny: Vec<OperationName>,
     ) -> Result<Self, TrustGrantError> {
-        if all && !allow.is_empty() {
-            return Err(TrustGrantError::InvalidScopeShape("operations"));
-        }
-
-        if !all && allow.is_empty() {
+        if allow.is_empty() {
             return Err(TrustGrantError::InvalidScopeShape("operations"));
         }
 
         ensure_no_duplicate_operations(&allow)?;
         ensure_no_duplicate_operations(&deny)?;
 
-        Ok(Self { all, allow, deny })
-    }
-
-    /// Operation scope all flag participates in evaluation matching.
-    pub const fn all(&self) -> bool {
-        self.all
+        Ok(Self { allow, deny })
     }
 
     /// Allowed operations participate in evaluation matching.
@@ -984,7 +971,7 @@ fn validate_operation_scope(
     let allow = normalize_non_empty_operation_names(raw.allow)?;
     let deny = normalize_non_empty_operation_names(raw.deny)?;
 
-    ValidatedOperationScope::new(raw.all, allow, deny)
+    ValidatedOperationScope::new(allow, deny)
 }
 
 fn ensure_no_duplicate_operations(operations: &[OperationName]) -> Result<(), TrustGrantError> {
@@ -1084,7 +1071,7 @@ mod tests {
           "target_scope":{"all":false,"allow":[{"kind":"authority","all":false,"values":["https://target.example.com"],"expressions":null}],"deny":null},
           "capabilities":{"recognize":true,"mint":false},
           "default_audience_scope":[{"authority_id":"https://audience.example.com","scope":{"all":true,"allow":null,"deny":null},"principal_scope":null}],
-          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+          "resource_scope":{"types":{"item":{"all":false,"allow":[{"kind":"namespace","all":false,"values":["weapons"],"expressions":null}],"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":10,"max_per_user":1},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
           "global_constraints":{"time":{"not_before":"2026-04-07T12:00:00Z","not_after":"2026-04-08T12:00:00Z"}},
           "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
           "issued_at":"2026-04-07T12:00:00Z",
@@ -1628,19 +1615,8 @@ mod tests {
     // ── ValidatedOperationScope::new error branches ──────────────────
 
     #[test]
-    fn validated_operation_scope_rejects_all_true_with_non_empty_allow() {
-        let op = OperationName::new("test:op")
-            .unwrap_or_else(|e| panic!("operation name should be valid: {e}"));
-        let result = ValidatedOperationScope::new(true, vec![op], vec![]);
-        assert_eq!(
-            result,
-            Err(TrustGrantError::InvalidScopeShape("operations"))
-        );
-    }
-
-    #[test]
-    fn validated_operation_scope_rejects_all_false_with_empty_allow() {
-        let result = ValidatedOperationScope::new(false, vec![], vec![]);
+    fn validated_operation_scope_rejects_empty_allow() {
+        let result = ValidatedOperationScope::new(vec![], vec![]);
         assert_eq!(
             result,
             Err(TrustGrantError::InvalidScopeShape("operations"))
@@ -1708,7 +1684,6 @@ mod tests {
         let mut raw = parse_valid_raw_document();
         if let Some(types) = raw.resource_scope.types.get_mut("item") {
             types.operations = Some(RawOperationScope {
-                all: false,
                 allow: Some(vec!["custom:use".into(), "custom:use".into()]),
                 deny: None,
             });

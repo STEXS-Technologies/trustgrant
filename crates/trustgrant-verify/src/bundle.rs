@@ -1042,7 +1042,7 @@ mod tests {
       "target_scope":{"all":true,"allow":null,"deny":null},
       "capabilities":{"recognize":true,"mint":false},
       "default_audience_scope":null,
-      "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"all":false,"allow":["recognize"],"deny":null}}}},
+      "resource_scope":{"types":{"item":{"all":true,"allow":null,"deny":null,"capabilities":{"recognize":true,"mint":false},"constraints":{"minting":{"max_total":null,"max_per_user":null},"audience_scope":null},"operations":{"allow":["recognize"],"deny":null}}}},
       "global_constraints":null,
       "revocation":{"revocable":true,"revocation_endpoint":"https://issuer.example.com/revocation","post_revocation_effect":"block_all"},
       "issued_at":"2026-04-07T12:00:00Z",

@@ -60,7 +60,7 @@
               }
             ]
           },
-          "operations": { "all": false, "allow": ["recognize"], "deny": null }
+          "operations": { "allow": ["recognize"], "deny": null }
         }
       }
     },

@@ -10,7 +10,7 @@
           "deny": null,
           "capabilities": { "recognize": null, "mint": null },
           "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-          "operations": { "all": false, "allow": ["custom:use", "custom:use"], "deny": null }
+          "operations": { "allow": ["custom:use", "custom:use"], "deny": null }
         }
       }
     }

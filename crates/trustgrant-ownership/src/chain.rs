@@ -372,7 +372,7 @@ mod tests {
                                 audience_scope: None,
                             },
                             operations: Some(RawOperationScope {
-                                all: false,
+                                
                                 allow: Some(vec!["custom:use".into()]),
                                 deny: None,
                             }),
@@ -401,7 +401,7 @@ mod tests {
                                 audience_scope: None,
                             },
                             operations: Some(RawOperationScope {
-                                all: false,
+                                
                                 allow: Some(vec!["custom:use".into()]),
                                 deny: None,
                             }),
@@ -486,7 +486,7 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
+                            
                             allow: Some(vec!["custom:use".into()]),
                             deny: None,
                         }),
@@ -828,7 +828,7 @@ mod tests {
                             audience_scope: None,
                         },
                         operations: Some(RawOperationScope {
-                            all: false,
+                            
                             allow: Some(vec!["custom:use".into()]),
                             deny: None,
                         }),
@@ -1395,7 +1395,7 @@ mod tests {
                             None,
                         ),
                         operations: Some(RawOperationScope {
-                            all: false,
+                            
                             allow: Some(vec!["custom:use".into()]),
                             deny: None,
                         }),
@@ -1472,7 +1472,7 @@ mod tests {
                             None,
                         ),
                         operations: Some(RawOperationScope {
-                            all: false,
+                            
                             allow: Some(vec!["custom:use".into()]),
                             deny: None,
                         }),

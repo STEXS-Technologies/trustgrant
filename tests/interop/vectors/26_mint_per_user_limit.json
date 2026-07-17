@@ -53,7 +53,7 @@
             "minting": { "max_total": 100, "max_per_user": 1 },
             "audience_scope": null
           },
-          "operations": { "all": false, "allow": ["create"], "deny": null }
+          "operations": { "allow": ["create"], "deny": null }
         }
       }
     },

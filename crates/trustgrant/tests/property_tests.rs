@@ -185,7 +185,6 @@ fn build_draft() -> TrustGrantDraft {
                 )]),
             ),
             Some(RawOperationScope::new(
-                false,
                 Some(vec!["recognize".into()]),
                 None,
             )),
@@ -502,7 +501,7 @@ fn make_grant_json(overrides: &[(&str, serde_json::Value)]) -> String {
                     "deny": null,
                     "capabilities": { "recognize": null, "mint": null },
                     "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                    "operations": { "all": false, "allow": ["recognize"], "deny": null }
+                    "operations": { "allow": ["recognize"], "deny": null }
                 }
             }
         },
@@ -704,7 +703,7 @@ proptest! {
                         "deny": null,
                         "capabilities": { "recognize": false, "mint": false },
                         "constraints": { "minting": { "max_total": null, "max_per_user": null }, "audience_scope": null },
-                        "operations": { "all": false, "allow": ["create"], "deny": null }
+                        "operations": { "allow": ["create"], "deny": null }
                     }
                 }
             })),

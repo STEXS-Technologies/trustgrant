@@ -47,9 +47,9 @@ fn verified_grant_ex(mint: bool, max_total: u64, max_per_user: u64) -> VerifiedT
         r#"{"recognize":true,"mint":false}"#
     };
     let operations = if mint {
-        r#"{"all":false,"allow":["create"],"deny":null}"#
+        r#"{"allow":["create"],"deny":null}"#
     } else {
-        r#"{"all":false,"allow":["recognize"],"deny":null}"#
+        r#"{"allow":["recognize"],"deny":null}"#
     };
     let document = r#"{
           "trustgrant_id":"tg_123e4567-e89b-12d3-a456-426614174000",

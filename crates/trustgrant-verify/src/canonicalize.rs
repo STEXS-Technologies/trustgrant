@@ -352,8 +352,6 @@ fn write_operation_scope_field(
     };
 
     write_bytes(writer, b"{")?;
-    write_bool_field(writer, "all", operation_scope.all)?;
-    write_bytes(writer, b",")?;
     write_string_array_field(writer, "allow", operation_scope.allow.as_deref())?;
     write_bytes(writer, b",")?;
     write_string_array_field(writer, "deny", operation_scope.deny.as_deref())?;
@@ -848,7 +846,6 @@ mod tests {
                             )]),
                         ),
                         Some(RawOperationScope::new(
-                            false,
                             Some(vec!["custom:use".into(), "recognize".into()]),
                             Some(vec!["custom:deny".into()]),
                         )),

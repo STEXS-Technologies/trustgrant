@@ -396,8 +396,6 @@ impl RawMintingConstraints {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawOperationScope {
-    /// When `true`, all operations are allowed unconditionally.
-    pub all: bool,
     /// Explicitly allowed operation names.
     pub allow: Option<Vec<CompactString>>,
     /// Explicitly denied operation names.
@@ -405,21 +403,10 @@ pub struct RawOperationScope {
 }
 
 impl RawOperationScope {
-    /// All-operations scope should be used in a raw document or draft.
-    #[must_use]
-    pub const fn all() -> Self {
-        Self {
-            all: true,
-            allow: None,
-            deny: None,
-        }
-    }
-
     /// Allow-operations scope should be used in a raw document or draft.
     #[must_use]
     pub const fn allow(operations: Vec<CompactString>) -> Self {
         Self {
-            all: false,
             allow: Some(operations),
             deny: None,
         }
@@ -428,11 +415,10 @@ impl RawOperationScope {
     /// Custom operations scope should be used in a raw document or draft.
     #[must_use]
     pub const fn new(
-        all: bool,
         allow: Option<Vec<CompactString>>,
         deny: Option<Vec<CompactString>>,
     ) -> Self {
-        Self { all, allow, deny }
+        Self { allow, deny }
     }
 }
 
@@ -500,10 +486,8 @@ impl RawTimeWindow {
 
 /// A declared protocol profile that this grant follows.
 ///
-/// Carries the profile name and version. The engine uses this to constrain
-/// custom operations: when `operations.all = true`, only custom operations
-/// that belong to the declared profile are authorized. Without a profile,
-/// `operations.all` only authorizes built-in operations (recognize for v0).
+/// Carries the profile name and version. Operations must be listed
+/// explicitly in allow/deny lists; there is no wildcard authorization.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InteroperabilityProfile {
@@ -723,13 +707,4 @@ mod tests {
         assert_eq!(parsed, Err(TrustGrantError::InvalidJsonDocument));
     }
 
-    #[test]
-    fn raw_operation_scope_all_creates_all_true_scope() {
-        use crate::raw::RawOperationScope;
-
-        let scope = RawOperationScope::all();
-        assert!(scope.all);
-        assert!(scope.allow.is_none());
-        assert!(scope.deny.is_none());
-    }
 }
