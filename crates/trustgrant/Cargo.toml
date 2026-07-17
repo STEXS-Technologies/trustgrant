@@ -9,16 +9,16 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-trustgrant-discovery = { path = "../trustgrant-discovery" }
-trustgrant-document = { path = "../trustgrant-document" }
-trustgrant-domain = { path = "../trustgrant-domain" }
-trustgrant-error = { path = "../trustgrant-error" }
-trustgrant-evaluate = { path = "../trustgrant-evaluate" }
-trustgrant-issue = { path = "../trustgrant-issue" }
-trustgrant-ownership = { path = "../trustgrant-ownership" }
-trustgrant-ports = { path = "../trustgrant-ports" }
-trustgrant-revocation = { path = "../trustgrant-revocation" }
-trustgrant-verify = { path = "../trustgrant-verify" }
+trustgrant-discovery = { path = "../trustgrant-discovery", version = "0.1.0" }
+trustgrant-document = { path = "../trustgrant-document", version = "0.1.0" }
+trustgrant-domain = { path = "../trustgrant-domain", version = "0.1.0" }
+trustgrant-error = { path = "../trustgrant-error", version = "0.1.0" }
+trustgrant-evaluate = { path = "../trustgrant-evaluate", version = "0.1.0" }
+trustgrant-issue = { path = "../trustgrant-issue", version = "0.1.0" }
+trustgrant-ownership = { path = "../trustgrant-ownership", version = "0.1.0" }
+trustgrant-ports = { path = "../trustgrant-ports", version = "0.1.0" }
+trustgrant-revocation = { path = "../trustgrant-revocation", version = "0.1.0" }
+trustgrant-verify = { path = "../trustgrant-verify", version = "0.1.0" }
 
 [dev-dependencies]
 chrono.workspace = true

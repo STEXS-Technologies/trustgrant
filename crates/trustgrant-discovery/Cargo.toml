@@ -9,9 +9,9 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-trustgrant-error = { path = "../trustgrant-error" }
-trustgrant-domain = { path = "../trustgrant-domain" }
-trustgrant-document = { path = "../trustgrant-document" }
+trustgrant-error = { path = "../trustgrant-error", version = "0.1.0" }
+trustgrant-domain = { path = "../trustgrant-domain", version = "0.1.0" }
+trustgrant-document = { path = "../trustgrant-document", version = "0.1.0" }
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true

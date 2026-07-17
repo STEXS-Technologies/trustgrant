@@ -9,10 +9,10 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-trustgrant-document = { path = "../trustgrant-document" }
-trustgrant-domain = { path = "../trustgrant-domain" }
-trustgrant-error = { path = "../trustgrant-error" }
-trustgrant-verify = { path = "../trustgrant-verify" }
+trustgrant-document = { path = "../trustgrant-document", version = "0.1.0" }
+trustgrant-domain = { path = "../trustgrant-domain", version = "0.1.0" }
+trustgrant-error = { path = "../trustgrant-error", version = "0.1.0" }
+trustgrant-verify = { path = "../trustgrant-verify", version = "0.1.0" }
 chrono.workspace = true
 compact_str = "0.9"
 serde.workspace = true

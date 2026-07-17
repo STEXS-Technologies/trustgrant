@@ -9,12 +9,12 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-trustgrant-error = { path = "../trustgrant-error" }
-trustgrant-domain = { path = "../trustgrant-domain" }
-trustgrant-document = { path = "../trustgrant-document" }
-trustgrant-discovery = { path = "../trustgrant-discovery" }
-trustgrant-ports = { path = "../trustgrant-ports" }
-trustgrant-revocation = { path = "../trustgrant-revocation" }
+trustgrant-error = { path = "../trustgrant-error", version = "0.1.0" }
+trustgrant-domain = { path = "../trustgrant-domain", version = "0.1.0" }
+trustgrant-document = { path = "../trustgrant-document", version = "0.1.0" }
+trustgrant-discovery = { path = "../trustgrant-discovery", version = "0.1.0" }
+trustgrant-ports = { path = "../trustgrant-ports", version = "0.1.0" }
+trustgrant-revocation = { path = "../trustgrant-revocation", version = "0.1.0" }
 chrono.workspace = true
 compact_str.workspace = true
 itoa.workspace = true

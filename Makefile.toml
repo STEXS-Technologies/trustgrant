@@ -92,3 +92,51 @@ args = ["kani", "-p", "kani-proofs"]
 
 [tasks.ci]
 dependencies = ["check", "clippy", "fmt", "test", "bench", "fuzz", "audit", "interop_all"]
+
+[tasks.publish]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-error"]
+[tasks.publish-domain]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-domain"]
+[tasks.publish-revocation]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-revocation"]
+[tasks.publish-document]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-document"]
+[tasks.publish-discovery]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-discovery"]
+[tasks.publish-ports]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-ports"]
+[tasks.publish-ownership]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-ownership"]
+[tasks.publish-verify]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-verify"]
+[tasks.publish-issue]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-issue"]
+[tasks.publish-evaluate]
+command = "cargo"
+args = ["publish", "-p", "trustgrant-evaluate"]
+[tasks.publish-facade]
+command = "cargo"
+args = ["publish", "-p", "trustgrant"]
+[tasks.publish-all]
+dependencies = [
+  "publish",
+  "publish-domain",
+  "publish-revocation",
+  "publish-document",
+  "publish-discovery",
+  "publish-ports",
+  "publish-ownership",
+  "publish-verify",
+  "publish-issue",
+  "publish-evaluate",
+  "publish-facade",
+]

@@ -11,7 +11,7 @@ categories.workspace = true
 [dependencies]
 chrono.workspace = true
 serde.workspace = true
-trustgrant-error = { path = "../trustgrant-error" }
+trustgrant-error = { path = "../trustgrant-error", version = "0.1.0" }
 url.workspace = true
 uuid = { workspace = true, features = ["serde", "js"] }
 
