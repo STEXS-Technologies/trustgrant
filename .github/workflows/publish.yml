@@ -9,8 +9,32 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  validate:
+    name: Validate before publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Install cargo-make
+        run: cargo install cargo-make --locked
+      - name: Check
+        run: cargo make check
+      - name: Clippy
+        run: cargo make clippy
+      - name: Format
+        run: cargo make fmt
+      - name: Tests
+        run: cargo make test
+      - name: Interop
+        run: cargo make interop_all
+      - name: Fuzz build
+        run: cargo make fuzz
+
   publish:
     name: Publish
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

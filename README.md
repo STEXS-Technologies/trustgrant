@@ -38,8 +38,8 @@ crates/
   trustgrant-ports/         — Backend-agnostic port traits
   trustgrant-error/         — Error types
 tests/                      — Integration tests
-  interop/vectors/          — Language-agnostic test vectors (29)
-  conformance/vectors/      — Spec validation vectors (37)
+  interop/vectors/          — Language-agnostic test vectors (41)
+  conformance/vectors/      — Spec validation vectors (47)
 docs/                       — Cross-implementation guide, use cases, tracing
 kani-proofs/                — Kani formal verification harnesses
 ```
@@ -48,7 +48,7 @@ kani-proofs/                — Kani formal verification harnesses
 
 | Doc | What it covers |
 |-----|----------------|
-| [Protocol spec](docs/TRUSTGRANT_V0_SPEC.md) | Full specification, 14 sections |
+| [Protocol spec](docs/TRUSTGRANT_V0_SPEC.md) | Full specification, 15 sections |
 | [Documentation index](docs/README.md) | Complete protocol, integration, and interoperability documentation |
 | [Use cases](docs/USE_CASES.md) | What problems TrustGrant solves |
 | [Implementation guide](docs/IMPLEMENTATION_GUIDE.md) | Implementing in other languages |
