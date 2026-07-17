@@ -27,6 +27,7 @@ jobs:
             trustgrant-evaluate trustgrant
           do
             echo "Publishing $crate..."
+            retries=0
             while true; do
               output=$(cargo publish -p "$crate" 2>&1) && break
               if echo "$output" | grep -q "already exists on crates.io"; then
@@ -34,7 +35,13 @@ jobs:
                 break
               fi
               if echo "$output" | grep -q "429"; then
-                echo "  Rate limited, waiting 60s..."
+                retries=$((retries + 1))
+                if [ "$retries" -ge 3 ]; then
+                  echo "  Rate limited 3 times, giving up on $crate"
+                  echo "$output"
+                  exit 1
+                fi
+                echo "  Rate limited, waiting 60s (attempt $retries/3)..."
                 sleep 60
                 continue
               fi
