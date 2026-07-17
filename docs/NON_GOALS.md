@@ -35,7 +35,7 @@ gRPC, or any specific wire protocol.
 - No built-in HTTP client, server, or middleware
 - No DID, blockchain, or other non-HTTP resolver adapters shipped in the core
 - No assumption of always-online connectivity (offline verification is a
-  first-class posture)
+  first-class posture, but revocation freshness windows still apply)
 - No redirect following or multi-hop resolution built in
 - No cross-source arbitration — the core does not merge multiple mirrored
   sources, vote between conflicting sources, or reconcile disagreement

@@ -229,7 +229,7 @@ It does not yet provide:
 This keeps the crate usable in:
 - centralized deployments
 - hybrid centralized-plus-chain deployments
-- fully offline verification paths
+- offline verification paths (with bounded revocation freshness windows)
 - future extracted SDKs and tooling
 
 ## Review & Maintenance

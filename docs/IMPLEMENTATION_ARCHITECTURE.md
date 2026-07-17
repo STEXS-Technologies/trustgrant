@@ -56,7 +56,7 @@ web application split into technical layers.
 - implement the full TrustGrant v0 protocol surface
 - keep the crate independent from HTTP servers, database adapters, and event-streaming
   adapters
-- support online, cached, and offline verification postures
+- support online, cached, and offline verification postures (all subject to revocation freshness bounds)
 - make hot-path evaluation operate on normalized verified state, not on repeated
   full-document verification
 - make illegal states unrepresentable where practical through strong domain types
